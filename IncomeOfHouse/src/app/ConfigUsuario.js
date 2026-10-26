@@ -535,4 +535,4 @@ const styles = StyleSheet.create({
   rodapeLinks: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   rodapeLink: { color: OURO, fontSize: 13 },
   rodapeSep: { color: '#555555', fontSize: 13 },
-});
+}); 
