@@ -34,7 +34,7 @@ try {
   QRCode = require('react-native-qrcode-svg').default;
 } catch (e) {}
 
-const LOGO = require('../../assets/images/Logo.png');
+const LOGO = require('../assets/images/Logo.png');
 
 const COLORS = {
   bg: '#0a0a0a',

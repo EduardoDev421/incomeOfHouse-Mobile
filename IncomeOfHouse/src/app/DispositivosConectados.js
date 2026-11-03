@@ -15,7 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
-const LOGO = require('../../assets/images/Logo.png');
+const LOGO = require('../assets/images/Logo.png');
 
 const COLORS = {
   bg: '#0a0a0a',

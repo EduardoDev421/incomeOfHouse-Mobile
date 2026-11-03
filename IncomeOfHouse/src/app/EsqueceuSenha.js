@@ -1,231 +1,161 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-} from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import {
+  AuthTela, CartaoTitulo, Campo, CaixaErro, Botao, Divisor,
+  LinkConta, LinkContorno, validarEmail, dourado,
+} from '../components/AuthComponentes';
+
+const ESPERA_REENVIO = 30; // segundos
 
 export default function EsqueceuSenha() {
   const router = useRouter();
+
   const [email, setEmail] = useState('');
   const [erro, setErro] = useState('');
+  const [enviando, setEnviando] = useState(false);
   const [enviado, setEnviado] = useState(false);
+  const [espera, setEspera] = useState(0);
 
-  const enviar = () => {
+  // contagem regressiva para liberar o reenvio
+  useEffect(() => {
+    if (espera <= 0) return undefined;
+    const t = setTimeout(() => setEspera((e) => e - 1), 1000);
+    return () => clearTimeout(t);
+  }, [espera]);
+
+  const enviar = async () => {
+    if (enviando || espera > 0) return;
+
     const valor = email.trim();
     if (!valor) {
       setErro('Digite seu e-mail.');
       return;
     }
-    if (!/^\S+@\S+\.\S+$/.test(valor)) {
+    if (!validarEmail(valor)) {
       setErro('Digite um e-mail válido.');
       return;
     }
+
     setErro('');
-    // TODO: chamar o seu backend para enviar o e-mail de recuperação aqui
-    setEnviado(true);
+    setEnviando(true);
+    try {
+      // TODO: chamar o seu backend para enviar o e-mail de recuperação aqui
+      setEnviado(true);
+      setEspera(ESPERA_REENVIO);
+    } catch (e) {
+      setErro('Não foi possível enviar agora. Tente novamente em instantes.');
+    } finally {
+      setEnviando(false);
+    }
   };
 
   return (
-    <View style={styles.tela}>
-      {/* ---------- Header / Menu ---------- */}
-      <View style={styles.topo}>
-        <Pressable onPress={() => router.push('/')}>
-          {/* Para usar a imagem: <Image source={require('../assets/img/Logo.png')} style={styles.logoImg} /> */}
-          <Text style={styles.logo}>Income of Houses</Text>
-        </Pressable>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.menu}>
-          <Pressable onPress={() => router.push('/')}>
-            <Text style={styles.menuLink}>Início</Text>
-          </Pressable>
-          <Pressable onPress={() => router.push('/plantas')}>
-            <Text style={styles.menuLink}>Plantas</Text>
-          </Pressable>
-          <Pressable onPress={() => router.push('/profissionais')}>
-            <Text style={styles.menuLink}>Profissionais</Text>
-          </Pressable>
-          <Pressable onPress={() => router.push('/sobre')}>
-            <Text style={styles.menuLink}>Sobre Nós</Text>
-          </Pressable>
-        </ScrollView>
-      </View>
+    <AuthTela
+      titulo={'Esqueceu sua\n'}
+      destaque="senha?"
+      texto="Recupere o acesso à sua conta e volte a explorar projetos, profissionais e soluções para transformar suas ideias em realidade."
+      miniCards
+    >
+      <CartaoTitulo
+        titulo={enviado ? 'Verifique seu e-mail' : 'Recuperar senha'}
+        subtitulo={
+          enviado
+            ? 'Se existir uma conta com esse e-mail, enviamos as instruções para redefinir sua senha.'
+            : 'Digite seu e-mail para receber instruções de recuperação de senha.'
+        }
+      />
 
-      <ScrollView
-        style={styles.fundo}
-        contentContainerStyle={styles.conteudo}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={styles.centro}>
-          <View style={styles.card}>
-            <Text style={styles.icone}>🔑</Text>
-            <Text style={styles.titulo}>Esqueceu a senha?</Text>
-            <Text style={styles.subtitulo}>
-              {enviado
-                ? 'Pronto! Se existir uma conta com esse e-mail, enviamos as instruções para você redefinir sua senha.'
-                : 'Digite o e-mail da sua conta e enviaremos as instruções para redefinir sua senha.'}
+      {!enviado ? (
+        <>
+          <Campo
+            icone="mail-outline"
+            rotulo="E-mail"
+            valor={email}
+            aoMudar={(t) => {
+              setEmail(t);
+              if (erro) setErro('');
+            }}
+            placeholder="Digite seu e-mail"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            autoComplete="email"
+            textContentType="emailAddress"
+            returnKeyType="send"
+            onSubmitEditing={enviar}
+          />
+
+          <CaixaErro texto={erro} />
+
+          <Botao
+            texto={enviando ? 'Enviando...' : 'Enviar instruções'}
+            aoPressionar={enviar}
+            desativado={enviando}
+          />
+        </>
+      ) : (
+        <>
+          <View style={s.sucesso} accessibilityLiveRegion="polite">
+            <Ionicons name="checkmark-circle-outline" size={22} color={dourado} />
+            <View style={s.sucessoTextos}>
+              <Text style={s.sucessoEmail} numberOfLines={1}>
+                {email.trim()}
+              </Text>
+              <Text style={s.sucessoDica}>
+                Não encontrou? Confira também a caixa de spam.
+              </Text>
+            </View>
+          </View>
+
+          <CaixaErro texto={erro} />
+
+          <Botao texto="Voltar ao login" aoPressionar={() => router.replace('/login')} />
+
+          <Pressable
+            onPress={enviar}
+            disabled={espera > 0 || enviando}
+            hitSlop={8}
+            accessibilityRole="button"
+            style={s.areaReenviar}
+          >
+            <Text style={[s.reenviar, espera > 0 && s.reenviarInativo]}>
+              {espera > 0 ? `Reenviar e-mail em ${espera}s` : 'Reenviar e-mail'}
             </Text>
+          </Pressable>
+        </>
+      )}
 
-            {!enviado ? (
-              <>
-                <Text style={styles.rotulo}>E-mail</Text>
-                <TextInput
-                  style={styles.input}
-                  value={email}
-                  onChangeText={setEmail}
-                  placeholder="Digite seu E-mail"
-                  placeholderTextColor="#737373"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
+      <Divisor texto="ou" />
 
-                {erro !== '' && <Text style={styles.erro}>{erro}</Text>}
+      <LinkConta
+        pergunta="Lembrou sua senha?"
+        acao="Entrar"
+        aoPressionar={() => router.replace('/login')}
+      />
 
-                <Pressable style={styles.botao} onPress={enviar}>
-                  <Text style={styles.botaoTexto}>Enviar instruções</Text>
-                </Pressable>
-              </>
-            ) : (
-              <Pressable style={styles.botao} onPress={() => router.push('/login')}>
-                <Text style={styles.botaoTexto}>Voltar ao login</Text>
-              </Pressable>
-            )}
-
-            {/* ---------- Divisor ---------- */}
-            <View style={styles.divisor}>
-              <View style={styles.divisorLinha} />
-              <Text style={styles.divisorTexto}>ou</Text>
-              <View style={styles.divisorLinha} />
-            </View>
-
-            {/* ---------- Links ---------- */}
-            <View style={styles.links}>
-              <Pressable onPress={() => router.push('/login')}>
-                <Text style={styles.linkTexto}>
-                  Lembrou a senha? <Text style={styles.dourado}>Entrar</Text>
-                </Text>
-              </Pressable>
-
-              <Pressable style={styles.botaoSecundario} onPress={() => router.push('/cadastro')}>
-                <Text style={styles.botaoSecundarioTexto}>Criar uma conta</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-
-        {/* ---------- Rodapé ---------- */}
-        <View style={styles.rodape}>
-          <Text style={styles.rodapeTexto}>©IncomeOfHouses. Todos os direitos reservados.</Text>
-          <View style={styles.rodapeLinks}>
-            <Pressable onPress={() => router.push('/termos-de-uso')}>
-              <Text style={styles.rodapeLink}>Termos de Uso</Text>
-            </Pressable>
-            <Text style={styles.rodapeSep}>|</Text>
-            <Pressable onPress={() => router.push('/politica-de-privacidade')}>
-              <Text style={styles.rodapeLink}>Política de Privacidade</Text>
-            </Pressable>
-          </View>
-        </View>
-      </ScrollView>
-    </View>
+      <LinkContorno
+        texto="Criar uma conta"
+        aoPressionar={() => router.push('/cadastro')}
+      />
+    </AuthTela>
   );
 }
 
-const OURO = '#d4af6a';
-const OURO_BORDA = '#cda432';
-
-const styles = StyleSheet.create({
-  tela: { flex: 1, backgroundColor: '#0b0b0b' },
-  fundo: { flex: 1, backgroundColor: '#0f0f0f' }, // troque por <ImageBackground> com BackGroundCadastroELogin.png
-  conteudo: { flexGrow: 1 },
-  dourado: { color: OURO },
-
-  /* Header */
-  topo: {
-    height: 75,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    backgroundColor: 'rgba(10,10,10,0.95)',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.05)',
+const s = StyleSheet.create({
+  sucesso: {
+    flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12,
+    marginBottom: 14, borderWidth: 1, borderColor: '#594823',
+    backgroundColor: '#1c1a14', borderRadius: 8,
   },
-  logo: { color: OURO, fontSize: 16, fontWeight: 'bold' },
-  logoImg: { width: 60, height: 60, resizeMode: 'contain' },
-  menu: { alignItems: 'center', gap: 4, paddingLeft: 12 },
-  menuLink: { color: '#fff', fontSize: 14, fontWeight: '500', paddingVertical: 10, paddingHorizontal: 12 },
-
-  /* Card */
-  centro: { flex: 1, justifyContent: 'center', padding: 20, paddingVertical: 40 },
-  card: {
-    width: '100%',
-    maxWidth: 460,
-    alignSelf: 'center',
-    padding: 28,
-    backgroundColor: '#0a0a0a',
-    borderWidth: 2,
-    borderColor: OURO_BORDA,
-    borderRadius: 20,
+  sucessoTextos: { flex: 1, minWidth: 0 },
+  sucessoEmail: { color: '#fff', fontSize: 14, fontWeight: 'bold' },
+  sucessoDica: { color: '#b5b5b5', fontSize: 12, marginTop: 2 },
+  areaReenviar: { paddingVertical: 12, marginTop: 4 },
+  reenviar: {
+    color: dourado, textAlign: 'center', fontSize: 13,
+    textDecorationLine: 'underline',
   },
-  icone: { fontSize: 40, textAlign: 'center', marginBottom: 8 },
-  titulo: { color: '#f5f5f5', fontSize: 28, fontWeight: 'bold', textAlign: 'center', marginBottom: 8 },
-  subtitulo: { color: '#a3a3a3', fontSize: 15, lineHeight: 22, textAlign: 'center', marginBottom: 26 },
-
-  /* Campo */
-  rotulo: { color: '#e5e5e5', fontSize: 12, fontWeight: '600', marginBottom: 5 },
-  input: {
-    height: 44,
-    paddingHorizontal: 10,
-    backgroundColor: '#0d0d0d',
-    borderWidth: 1,
-    borderColor: '#363636',
-    borderRadius: 4,
-    color: '#e5e5e5',
-    fontSize: 14,
-    marginBottom: 14,
-  },
-  erro: { color: '#e0594a', fontSize: 13, marginBottom: 10 },
-
-  /* Botão */
-  botao: { backgroundColor: OURO, paddingVertical: 15, borderRadius: 8, alignItems: 'center' },
-  botaoTexto: { color: '#111', fontSize: 14, fontWeight: '700' },
-
-  /* Divisor */
-  divisor: { flexDirection: 'row', alignItems: 'center', gap: 15, marginVertical: 22 },
-  divisorLinha: { flex: 1, height: 1, backgroundColor: '#363636' },
-  divisorTexto: { color: '#737373', fontSize: 15 },
-
-  /* Links */
-  links: { alignItems: 'center', gap: 15 },
-  linkTexto: { color: '#e5e5e5', fontSize: 14 },
-  botaoSecundario: {
-    width: '100%',
-    paddingVertical: 15,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(212,175,106,0.4)',
-    backgroundColor: 'rgba(212,175,106,0.08)',
-    borderRadius: 8,
-  },
-  botaoSecundarioTexto: { color: OURO, fontSize: 14, fontWeight: '700' },
-
-  /* Rodapé */
-  rodape: {
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 22,
-    paddingHorizontal: 20,
-    backgroundColor: '#080808',
-    borderTopWidth: 1,
-    borderTopColor: '#d4a63a',
-  },
-  rodapeTexto: { color: '#888', fontSize: 13, textAlign: 'center' },
-  rodapeLinks: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  rodapeLink: { color: OURO, fontSize: 13 },
-  rodapeSep: { color: '#555' },
+  reenviarInativo: { color: '#777', textDecorationLine: 'none' },
 });

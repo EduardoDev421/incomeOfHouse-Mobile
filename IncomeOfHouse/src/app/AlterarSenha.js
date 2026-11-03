@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -8,8 +8,10 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
   useWindowDimensions,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
 /* =========================================================
@@ -20,80 +22,170 @@ import { useRouter } from 'expo-router';
 
 const ROTAS = {
   inicio: '/',
-  plantas: null,         // ex.: '/plantas'
-  profissionais: null,   // ex.: '/profissionais'
-  sobre: null,           // ex.: '/sobre'
-  termos: null,          // ex.: '/termos-de-uso'
-  privacidade: null,     // ex.: '/politica-de-privacidade'
+  plantas: null,
+  profissionais: null,
+  sobre: null,
+  termos: null,
+  privacidade: null,
 };
 
-// Menu lateral (sem ícones)
 const MENU_LATERAL = [
-  { texto: 'Meu Perfil', rota: null },                    // PerfilProfissional
-  { texto: 'Meus Endereços', rota: null },                // MeusEndereços
-  { texto: 'Meus Pedidos', rota: null },                  // MeusPedidos
-  { texto: 'Meus Profissionais Favoritos', rota: null },  // MeusProfissionais
-  { texto: 'Projetos Salvos', rota: null },               // ProjetosSalvos
-  { texto: 'Agendamentos', rota: null },                  // Agendamentos
-  { texto: 'Mensagem', rota: null },                      // Mensagem
-  { texto: 'Configurações', rota: null, ativo: true },    // ConfiguraçõesProfissionais
-  { texto: 'Sair', rota: '/' },                           // index
+  { texto: 'Meu Perfil', icone: 'person-outline', rota: null },
+  { texto: 'Meus Endereços', icone: 'location-outline', rota: null },
+  { texto: 'Meus Pedidos', icone: 'cube-outline', rota: null },
+  { texto: 'Meus Profissionais Favoritos', icone: 'star-outline', rota: null },
+  { texto: 'Projetos Salvos', icone: 'bookmark-outline', rota: null },
+  { texto: 'Agendamentos', icone: 'calendar-outline', rota: null },
+  { texto: 'Mensagem', icone: 'chatbubble-outline', rota: null },
+  { texto: 'Configurações', icone: 'settings-outline', rota: null, ativo: true },
+  { texto: 'Sair', icone: 'log-out-outline', rota: '/', sair: true },
 ];
 
 /* =========================================================
-   FORÇA DA SENHA (3 segmentos, como na barra do HTML)
+   PALETA (mesma do AlterarSenha.css)
 ========================================================= */
 
-const forcaSenha = (s) => {
+const COR = {
+  fundo: '#080a0b',
+  topo: 'rgba(8,8,8,0.95)',
+  lateral: '#0d0d0e',
+  conteudo: '#111111',
+  painel: '#141414',
+  campo: '#1a1a1c',
+  borda: '#292929',
+  bordaLateral: '#252729',
+  ouro: '#d4a63a',
+  ouroClaro: '#efd04f',
+  ouroEscuro: '#c89e26',
+  ouroFundo: '#29231a',
+  ouroBorda: '#59431f',
+  texto: '#eeeeee',
+  suave: '#a8abad',
+  mudo: '#8f9497',
+  placeholder: '#666666',
+  erro: '#e0594a',
+  ok: '#4caf50',
+};
+
+/* =========================================================
+   REGRAS DA SENHA
+   Uma única fonte de verdade: alimenta a barra de força,
+   o checklist e a validação do botão.
+========================================================= */
+
+const REGRAS = [
+  { id: 'tam', texto: 'Mínimo de 8 caracteres', ok: (s) => s.length >= 8 },
+  { id: 'caixa', texto: 'Letras maiúsculas e minúsculas', ok: (s) => /[a-z]/.test(s) && /[A-Z]/.test(s) },
+  { id: 'num', texto: 'Pelo menos um número', ok: (s) => /\d/.test(s) },
+  { id: 'sim', texto: 'Pelo menos um símbolo', ok: (s) => /[^A-Za-z0-9]/.test(s) },
+];
+
+// 0 = vazia | 1 = fraca | 2 = média | 3 = forte
+const calcularForca = (s) => {
   if (!s) return 0;
-  let pontos = 0;
-  if (s.length >= 8) pontos++;
-  if (/[a-z]/.test(s) && /[A-Z]/.test(s) && /\d/.test(s)) pontos++;
-  if (/[^A-Za-z0-9]/.test(s)) pontos++;
-  return Math.max(1, pontos);
+  const cumpridas = REGRAS.filter((r) => r.ok(s)).length;
+  if (s.length >= 8 && cumpridas === REGRAS.length) return 3;
+  if (s.length >= 8 && cumpridas >= 3) return 2;
+  return 1;
 };
 
 const ROTULO_FORCA = ['', 'Fraca', 'Média', 'Forte'];
-const COR_FORCA = ['#363636', '#e0594a', '#d4af6a', '#4caf50'];
+const COR_FORCA = [COR.borda, COR.erro, COR.ouro, COR.ok];
 
 /* =========================================================
    COMPONENTES (fora da tela para não serem recriados a cada tecla)
 ========================================================= */
 
-function MenuLink({ texto, onPress, ativo }) {
+function ItemMenuTopo({ texto, onPress }) {
   return (
-    <Pressable onPress={onPress} style={[styles.menuLink, ativo && styles.menuLinkAtivo]}>
-      <Text style={[styles.menuTexto, ativo && styles.dourado]}>{texto}</Text>
+    <Pressable onPress={onPress} accessibilityRole="link" hitSlop={6}>
+      {({ hovered, pressed }) => (
+        <Text style={[styles.menuTopoTexto, (hovered || pressed) && { color: COR.ouro }]}>{texto}</Text>
+      )}
     </Pressable>
   );
 }
 
-// .field + .input-wrap (input com botão de texto para mostrar/ocultar a senha)
-function CampoSenha({ rotulo, value, onChangeText, placeholder, children }) {
+function ItemLateral({ item, onPress }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      style={({ hovered, pressed }) => [
+        styles.itemLateral,
+        (hovered || pressed) && styles.itemLateralHover,
+        item.ativo && styles.itemLateralAtivo,
+        item.sair && styles.itemSair,
+      ]}
+    >
+      <Ionicons name={item.icone} size={17} color={item.ativo ? COR.ouro : COR.texto} />
+      <Text style={[styles.itemLateralTexto, item.ativo && { color: COR.ouro }]} numberOfLines={2}>
+        {item.texto}
+      </Text>
+    </Pressable>
+  );
+}
+
+const CampoSenha = React.forwardRef(function CampoSenha(
+  { rotulo, value, onChangeText, placeholder, autoComplete, returnKeyType, onSubmitEditing, estado, children },
+  ref
+) {
   const [mostrar, setMostrar] = useState(false);
   const [foco, setFoco] = useState(false);
 
   return (
     <View style={styles.field}>
       <Text style={styles.rotulo}>{rotulo}</Text>
-      <View style={[styles.inputWrap, foco && styles.inputWrapFoco]}>
+      <View
+        style={[
+          styles.inputWrap,
+          foco && styles.inputWrapFoco,
+          estado === 'erro' && styles.inputWrapErro,
+          estado === 'ok' && styles.inputWrapOk,
+        ]}
+      >
+        <Ionicons name="lock-closed-outline" size={17} color={foco ? COR.ouro : COR.mudo} />
         <TextInput
+          ref={ref}
           style={[styles.input, Platform.OS === 'web' && styles.semOutline]}
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
-          placeholderTextColor="#737373"
+          placeholderTextColor={COR.placeholder}
           secureTextEntry={!mostrar}
           autoCapitalize="none"
           autoCorrect={false}
+          autoComplete={autoComplete}
+          textContentType={autoComplete === 'new-password' ? 'newPassword' : 'password'}
+          returnKeyType={returnKeyType}
+          onSubmitEditing={onSubmitEditing}
           onFocus={() => setFoco(true)}
           onBlur={() => setFoco(false)}
+          accessibilityLabel={rotulo}
         />
-        <Pressable onPress={() => setMostrar((m) => !m)} hitSlop={8}>
-          <Text style={styles.mostrar}>{mostrar ? 'Ocultar' : 'Mostrar'}</Text>
+        <Pressable
+          onPress={() => setMostrar((m) => !m)}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel={mostrar ? 'Ocultar senha' : 'Mostrar senha'}
+        >
+          <Ionicons name={mostrar ? 'eye-off-outline' : 'eye-outline'} size={18} color={COR.suave} />
         </Pressable>
       </View>
       {children}
+    </View>
+  );
+});
+
+function Requisito({ texto, cumprido }) {
+  return (
+    <View style={styles.requisito}>
+      <Ionicons
+        name={cumprido ? 'checkmark-circle' : 'ellipse-outline'}
+        size={14}
+        color={cumprido ? COR.ok : COR.placeholder}
+      />
+      <Text style={[styles.requisitoTexto, cumprido && { color: COR.suave }]}>{texto}</Text>
     </View>
   );
 }
@@ -105,10 +197,9 @@ function CampoSenha({ rotulo, value, onChangeText, placeholder, children }) {
 export default function AlterarSenha() {
   const router = useRouter();
   const { width, height } = useWindowDimensions();
-  const menuCentralizado = width >= 900; // menu no centro do header
-  const lateral = width >= 900;          // menu lateral ao lado do conteúdo
+  const largo = width >= 900;       // menu do topo centralizado + menu lateral fixo ao lado
+  const compacto = width < 600;
 
-  // Só navega se a rota estiver definida (evita "This screen doesn't exist")
   const ir = (rota) => {
     if (rota) router.push(rota);
   };
@@ -117,158 +208,210 @@ export default function AlterarSenha() {
   const [nova, setNova] = useState('');
   const [confirmar, setConfirmar] = useState('');
   const [msg, setMsg] = useState(null); // { tipo: 'erro' | 'ok', texto }
+  const [enviando, setEnviando] = useState(false);
 
-  const forca = forcaSenha(nova);
+  const refNova = useRef(null);
+  const refConfirmar = useRef(null);
 
-  const alterar = () => {
-    if (!atual || !nova || !confirmar) {
-      setMsg({ tipo: 'erro', texto: 'Preencha todos os campos.' });
-      return;
-    }
-    if (nova.length < 8) {
-      setMsg({ tipo: 'erro', texto: 'A nova senha deve ter pelo menos 8 caracteres.' });
-      return;
-    }
-    if (nova === atual) {
-      setMsg({ tipo: 'erro', texto: 'A nova senha deve ser diferente da atual.' });
-      return;
-    }
-    if (nova !== confirmar) {
-      setMsg({ tipo: 'erro', texto: 'As senhas não conferem.' });
-      return;
-    }
-    // TODO: enviar senha atual + nova senha para o seu backend aqui
-    setMsg({ tipo: 'ok', texto: 'Senha alterada com sucesso.' });
-    setAtual('');
-    setNova('');
-    setConfirmar('');
+  const forca = useMemo(() => calcularForca(nova), [nova]);
+  const iguais = confirmar.length > 0 && nova === confirmar;
+  const diferentes = confirmar.length > 0 && nova !== confirmar;
+
+  // limpa o aviso assim que a pessoa volta a digitar
+  const mudar = (set) => (valor) => {
+    set(valor);
+    if (msg) setMsg(null);
   };
 
-  const menu = (
+  const validar = () => {
+    if (!atual || !nova || !confirmar) return 'Preencha todos os campos.';
+    if (nova.length < 8) return 'A nova senha deve ter pelo menos 8 caracteres.';
+    if (nova === atual) return 'A nova senha deve ser diferente da atual.';
+    if (forca < 2) return 'Escolha uma senha mais forte: combine letras, números e símbolos.';
+    if (nova !== confirmar) return 'As senhas não conferem.';
+    return '';
+  };
+
+  const alterar = async () => {
+    if (enviando) return;
+
+    const erro = validar();
+    if (erro) {
+      setMsg({ tipo: 'erro', texto: erro });
+      return;
+    }
+
+    setEnviando(true);
+    try {
+      // TODO: enviar senha atual + nova senha para o seu backend aqui
+      // (se a senha atual estiver errada, mostre: 'A senha atual está incorreta.')
+      setMsg({ tipo: 'ok', texto: 'Senha alterada com sucesso.' });
+      setAtual('');
+      setNova('');
+      setConfirmar('');
+    } catch (e) {
+      setMsg({ tipo: 'erro', texto: 'Não foi possível alterar a senha. Tente novamente.' });
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  const menuTopo = (
     <>
-      <MenuLink texto="Início" onPress={() => ir(ROTAS.inicio)} />
-      <MenuLink texto="Plantas" onPress={() => ir(ROTAS.plantas)} />
-      <MenuLink texto="Profissionais" onPress={() => ir(ROTAS.profissionais)} />
-      <MenuLink texto="Sobre" onPress={() => ir(ROTAS.sobre)} />
+      <ItemMenuTopo texto="Início" onPress={() => ir(ROTAS.inicio)} />
+      <ItemMenuTopo texto="Plantas" onPress={() => ir(ROTAS.plantas)} />
+      <ItemMenuTopo texto="Profissionais" onPress={() => ir(ROTAS.profissionais)} />
+      <ItemMenuTopo texto="Sobre" onPress={() => ir(ROTAS.sobre)} />
     </>
   );
 
   return (
-    <KeyboardAvoidingView
-      style={styles.tela}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <ScrollView contentContainerStyle={styles.conteudoScroll} keyboardShouldPersistTaps="handled">
-        {/* ---------- .BackGround ---------- */}
-        <View style={[styles.background, { minHeight: height }]}>
-          {/* ---------- .topo ---------- */}
-          <View style={styles.topo}>
-            <Pressable onPress={() => ir(ROTAS.inicio)}>
-              <Text style={styles.logoTexto}>Income of Houses</Text>
-            </Pressable>
+    <KeyboardAvoidingView style={styles.tela} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      {/* ---------- .topo (fixo) ---------- */}
+      <View style={styles.topo}>
+        <Pressable onPress={() => ir(ROTAS.inicio)} accessibilityRole="link" accessibilityLabel="Income of Houses">
+          <Text style={styles.logoTexto}>Income of Houses</Text>
+        </Pressable>
 
-            {menuCentralizado ? (
-              <View style={styles.menuCentro} pointerEvents="box-none">
-                <View style={styles.menu}>{menu}</View>
-              </View>
-            ) : (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.menuScroll}
-                contentContainerStyle={[styles.menu, styles.menuScrollConteudo]}
-              >
-                {menu}
-              </ScrollView>
-            )}
+        {largo ? (
+          <View style={styles.menuTopoCentro} pointerEvents="box-none">
+            <View style={styles.menuTopo}>{menuTopo}</View>
+          </View>
+        ) : (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.menuTopoScroll}
+            contentContainerStyle={[styles.menuTopo, styles.menuTopoScrollConteudo]}
+          >
+            {menuTopo}
+          </ScrollView>
+        )}
+      </View>
+
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={[styles.corpo, { minHeight: height - 64 - 55 }, largo && styles.corpoLargo]}>
+          {/* ---------- .menu-lateral ---------- */}
+          <View style={[styles.menuLateral, largo && styles.menuLateralLado]}>
+            {MENU_LATERAL.map((item) => (
+              <ItemLateral key={item.texto} item={item} onPress={() => ir(item.rota)} />
+            ))}
           </View>
 
-          {/* ---------- .container ---------- */}
-          <View style={[styles.container, lateral && styles.containerLateral]}>
-            {/* ---------- .menu-lateral ---------- */}
-            <View style={[styles.menuLateral, lateral && styles.menuLateralLado]}>
-              {MENU_LATERAL.map((item) => (
-                <Pressable
-                  key={item.texto}
-                  onPress={() => ir(item.rota)}
-                  style={[styles.itemLateral, item.ativo && styles.itemLateralAtivo]}
-                >
-                  <Text style={[styles.itemTexto, item.ativo && styles.dourado]} numberOfLines={2}>
-                    {item.texto}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
+          {/* ---------- .conteudo ---------- */}
+          <View style={[styles.conteudo, compacto && styles.conteudoCompacto]}>
+            <Text style={styles.titulo} accessibilityRole="header">
+              Alterar Senha
+            </Text>
+            <Text style={styles.subtitulo}>Mantenha sua conta segura. Escolha uma senha forte e exclusiva.</Text>
 
-            {/* ---------- .conteudo ---------- */}
-            <View style={styles.conteudo}>
-              <Text style={styles.titulo}>Alterar Senha</Text>
-              <Text style={styles.subtitulo}>
-                Mantenha sua conta segura. Escolha uma senha forte e exclusiva.
-              </Text>
-
-              <View style={styles.panel}>
-                {/* ---------- .info-side ---------- */}
-                <View style={styles.infoSide}>
+            <View style={[styles.panel, compacto && styles.panelCompacto]}>
+              {/* ---------- .info-side ---------- */}
+              <View style={styles.infoSide}>
+                <View style={styles.badge}>
+                  <Ionicons name="shield-checkmark-outline" size={28} color={COR.ouro} />
+                </View>
+                <View style={{ flex: 1 }}>
                   <Text style={styles.infoTitulo}>Segurança da Conta</Text>
                   <Text style={styles.infoTexto}>
-                    Sua senha é a chave para manter suas informações protegidas. Utilize uma senha
-                    forte e única.
+                    Sua senha é a chave para manter suas informações protegidas. Utilize uma senha forte e única.
                   </Text>
                 </View>
+              </View>
 
-                {/* ---------- .form-side ---------- */}
-                <View>
-                  <CampoSenha
-                    rotulo="Senha atual"
-                    value={atual}
-                    onChangeText={setAtual}
-                    placeholder="Digite sua senha atual"
-                  />
+              {/* ---------- formulário ---------- */}
+              <CampoSenha
+                rotulo="Senha atual"
+                value={atual}
+                onChangeText={mudar(setAtual)}
+                placeholder="Digite sua senha atual"
+                autoComplete="current-password"
+                returnKeyType="next"
+                onSubmitEditing={() => refNova.current?.focus()}
+              />
 
-                  <CampoSenha
-                    rotulo="Nova senha"
-                    value={nova}
-                    onChangeText={setNova}
-                    placeholder="Digite sua nova senha"
-                  >
-                    <View style={styles.forcaBarra}>
-                      {[1, 2, 3].map((n) => (
-                        <View
-                          key={n}
-                          style={[styles.seg, n <= forca && { backgroundColor: COR_FORCA[forca] }]}
-                        />
-                      ))}
-                    </View>
-                    <Text style={styles.forcaRotulo}>
-                      Força da senha{forca ? `: ${ROTULO_FORCA[forca]}` : ''}
-                    </Text>
-                  </CampoSenha>
-
-                  <CampoSenha
-                    rotulo="Confirmar nova senha"
-                    value={confirmar}
-                    onChangeText={setConfirmar}
-                    placeholder="Confirme sua nova senha"
-                  />
-
-                  {msg && (
-                    <Text style={[styles.msg, msg.tipo === 'ok' ? styles.msgOk : styles.msgErro]}>
-                      {msg.texto}
-                    </Text>
-                  )}
-
-                  <Pressable style={styles.botao} onPress={alterar}>
-                    <Text style={styles.botaoTexto}>Alterar senha</Text>
-                  </Pressable>
-
-                  <View style={styles.dica}>
-                    <Text style={styles.dicaTexto}>
-                      <Text style={styles.dicaNegrito}>Dica:</Text> Use pelo menos 8 caracteres,
-                      incluindo letras maiúsculas, minúsculas, números e símbolos.
-                    </Text>
-                  </View>
+              <CampoSenha
+                ref={refNova}
+                rotulo="Nova senha"
+                value={nova}
+                onChangeText={mudar(setNova)}
+                placeholder="Digite sua nova senha"
+                autoComplete="new-password"
+                returnKeyType="next"
+                onSubmitEditing={() => refConfirmar.current?.focus()}
+              >
+                <View style={styles.forcaBarra}>
+                  {[1, 2, 3].map((n) => (
+                    <View key={n} style={[styles.seg, n <= forca && { backgroundColor: COR_FORCA[forca] }]} />
+                  ))}
                 </View>
+                <Text style={styles.forcaRotulo}>
+                  Força da senha
+                  {forca ? ': ' : ''}
+                  {forca ? <Text style={{ color: COR_FORCA[forca], fontWeight: '700' }}>{ROTULO_FORCA[forca]}</Text> : null}
+                </Text>
+
+                {nova.length > 0 && (
+                  <View style={styles.requisitos}>
+                    {REGRAS.map((r) => (
+                      <Requisito key={r.id} texto={r.texto} cumprido={r.ok(nova)} />
+                    ))}
+                  </View>
+                )}
+              </CampoSenha>
+
+              <CampoSenha
+                ref={refConfirmar}
+                rotulo="Confirmar nova senha"
+                value={confirmar}
+                onChangeText={mudar(setConfirmar)}
+                placeholder="Confirme sua nova senha"
+                autoComplete="new-password"
+                returnKeyType="go"
+                onSubmitEditing={alterar}
+                estado={iguais ? 'ok' : diferentes ? 'erro' : undefined}
+              >
+                {diferentes && <Text style={[styles.ajuda, { color: COR.erro }]}>As senhas ainda não conferem.</Text>}
+                {iguais && <Text style={[styles.ajuda, { color: COR.ok }]}>As senhas conferem.</Text>}
+              </CampoSenha>
+
+              {msg && (
+                <View style={[styles.msg, msg.tipo === 'ok' ? styles.msgOk : styles.msgErro]} accessibilityLiveRegion="polite">
+                  <Ionicons
+                    name={msg.tipo === 'ok' ? 'checkmark-circle-outline' : 'alert-circle-outline'}
+                    size={18}
+                    color={msg.tipo === 'ok' ? COR.ok : COR.erro}
+                  />
+                  <Text style={[styles.msgTexto, { color: msg.tipo === 'ok' ? COR.ok : COR.erro }]}>{msg.texto}</Text>
+                </View>
+              )}
+
+              <Pressable
+                onPress={alterar}
+                disabled={enviando}
+                accessibilityRole="button"
+                style={({ hovered, pressed }) => [
+                  styles.botao,
+                  (hovered || pressed) && { opacity: 0.9 },
+                  enviando && { opacity: 0.6 },
+                ]}
+              >
+                {enviando ? (
+                  <ActivityIndicator color="#111" />
+                ) : (
+                  <Text style={styles.botaoTexto}>Alterar senha</Text>
+                )}
+              </Pressable>
+
+              <View style={styles.dica}>
+                <Text style={styles.dicaTexto}>
+                  <Text style={styles.dicaNegrito}>Dica:</Text> use uma senha que você não utiliza em nenhum outro
+                  site ou aplicativo.
+                </Text>
               </View>
             </View>
           </View>
@@ -293,185 +436,194 @@ export default function AlterarSenha() {
 }
 
 /* =========================================================
-   ESTILOS
-   (o AlterarSenha.css não foi enviado: os valores abaixo seguem o
-   padrão visual da tela de cadastro; ajuste conforme o seu CSS)
+   ESTILOS (baseados no AlterarSenha.css)
 ========================================================= */
 
-const OURO = '#d4af6a';
-const OURO_BORDA = '#cda432';
-
 const styles = StyleSheet.create({
-  tela: { flex: 1, backgroundColor: '#0b0b0b' },
-  conteudoScroll: { flexGrow: 1 },
-  dourado: { color: OURO },
+  tela: { flex: 1, backgroundColor: COR.fundo },
+  scroll: { flexGrow: 1 },
+  semOutline: { outlineStyle: 'none' },
 
   /* .topo */
   topo: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 75,
+    height: 64,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: '6%',
-    backgroundColor: 'rgba(10,10,10,0.25)',
+    paddingHorizontal: '3%',
+    backgroundColor: COR.topo,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.05)',
-    zIndex: 10,
+    borderBottomColor: 'rgba(212,166,58,0.25)',
+    zIndex: 20,
   },
-  logoTexto: { color: OURO, fontSize: 16, fontWeight: 'bold' },
+  logoTexto: { color: COR.ouro, fontSize: 16, fontWeight: 'bold' },
+  menuTopo: { flexDirection: 'row', alignItems: 'center', gap: 32 },
+  menuTopoCentro: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  menuTopoScroll: { flex: 1, marginLeft: 16 },
+  menuTopoScrollConteudo: { flexGrow: 1, justifyContent: 'flex-end', gap: 20 },
+  menuTopoTexto: { color: COR.texto, fontSize: 14, fontWeight: '500' },
 
-  /* .menu */
-  menuCentro: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  menu: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  menuScroll: { flex: 1 },
-  menuScrollConteudo: { flexGrow: 1, justifyContent: 'flex-end' },
-  menuLink: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 7,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  menuLinkAtivo: {
-    borderColor: 'rgba(212,175,106,0.4)',
-    backgroundColor: 'rgba(212,175,106,0.08)',
-  },
-  menuTexto: { color: '#ffffff', fontSize: 14, fontWeight: '500' },
-
-  /* .BackGround */
-  background: { backgroundColor: '#0f0f0f' },
-
-  /* .container */
-  container: {
-    gap: 30,
-    paddingTop: 110,
-    paddingBottom: 60,
-    paddingHorizontal: '6%',
-  },
-  containerLateral: { flexDirection: 'row', alignItems: 'flex-start' },
+  /* corpo = .container */
+  corpo: { backgroundColor: COR.conteudo },
+  corpoLargo: { flexDirection: 'row', alignItems: 'stretch' },
 
   /* .menu-lateral */
   menuLateral: {
     padding: 12,
-    gap: 4,
-    backgroundColor: '#0a0a0a',
-    borderWidth: 1,
-    borderColor: '#2a2a2a',
-    borderRadius: 16,
+    gap: 5,
+    backgroundColor: COR.lateral,
+    borderBottomWidth: 1,
+    borderBottomColor: COR.bordaLateral,
   },
-  menuLateralLado: { width: 290 },
+  menuLateralLado: {
+    width: 250,
+    borderBottomWidth: 0,
+    borderRightWidth: 1,
+    borderRightColor: COR.bordaLateral,
+  },
   itemLateral: {
-    paddingVertical: 13,
-    paddingHorizontal: 14,
-    borderRadius: 8,
+    minHeight: 38,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: COR.campo,
     borderWidth: 1,
     borderColor: 'transparent',
+    borderRadius: 6,
   },
-  itemLateralAtivo: {
-    borderColor: 'rgba(212,175,106,0.4)',
-    backgroundColor: 'rgba(212,175,106,0.08)',
-  },
-  itemTexto: { color: '#e5e5e5', fontSize: 14, fontWeight: '500' },
+  itemLateralHover: { backgroundColor: '#302718', borderColor: COR.ouroBorda },
+  itemLateralAtivo: { backgroundColor: COR.ouroFundo, borderColor: COR.ouroBorda },
+  itemSair: { marginTop: 6 },
+  itemLateralTexto: { flex: 1, color: COR.texto, fontSize: 12 },
 
   /* .conteudo */
-  conteudo: { flex: 1, width: '100%' },
-  titulo: { color: '#f5f5f5', fontSize: 34, fontWeight: 'bold', marginBottom: 6 },
-  subtitulo: { color: '#a3a3a3', fontSize: 16, marginBottom: 24 },
+  conteudo: { flex: 1, paddingTop: 26, paddingHorizontal: 32, paddingBottom: 32 },
+  conteudoCompacto: { paddingHorizontal: 16, paddingTop: 20 },
+  titulo: { color: '#fff', fontSize: 24, fontWeight: '600', marginBottom: 6 },
+  subtitulo: {
+    color: COR.suave,
+    fontSize: 13,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: COR.ouro,
+  },
 
   /* .panel */
   panel: {
     width: '100%',
-    maxWidth: 700,
-    padding: 30,
-    gap: 24,
-    backgroundColor: '#0a0a0a',
-    borderWidth: 2,
-    borderColor: OURO_BORDA,
-    borderRadius: 20,
+    maxWidth: 800,
+    marginTop: 20,
+    padding: 28,
+    backgroundColor: COR.painel,
+    borderWidth: 1,
+    borderColor: COR.borda,
+    borderRadius: 8,
   },
+  panelCompacto: { padding: 16 },
 
   /* .info-side */
-  infoSide: { paddingLeft: 14, borderLeftWidth: 3, borderLeftColor: '#cfa835' },
-  infoTitulo: { color: '#f5f5f5', fontSize: 18, fontWeight: 'bold', marginBottom: 4 },
-  infoTexto: { color: '#a3a3a3', fontSize: 14, lineHeight: 21 },
+  infoSide: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginBottom: 24,
+    paddingBottom: 22,
+    borderBottomWidth: 1,
+    borderBottomColor: COR.borda,
+  },
+  badge: {
+    width: 56,
+    height: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COR.campo,
+    borderWidth: 1,
+    borderColor: COR.ouroBorda,
+    borderRadius: 12,
+  },
+  infoTitulo: { color: '#fff', fontSize: 17, fontWeight: '600', marginBottom: 6 },
+  infoTexto: { color: COR.mudo, fontSize: 13, lineHeight: 21 },
 
-  /* .field */
-  field: { marginBottom: 18 },
-  rotulo: { color: '#e5e5e5', fontSize: 12, fontWeight: '600', marginBottom: 5 },
+  /* .field / .input-wrap */
+  field: { marginBottom: 20 },
+  rotulo: { color: COR.suave, fontSize: 13, fontWeight: '600', marginBottom: 8 },
   inputWrap: {
-    height: 42,
+    height: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 14,
+    backgroundColor: COR.campo,
+    borderWidth: 1,
+    borderColor: COR.borda,
+    borderRadius: 6,
+  },
+  inputWrapFoco: { borderColor: COR.ouro },
+  inputWrapErro: { borderColor: COR.erro },
+  inputWrapOk: { borderColor: COR.ok },
+  input: { flex: 1, minWidth: 0, height: '100%', color: '#dddddd', fontSize: 14 },
+
+  /* força da senha */
+  forcaBarra: { flexDirection: 'row', gap: 6, marginTop: 12 },
+  seg: { flex: 1, height: 4, borderRadius: 3, backgroundColor: '#3a3a3a' },
+  forcaRotulo: { color: COR.mudo, fontSize: 12, marginTop: 8 },
+
+  /* checklist */
+  requisitos: { marginTop: 10, gap: 6 },
+  requisito: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  requisitoTexto: { color: COR.placeholder, fontSize: 12 },
+  ajuda: { fontSize: 12, marginTop: 8 },
+
+  /* mensagens */
+  msg: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingHorizontal: 10,
-    backgroundColor: '#0d0d0d',
+    padding: 12,
+    marginBottom: 14,
+    borderRadius: 6,
     borderWidth: 1,
-    borderColor: '#363636',
-    borderRadius: 4,
   },
-  inputWrapFoco: { borderColor: OURO_BORDA },
-  input: { flex: 1, height: '100%', color: '#e5e5e5', fontSize: 13 },
-  semOutline: { outlineStyle: 'none' },
-  mostrar: { color: OURO, fontSize: 12, fontWeight: '600' },
-
-  /* .strength-bar */
-  forcaBarra: { flexDirection: 'row', gap: 6, marginTop: 10 },
-  seg: { flex: 1, height: 5, borderRadius: 3, backgroundColor: '#363636' },
-  forcaRotulo: { color: '#a3a3a3', fontSize: 12, marginTop: 6 },
-
-  /* mensagens */
-  msg: { fontSize: 13, marginBottom: 12 },
-  msgErro: { color: '#e0594a' },
-  msgOk: { color: '#4caf50' },
+  msgErro: { backgroundColor: 'rgba(224,89,74,0.08)', borderColor: 'rgba(224,89,74,0.4)' },
+  msgOk: { backgroundColor: 'rgba(76,175,80,0.08)', borderColor: 'rgba(76,175,80,0.4)' },
+  msgTexto: { flex: 1, fontSize: 13 },
 
   /* .btn-submit */
   botao: {
     width: '100%',
-    paddingVertical: 15,
-    paddingHorizontal: 50,
-    backgroundColor: OURO,
-    borderRadius: 8,
+    height: 44,
+    marginTop: 4,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: COR.ouroEscuro,
+    borderRadius: 6,
+    // degradê do CSS: troque por <LinearGradient> do expo-linear-gradient se quiser idêntico
   },
-  botaoTexto: { color: '#111111', fontSize: 14, fontWeight: '700' },
+  botaoTexto: { color: '#111', fontSize: 14, fontWeight: 'bold' },
 
   /* .tip */
-  dica: {
-    marginTop: 20,
-    padding: 14,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(212,175,106,0.25)',
-    backgroundColor: 'rgba(212,175,106,0.08)',
-  },
-  dicaTexto: { color: '#e5e5e5', fontSize: 13, lineHeight: 20 },
-  dicaNegrito: { color: OURO, fontWeight: 'bold' },
+  dica: { marginTop: 22, paddingTop: 18, borderTopWidth: 1, borderTopColor: COR.borda },
+  dicaTexto: { color: COR.mudo, fontSize: 12, lineHeight: 19 },
+  dicaNegrito: { color: '#f0ca4c', fontWeight: 'bold' },
 
   /* .rodape */
   rodape: {
-    width: '100%',
+    minHeight: 55,
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 20,
-    paddingVertical: 22,
-    paddingHorizontal: '6%',
-    backgroundColor: '#080808',
+    gap: 8,
+    paddingVertical: 15,
+    paddingHorizontal: 32,
+    backgroundColor: COR.fundo,
     borderTopWidth: 1,
-    borderTopColor: '#d4a63a',
+    borderTopColor: 'rgba(213,173,50,0.65)',
   },
-  rodapeTexto: { color: '#888888', fontSize: 13 },
-  rodapeLinks: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  rodapeLink: { color: OURO, fontSize: 13 },
-  rodapeSep: { color: '#555555', fontSize: 13 },
+  rodapeTexto: { color: '#7e8385', fontSize: 12 },
+  rodapeLinks: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  rodapeLink: { color: '#7e8385', fontSize: 12 },
+  rodapeSep: { color: '#7e8385', fontSize: 12 },
 });

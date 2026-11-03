@@ -186,7 +186,7 @@ export default function FaleConosco() {
         <View style={[styles.topo, topoLargo ? styles.topoLargo : styles.topoEstreito]}>
           <Pressable onPress={() => navegar('/')}>
             <Image
-              source={require('../../assets/images/Logo.png')}
+              source={require('../assets/images/Logo.png')}
               style={styles.logo}
               resizeMode="contain"
             />

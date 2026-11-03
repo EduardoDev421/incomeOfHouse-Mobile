@@ -1,117 +1,187 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-} from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import {
+  AuthTela, CartaoTitulo, Campo, CaixaErro, Botao,
+  Divisor, LinkConta, useLayout, dourado,
+} from '../components/AuthComponentes';
+import TextoLegal from '../components/TextoLegal';
+
+const EMAIL_VALIDO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function Login() {
   const router = useRouter();
+  const { mobile } = useLayout();
+
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
+  const [lembrar, setLembrar] = useState(false);
   const [erro, setErro] = useState('');
+  const [aviso, setAviso] = useState('');
+  const [carregando, setCarregando] = useState(false);
 
-  const entrar = () => {
-    if (!email.trim() || !senha) {
-      setErro('Preencha e-mail e senha.');
+  const entrar = async () => {
+    if (carregando) return;
+
+    if (!EMAIL_VALIDO.test(email.trim())) {
+      setErro('Digite um e-mail válido.');
       return;
     }
+    if (!senha) {
+      setErro('Digite sua senha.');
+      return;
+    }
+
     setErro('');
-    // TODO: autenticar no seu backend aqui
-    router.push('/');
+    setCarregando(true);
+    try {
+      // TODO: autenticar no seu backend aqui (use "lembrar" para manter a sessão)
+      // replace: depois de logar, o botão voltar não deve retornar ao login
+      router.replace('/');
+    } catch (e) {
+      setErro('Não foi possível entrar. Confira seus dados e tente novamente.');
+    } finally {
+      setCarregando(false);
+    }
   };
 
+  // Alert.alert não funciona no navegador (react-native-web), então o aviso fica na tela
+  const loginSocial = (rede) =>
+    setAviso(`O login com ${rede} ainda não está disponível.`);
+
   return (
-    <ScrollView
-      style={styles.tela}
-      contentContainerStyle={styles.conteudo}
-      keyboardShouldPersistTaps="handled"
+    <AuthTela
+      titulo={'Bem-vindo\nde '}
+      destaque="volta"
+      texto="Acesse sua conta para gerenciar seu perfil, acompanhar projetos e conectar-se com profissionais."
     >
-      <View style={styles.caixa}>
-        <Text style={styles.titulo}>Entrar</Text>
-        <Text style={styles.subtitulo}>Acesse sua conta IncomeOfHouses</Text>
+      <CartaoTitulo
+        titulo="Entrar"
+        subtitulo="Informe seus dados para acessar sua conta."
+      />
 
-        <Text style={styles.rotulo}>E-mail</Text>
-        <TextInput
-          style={styles.input}
-          value={email}
-          onChangeText={setEmail}
-          placeholder="seuemail@exemplo.com"
-          placeholderTextColor="#999"
-          keyboardType="email-address"
-          autoCapitalize="none"
+      <Campo
+        icone="mail-outline"
+        rotulo="E-mail"
+        valor={email}
+        aoMudar={(t) => {
+          setEmail(t);
+          if (erro) setErro('');
+        }}
+        placeholder="Digite seu E-mail"
+        keyboardType="email-address"
+        autoCapitalize="none"
+        autoComplete="email"
+        textContentType="emailAddress"
+      />
+
+      <Campo
+        icone="lock-closed-outline"
+        rotulo="Senha"
+        valor={senha}
+        aoMudar={(t) => {
+          setSenha(t);
+          if (erro) setErro('');
+        }}
+        placeholder="Digite sua Senha"
+        senha
+        autoComplete="current-password"
+        textContentType="password"
+        returnKeyType="go"
+        onSubmitEditing={entrar}
+      />
+
+      <Pressable
+        style={s.lembrar}
+        onPress={() => setLembrar(!lembrar)}
+        hitSlop={8}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: lembrar }}
+      >
+        <Ionicons
+          name={lembrar ? 'checkbox' : 'square-outline'}
+          size={20}
+          color={dourado}
         />
+        <Text style={s.textoLembrar}>Lembrar de mim</Text>
+      </Pressable>
 
-        <Text style={styles.rotulo}>Senha</Text>
-        <TextInput
-          style={styles.input}
-          value={senha}
-          onChangeText={setSenha}
-          placeholder="Sua senha"
-          placeholderTextColor="#999"
-          secureTextEntry
-        />
+      <CaixaErro texto={erro} />
 
-        {erro !== '' && <Text style={styles.erro}>{erro}</Text>}
+      <TextoLegal />
 
-        <Pressable style={styles.botao} onPress={entrar}>
-          <Text style={styles.textoBotao}>Entrar</Text>
+      <Botao texto={carregando ? 'Entrando...' : 'Entrar'} aoPressionar={entrar} />
+
+      <Pressable
+        onPress={() => router.push('/EsqueceuSenha')}
+        hitSlop={8}
+        accessibilityRole="link"
+        style={s.areaEsqueci}
+      >
+        <Text style={s.esqueci}>Esqueci minha senha</Text>
+      </Pressable>
+
+      <Divisor texto="ou continue com" />
+
+      <View style={[s.sociais, mobile && s.sociaisMobile]}>
+        <Pressable
+          style={({ pressed }) => [s.social, pressed && s.pressionado]}
+          onPress={() => loginSocial('Google')}
+          accessibilityRole="button"
+        >
+          <Ionicons name="logo-google" size={18} color="#EA4335" />
+          <Text style={s.textoSocial}>Entrar com Google</Text>
         </Pressable>
 
-        <Pressable onPress={() => router.push('/cadastro')}>
-          <Text style={styles.link}>Não tem conta? Cadastre-se</Text>
-        </Pressable>
-
-        <Pressable onPress={() => router.push('/')}>
-          <Text style={styles.voltar}>← Voltar ao início</Text>
+        <Pressable
+          style={({ pressed }) => [s.social, pressed && s.pressionado]}
+          onPress={() => loginSocial('Facebook')}
+          accessibilityRole="button"
+        >
+          <Ionicons name="logo-facebook" size={18} color="#1877F2" />
+          <Text style={s.textoSocial}>Entrar com Facebook</Text>
         </Pressable>
       </View>
-    </ScrollView>
+
+      {!!aviso && (
+        <Text style={s.aviso} accessibilityLiveRegion="polite">
+          {aviso}
+        </Text>
+      )}
+
+      <View style={s.espaco} />
+
+      <LinkConta
+        pergunta="Ainda não possui um cadastro?"
+        acao="Cadastre-se"
+        aoPressionar={() => router.push('/cadastro')}
+      />
+    </AuthTela>
   );
 }
 
-const styles = StyleSheet.create({
-  tela: { flex: 1, backgroundColor: '#f5f7f4' },
-  conteudo: { flexGrow: 1, justifyContent: 'center', padding: 22 },
-  caixa: {
-    width: '100%',
-    maxWidth: 420,
-    alignSelf: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 24,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
+const s = StyleSheet.create({
+  lembrar: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    marginBottom: 14, alignSelf: 'flex-start',
   },
-  titulo: { fontSize: 26, fontWeight: 'bold', color: '#254b35' },
-  subtitulo: { fontSize: 14, color: '#555', marginTop: 4, marginBottom: 20 },
-  rotulo: { fontSize: 13, fontWeight: 'bold', color: '#333', marginBottom: 6 },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccd5cd',
-    borderRadius: 8,
-    paddingVertical: 11,
-    paddingHorizontal: 12,
-    fontSize: 15,
-    marginBottom: 14,
-    color: '#222',
+  textoLembrar: { color: '#ccc', fontSize: 13 },
+  areaEsqueci: { paddingVertical: 8, marginTop: 6 },
+  esqueci: {
+    color: dourado, textAlign: 'center',
+    fontSize: 13, textDecorationLine: 'underline',
   },
-  erro: { color: '#c0392b', fontSize: 13, marginBottom: 10 },
-  botao: {
-    backgroundColor: '#397653',
-    paddingVertical: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 4,
+  sociais: { flexDirection: 'row', gap: 10 },
+  sociaisMobile: { flexDirection: 'column' },
+  social: {
+    flex: 1, minHeight: 44, flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'center', gap: 8, padding: 9,
+    borderWidth: 1, borderColor: '#383838',
+    backgroundColor: '#1d1d1f', borderRadius: 8,
   },
-  textoBotao: { color: '#fff', fontWeight: 'bold', fontSize: 15 },
-  link: { color: '#397653', textAlign: 'center', marginTop: 18, fontSize: 14 },
-  voltar: { color: '#555', textAlign: 'center', marginTop: 14, fontSize: 13 },
+  pressionado: { opacity: 0.75 },
+  textoSocial: { color: '#fff', fontSize: 13 },
+  aviso: { color: '#b5b5b5', fontSize: 12, textAlign: 'center', marginTop: 12 },
+  espaco: { height: 18 },
 });

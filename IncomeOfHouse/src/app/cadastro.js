@@ -1,148 +1,183 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-} from 'react-native';
 import { useRouter } from 'expo-router';
+import {
+  AuthTela, CartaoTitulo, Campo, Linha, CaixaErro, Botao, Divisor,
+  LinkConta, LinkContorno, maskCPF, maskTelefone, maskData,
+  validarEmail, validarTelefone, validarCPF, validarData,
+} from '../components/AuthComponentes';
+import TextoLegal from '../components/TextoLegal';
 
 export default function Cadastro() {
   const router = useRouter();
+
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
+  const [cpf, setCpf] = useState('');
+  const [telefone, setTelefone] = useState('');
+  const [nascimento, setNascimento] = useState('');
   const [senha, setSenha] = useState('');
   const [confirmar, setConfirmar] = useState('');
   const [erro, setErro] = useState('');
+  const [enviando, setEnviando] = useState(false);
 
-  const cadastrar = () => {
-    if (!nome.trim() || !email.trim() || !senha || !confirmar) {
-      setErro('Preencha todos os campos.');
+  // limpa a mensagem de erro assim que a pessoa volta a digitar
+  const mudar = (set) => (valor) => {
+    set(valor);
+    if (erro) setErro('');
+  };
+
+  const validar = () => {
+    if (
+      !nome.trim() || !email.trim() || !cpf || !telefone ||
+      !nascimento || !senha || !confirmar
+    ) return 'Preencha todos os campos.';
+    if (!validarEmail(email)) return 'Digite um e-mail válido.';
+    if (!validarCPF(cpf)) return 'CPF inválido. Confira os números.';
+    if (!validarTelefone(telefone)) return 'Informe o telefone com DDD.';
+    if (!validarData(nascimento)) return 'Data de nascimento inválida. Use o formato dd/mm/aaaa.';
+    if (senha.length < 6) return 'A senha deve ter pelo menos 6 caracteres.';
+    if (senha !== confirmar) return 'As senhas não conferem.';
+    return '';
+  };
+
+  const cadastrar = async () => {
+    if (enviando) return;
+
+    const mensagem = validar();
+    if (mensagem) {
+      setErro(mensagem);
       return;
     }
-    if (senha.length < 6) {
-      setErro('A senha deve ter pelo menos 6 caracteres.');
-      return;
-    }
-    if (senha !== confirmar) {
-      setErro('As senhas não conferem.');
-      return;
-    }
+
     setErro('');
-    // TODO: salvar o usuário no seu backend aqui
-    router.push('/login');
+    setEnviando(true);
+    try {
+      // TODO: salvar o usuário no seu backend aqui
+      // replace: depois de cadastrar, o botão voltar não deve retornar ao formulário
+      router.replace('/login');
+    } catch (e) {
+      setErro('Não foi possível concluir o cadastro. Tente novamente.');
+    } finally {
+      setEnviando(false);
+    }
   };
 
   return (
-    <ScrollView
-      style={styles.tela}
-      contentContainerStyle={styles.conteudo}
-      keyboardShouldPersistTaps="handled"
+    <AuthTela
+      titulo={'Seu próximo projeto\n'}
+      destaque="começa aqui."
+      texto="Cadastre-se para encontrar profissionais, descobrir projetos e transformar suas ideias em realidade."
+      miniCards
     >
-      <View style={styles.caixa}>
-        <Text style={styles.titulo}>Crie sua Conta</Text>
-        <Text style={styles.subtitulo}>
-          Comece a planejar sua casa com a IncomeOfHouses
-        </Text>
+      <CartaoTitulo
+        titulo="Crie sua conta"
+        subtitulo="Faça seu cadastro e comece a explorar projetos e profissionais."
+      />
 
-        <Text style={styles.rotulo}>Nome</Text>
-        <TextInput
-          style={styles.input}
-          value={nome}
-          onChangeText={setNome}
-          placeholder="Seu nome completo"
-          placeholderTextColor="#999"
+      <Linha>
+        <Campo
+          icone="person-outline"
+          rotulo="Nome"
+          valor={nome}
+          aoMudar={mudar(setNome)}
+          placeholder="Digite seu nome"
+          autoCapitalize="words"
+          autoComplete="name"
+          textContentType="name"
         />
-
-        <Text style={styles.rotulo}>E-mail</Text>
-        <TextInput
-          style={styles.input}
-          value={email}
-          onChangeText={setEmail}
-          placeholder="seuemail@exemplo.com"
-          placeholderTextColor="#999"
+        <Campo
+          icone="mail-outline"
+          rotulo="E-mail"
+          valor={email}
+          aoMudar={mudar(setEmail)}
+          placeholder="Digite seu e-mail"
           keyboardType="email-address"
           autoCapitalize="none"
+          autoComplete="email"
+          textContentType="emailAddress"
         />
+      </Linha>
 
-        <Text style={styles.rotulo}>Senha</Text>
-        <TextInput
-          style={styles.input}
-          value={senha}
-          onChangeText={setSenha}
+      <Linha>
+        <Campo
+          icone="card-outline"
+          rotulo="CPF"
+          valor={cpf}
+          aoMudar={mudar(setCpf)}
+          mascara={maskCPF}
+          placeholder="Digite seu CPF"
+          keyboardType="numeric"
+        />
+        <Campo
+          icone="call-outline"
+          rotulo="Telefone"
+          valor={telefone}
+          aoMudar={mudar(setTelefone)}
+          mascara={maskTelefone}
+          placeholder="Digite seu telefone"
+          keyboardType="phone-pad"
+          autoComplete="tel"
+          textContentType="telephoneNumber"
+        />
+      </Linha>
+
+      <Campo
+        icone="calendar-outline"
+        rotulo="Data de nascimento"
+        valor={nascimento}
+        aoMudar={mudar(setNascimento)}
+        mascara={maskData}
+        placeholder="dd/mm/aaaa"
+        keyboardType="numeric"
+      />
+
+      <Linha>
+        <Campo
+          icone="lock-closed-outline"
+          rotulo="Senha"
+          valor={senha}
+          aoMudar={mudar(setSenha)}
           placeholder="Mínimo de 6 caracteres"
-          placeholderTextColor="#999"
-          secureTextEntry
+          senha
+          autoComplete="new-password"
+          textContentType="newPassword"
         />
-
-        <Text style={styles.rotulo}>Confirmar senha</Text>
-        <TextInput
-          style={styles.input}
-          value={confirmar}
-          onChangeText={setConfirmar}
-          placeholder="Repita a senha"
-          placeholderTextColor="#999"
-          secureTextEntry
+        <Campo
+          icone="shield-checkmark-outline"
+          rotulo="Confirmar senha"
+          valor={confirmar}
+          aoMudar={mudar(setConfirmar)}
+          placeholder="Confirme sua senha"
+          senha
+          autoComplete="new-password"
+          textContentType="newPassword"
+          returnKeyType="go"
+          onSubmitEditing={cadastrar}
         />
+      </Linha>
 
-        {erro !== '' && <Text style={styles.erro}>{erro}</Text>}
+      <CaixaErro texto={erro} />
 
-        <Pressable style={styles.botao} onPress={cadastrar}>
-          <Text style={styles.textoBotao}>Criar conta</Text>
-        </Pressable>
+      <TextoLegal prefixo="Ao se cadastrar, você concorda com os" />
 
-        <Pressable onPress={() => router.push('/login')}>
-          <Text style={styles.link}>Já tem conta? Entrar</Text>
-        </Pressable>
+      <Botao
+        texto={enviando ? 'Cadastrando...' : 'Cadastrar'}
+        aoPressionar={cadastrar}
+        desativado={enviando}
+      />
 
-        <Pressable onPress={() => router.push('/')}>
-          <Text style={styles.voltar}>← Voltar ao início</Text>
-        </Pressable>
-      </View>
-    </ScrollView>
+      <Divisor texto="ou" />
+
+      <LinkConta
+        pergunta="Já possui uma conta?"
+        acao="Entrar"
+        aoPressionar={() => router.push('/login')}
+      />
+
+      <LinkContorno
+        texto="Quero me cadastrar como profissional"
+        aoPressionar={() => router.push('/CadastroProfissional')}
+      />
+    </AuthTela>
   );
 }
-
-const styles = StyleSheet.create({
-  tela: { flex: 1, backgroundColor: '#f5f7f4' },
-  conteudo: { flexGrow: 1, justifyContent: 'center', padding: 22 },
-  caixa: {
-    width: '100%',
-    maxWidth: 420,
-    alignSelf: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 24,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-  },
-  titulo: { fontSize: 26, fontWeight: 'bold', color: '#254b35' },
-  subtitulo: { fontSize: 14, color: '#555', marginTop: 4, marginBottom: 20 },
-  rotulo: { fontSize: 13, fontWeight: 'bold', color: '#333', marginBottom: 6 },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccd5cd',
-    borderRadius: 8,
-    paddingVertical: 11,
-    paddingHorizontal: 12,
-    fontSize: 15,
-    marginBottom: 14,
-    color: '#222',
-  },
-  erro: { color: '#c0392b', fontSize: 13, marginBottom: 10 },
-  botao: {
-    backgroundColor: '#397653',
-    paddingVertical: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  textoBotao: { color: '#fff', fontWeight: 'bold', fontSize: 15 },
-  link: { color: '#397653', textAlign: 'center', marginTop: 18, fontSize: 14 },
-  voltar: { color: '#555', textAlign: 'center', marginTop: 14, fontSize: 13 },
-});

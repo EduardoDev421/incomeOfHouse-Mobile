@@ -2,55 +2,33 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
-  Image,
-  ScrollView,
-  TouchableOpacity,
   TextInput,
-  Modal,
   Pressable,
+  ScrollView,
+  StyleSheet,
+  Platform,
   BackHandler,
   KeyboardAvoidingView,
-  Platform,
-  StyleSheet,
-  StatusBar,
-  SafeAreaView,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { LayoutConta } from '../components/TelaConta';
 
-const LOGO = require('../../assets/images/Logo.png');
+const DOURADO = '#d4a63a';
+const ALTURA_AUTO = { flexGrow: 0, flexShrink: 0, flexBasis: 'auto' };
 
-const COLORS = {
-  bg: '#0a0a0a',
-  card: '#121212',
-  cardAlt: '#161616',
-  border: '#2a2a2a',
-  gold: '#d9a520',
-  goldDim: 'rgba(217,165,32,0.45)',
-  text: '#ffffff',
-  muted: '#8a8a8a',
-  mutedBlue: '#7f9bb5',
+const FILTROS = [
+  { chave: 'todas', rotulo: 'Todas' },
+  { chave: 'naolidas', rotulo: 'Não lidas' },
+  { chave: 'salvos', rotulo: 'Salvos' },
+];
+
+const pad = (n) => String(n).padStart(2, '0');
+
+const horaAtual = () => {
+  const d = new Date();
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
-
-// Ajuste as rotas conforme os nomes dos arquivos em src/app
-const MENU = [
-  { label: 'Meu Perfil', icon: 'person-circle-outline', route: '/perfilProfissional' },
-  { label: 'Meus Endereços', icon: 'location-outline', route: '/meusEnderecos' },
-  { label: 'Meus Pedidos', icon: 'grid-outline', route: '/meusPedidos' },
-  { label: 'Meus Profissionais Favoritos', icon: 'star-outline', route: '/meusProfissionais' },
-  { label: 'Projetos Salvos', icon: 'bookmark-outline', route: '/projetosSalvos' },
-  { label: 'Agendamentos', icon: 'calendar-outline', route: '/agendamentos' },
-  { label: 'Mensagem', icon: 'chatbox-ellipses-outline', route: '/mensagem', ativo: true },
-  { label: 'Configurações', icon: 'settings-outline', route: '/configuracoesProfissionais' },
-  { label: 'Sair', icon: 'log-out-outline', route: '/login', separador: true },
-];
-
-const LINKS_TOPO = [
-  ['Início', '/'],
-  ['Plantas', '/planta'],
-  ['Profissionais', '/profissionais'],
-  ['Sobre Nós', '/sobre'],
-];
 
 const CONVERSAS_INICIAIS = [
   {
@@ -58,7 +36,10 @@ const CONVERSAS_INICIAIS = [
     nome: 'João Silva',
     iniciais: 'JS',
     funcao: 'Profissional',
-    preview: 'Olá, gostaria de saber mais sobre...',
+    online: true,
+    salvo: true,
+    naoLidas: 2,
+    preview: 'Perfeito, obrigado!',
     hora: '14:30',
     mensagens: [
       { id: 'm1', tipo: 'recebida', texto: 'Olá! Tudo bem?', hora: '14:28' },
@@ -72,474 +53,913 @@ const CONVERSAS_INICIAIS = [
     nome: 'Marcos Costa',
     iniciais: 'MC',
     funcao: 'Profissional',
+    online: false,
+    salvo: false,
+    naoLidas: 1,
     preview: 'Podemos marcar uma reunião?',
     hora: 'Ontem',
-    mensagens: [{ id: 'm1', tipo: 'recebida', texto: 'Podemos marcar uma reunião?', hora: '18:12' }],
+    mensagens: [
+      { id: 'm1', tipo: 'recebida', texto: 'Podemos marcar uma reunião?', hora: '18:12' },
+    ],
   },
   {
     id: '3',
     nome: 'Ana Souza',
     iniciais: 'AS',
     funcao: 'Profissional',
+    online: true,
+    salvo: true,
+    naoLidas: 0,
     preview: 'Enviei os detalhes do projeto.',
     hora: '17/05',
-    mensagens: [{ id: 'm1', tipo: 'recebida', texto: 'Enviei os detalhes do projeto.', hora: '10:05' }],
+    mensagens: [
+      { id: 'm1', tipo: 'recebida', texto: 'Enviei os detalhes do projeto.', hora: '10:05' },
+    ],
   },
   {
     id: '4',
     nome: 'Ricardo Costa',
     iniciais: 'RC',
     funcao: 'Profissional',
+    online: false,
+    salvo: false,
+    naoLidas: 0,
     preview: 'Obrigado pelo contato!',
     hora: '16/05',
-    mensagens: [{ id: 'm1', tipo: 'recebida', texto: 'Obrigado pelo contato!', hora: '16:40' }],
+    mensagens: [
+      { id: 'm1', tipo: 'recebida', texto: 'Obrigado pelo contato!', hora: '16:40' },
+    ],
   },
 ];
 
-const horaAtual = () => {
-  const d = new Date();
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-};
-
-/* ---------- Componentes auxiliares ---------- */
-
-function Avatar({ iniciais, grande }) {
+function Filtro({ ativo, rotulo, contador, onPress }) {
   return (
-    <View style={[styles.avatar, grande && styles.avatarGrande]}>
-      <Text style={[styles.avatarTxt, grande && { fontSize: 15 }]}>{iniciais}</Text>
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        s.filtro,
+        ativo && s.filtroAtivo,
+        pressed && s.pressionado,
+      ]}
+      accessibilityRole="button"
+      accessibilityState={{ selected: ativo }}
+    >
+      <Text style={[s.textoFiltro, ativo && s.textoFiltroAtivo]}>
+        {rotulo}
+      </Text>
+
+      {contador > 0 && (
+        <View style={[s.contador, ativo && s.contadorAtivo]}>
+          <Text style={[s.contadorTxt, ativo && s.contadorTxtAtivo]}>
+            {contador}
+          </Text>
+        </View>
+      )}
+    </Pressable>
+  );
+}
+
+function Avatar({ iniciais, online, grande }) {
+  return (
+    <View style={[s.avatar, grande && s.avatarGrande]}>
+      <Text style={s.avatarTxt}>{iniciais}</Text>
+      {online && <View style={s.online} />}
     </View>
   );
 }
 
-/* ---------- Tela ---------- */
+function ItemConversa({ item, selecionada, ultima, onPress }) {
+  const naoLida = item.naoLidas > 0;
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        s.conversa,
+        !ultima && s.conversaDivisor,
+        selecionada && s.conversaSel,
+        pressed && s.pressionado,
+      ]}
+      accessibilityRole="button"
+      accessibilityLabel={`Conversa com ${item.nome}${naoLida ? `, ${item.naoLidas} não lidas` : ''}`}
+    >
+      <Avatar iniciais={item.iniciais} online={item.online} />
+
+      <View style={s.conversaCorpo}>
+        <View style={s.conversaLinha}>
+          <Text
+            style={[s.conversaNome, naoLida && s.conversaNomeForte]}
+            numberOfLines={1}
+          >
+            {item.nome}
+          </Text>
+
+          {item.salvo && (
+            <Ionicons name="star" size={12} color={DOURADO} />
+          )}
+        </View>
+
+        <Text
+          style={[
+            s.conversaPreview,
+            naoLida && s.conversaPreviewForte,
+          ]}
+          numberOfLines={1}
+        >
+          {item.preview}
+        </Text>
+      </View>
+
+      <View style={s.conversaLado}>
+        <Text style={[s.conversaHora, naoLida && { color: DOURADO }]}>
+          {item.hora}
+        </Text>
+
+        {naoLida ? (
+          <View style={s.badge}>
+            <Text style={s.badgeTxt}>{item.naoLidas}</Text>
+          </View>
+        ) : (
+          <View style={s.badgeVazio} />
+        )}
+      </View>
+    </Pressable>
+  );
+}
+
+function Balao({ msg }) {
+  const enviada = msg.tipo === 'enviada';
+
+  return (
+    <View style={[s.balao, enviada ? s.balaoEnviado : s.balaoRecebido]}>
+      <Text style={s.balaoTxt}>{msg.texto}</Text>
+      <Text style={[s.balaoHora, enviada && s.balaoHoraEnviada]}>
+        {msg.hora}
+      </Text>
+    </View>
+  );
+}
 
 export default function Mensagens() {
-  const router = useRouter();
-  const [menuAberto, setMenuAberto] = useState(false);
+  const { width, height } = useWindowDimensions();
 
   const [conversas, setConversas] = useState(CONVERSAS_INICIAIS);
-  const [conversaId, setConversaId] = useState(null); // null = lista
+  const [conversaId, setConversaId] = useState(null);
   const [busca, setBusca] = useState('');
+  const [filtro, setFiltro] = useState('todas');
   const [texto, setTexto] = useState('');
+
   const scrollRef = useRef(null);
 
-  const conversaAtual = useMemo(() => conversas.find((c) => c.id === conversaId) || null, [conversas, conversaId]);
+  const conversaAtual = useMemo(
+    () => conversas.find((c) => c.id === conversaId) || null,
+    [conversas, conversaId]
+  );
+
+  const totalNaoLidas = useMemo(
+    () => conversas.filter((c) => c.naoLidas > 0).length,
+    [conversas]
+  );
 
   const filtradas = useMemo(() => {
     const termo = busca.trim().toLowerCase();
-    if (!termo) return conversas;
-    return conversas.filter((c) => c.nome.toLowerCase().includes(termo) || c.preview.toLowerCase().includes(termo));
-  }, [busca, conversas]);
 
-  // Botão voltar do Android fecha o chat
-  useEffect(() => {
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (conversaId) {
-        setConversaId(null);
-        return true;
-      }
-      return false;
+    return conversas.filter((c) => {
+      if (filtro === 'naolidas' && c.naoLidas === 0) return false;
+      if (filtro === 'salvos' && !c.salvo) return false;
+      if (!termo) return true;
+
+      return (
+        c.nome.toLowerCase().includes(termo) ||
+        c.preview.toLowerCase().includes(termo)
+      );
     });
+  }, [conversas, busca, filtro]);
+
+  const textoVazio =
+    filtro === 'naolidas'
+      ? 'Nenhuma mensagem não lida.'
+      : filtro === 'salvos'
+        ? 'Nenhum contato salvo.'
+        : 'Nenhuma conversa encontrada.';
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener(
+      'hardwareBackPress',
+      () => {
+        if (conversaId) {
+          setConversaId(null);
+          return true;
+        }
+
+        return false;
+      }
+    );
+
     return () => sub.remove();
   }, [conversaId]);
 
-  const ir = (route) => {
-    setMenuAberto(false);
-    router.push(route);
+  const abrirConversa = (id) => {
+    setConversaId(id);
+    setTexto('');
+
+    setConversas((prev) =>
+      prev.map((c) =>
+        c.id === id ? { ...c, naoLidas: 0 } : c
+      )
+    );
+  };
+
+  const alternarSalvo = () => {
+    if (!conversaAtual) return;
+
+    setConversas((prev) =>
+      prev.map((c) =>
+        c.id === conversaAtual.id
+          ? { ...c, salvo: !c.salvo }
+          : c
+      )
+    );
   };
 
   const enviar = () => {
     const conteudo = texto.trim();
+
     if (!conteudo || !conversaAtual) return;
 
     const hora = horaAtual();
-    const nova = { id: `m${Date.now()}`, tipo: 'enviada', texto: conteudo, hora };
+
+    const nova = {
+      id: `m${Date.now()}`,
+      tipo: 'enviada',
+      texto: conteudo,
+      hora,
+    };
 
     setConversas((prev) =>
       prev.map((c) =>
-        c.id === conversaAtual.id ? { ...c, mensagens: [...c.mensagens, nova], preview: conteudo, hora } : c
+        c.id === conversaAtual.id
+          ? {
+              ...c,
+              mensagens: [...c.mensagens, nova],
+              preview: conteudo,
+              hora,
+            }
+          : c
       )
     );
+
     setTexto('');
   };
 
+  const podeEnviar = !!texto.trim();
+
   return (
-    <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
+    <LayoutConta
+      ativo="mensagem"
+      titulo="Mensagens"
+      subtitulo="Converse diretamente com profissionais e clientes."
+    >
+      {({ mobile, medio }) => {
+        const dividido = !mobile && !medio && width >= 1000;
+        const mostrarLista = dividido || !conversaAtual;
+        const mostrarChat = dividido || !!conversaAtual;
 
-      {/* Topo */}
-      <View style={styles.topo}>
-        <TouchableOpacity onPress={() => setMenuAberto(true)} style={styles.topoBtn}>
-          <Ionicons name="menu" size={26} color={COLORS.gold} />
-        </TouchableOpacity>
+        const alturaArea = Math.max(
+          480,
+          Math.round(height * (mobile ? 0.72 : 0.7))
+        );
 
-        <TouchableOpacity onPress={() => ir('/')}>
-          <Image source={LOGO} style={styles.logo} resizeMode="contain" />
-        </TouchableOpacity>
+        const lista = (
+          <View style={[s.painel, dividido && s.painelLista, { minHeight: 0 }]}>
+            <View style={s.buscaWrap}>
+              <Ionicons
+                name="search"
+                size={18}
+                color={DOURADO}
+                style={s.buscaIcone}
+              />
 
-        <TouchableOpacity onPress={() => ir('/perfilProfissional')} style={styles.topoBtn}>
-          <Ionicons name="person-circle-outline" size={26} color={COLORS.gold} />
-        </TouchableOpacity>
-      </View>
+              <TextInput
+                style={s.inputBusca}
+                value={busca}
+                onChangeText={setBusca}
+                placeholder="Buscar por nome ou mensagem..."
+                placeholderTextColor="#777b83"
+                selectionColor={DOURADO}
+                returnKeyType="search"
+                accessibilityLabel="Buscar mensagem"
+              />
 
-      {!conversaAtual ? (
-        /* ========== LISTA DE CONVERSAS ========== */
-        <>
-          <View style={styles.menuTopo}>
-            {LINKS_TOPO.map(([label, route]) => (
-              <TouchableOpacity key={label} onPress={() => ir(route)}>
-                <Text style={styles.menuTopoTxt}>{label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <ScrollView
-            contentContainerStyle={styles.scroll}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-          >
-            <Text style={styles.h1}>Mensagens</Text>
-            <Text style={styles.sub}>Gerencie suas conversas e mensagens.</Text>
-            <View style={styles.divisor} />
-
-            <View style={styles.card}>
-              <View style={styles.buscar}>
-                <TextInput
-                  style={styles.buscarInput}
-                  placeholder="Buscar mensagem..."
-                  placeholderTextColor={COLORS.muted}
-                  value={busca}
-                  onChangeText={setBusca}
-                  returnKeyType="search"
-                />
-                {busca ? (
-                  <TouchableOpacity onPress={() => setBusca('')}>
-                    <Ionicons name="close-circle" size={18} color={COLORS.muted} />
-                  </TouchableOpacity>
-                ) : (
-                  <Ionicons name="search" size={18} color={COLORS.gold} />
-                )}
-              </View>
-
-              {filtradas.length === 0 ? (
-                <Text style={styles.vazio}>Nenhuma conversa encontrada.</Text>
-              ) : (
-                filtradas.map((c, i) => (
-                  <TouchableOpacity
-                    key={c.id}
-                    style={[styles.conversa, i === filtradas.length - 1 && { borderBottomWidth: 0 }]}
-                    onPress={() => setConversaId(c.id)}
-                    activeOpacity={0.8}
-                  >
-                    <Avatar iniciais={c.iniciais} />
-                    <View style={styles.flex}>
-                      <Text style={styles.conversaNome}>{c.nome}</Text>
-                      <Text style={styles.conversaPreview} numberOfLines={1}>
-                        {c.preview}
-                      </Text>
-                    </View>
-                    <Text style={styles.conversaHora}>{c.hora}</Text>
-                  </TouchableOpacity>
-                ))
+              {!!busca && (
+                <Pressable
+                  onPress={() => setBusca('')}
+                  hitSlop={10}
+                  style={s.buscaLimpar}
+                  accessibilityRole="button"
+                  accessibilityLabel="Limpar busca"
+                >
+                  <Ionicons
+                    name="close-circle"
+                    size={18}
+                    color="#8f9497"
+                  />
+                </Pressable>
               )}
             </View>
 
-            {/* Rodapé */}
-            <View style={styles.rodape}>
-              <Text style={styles.rodapeTxt}>©IncomeOfHouses. Todos os direitos reservados.</Text>
-              <View style={styles.rodapeLinks}>
-                <TouchableOpacity onPress={() => ir('/termosUso')}>
-                  <Text style={styles.rodapeLink}>Termos de Uso</Text>
-                </TouchableOpacity>
-                <Text style={styles.rodapeLink}>|</Text>
-                <TouchableOpacity onPress={() => ir('/politicaPrivacidade')}>
-                  <Text style={styles.rodapeLink}>Política de Privacidade</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </ScrollView>
-        </>
-      ) : (
-        /* ========== CHAT ========== */
-        <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <View style={styles.chatTopo}>
-            <TouchableOpacity onPress={() => setConversaId(null)} style={styles.voltarBtn}>
-              <Ionicons name="arrow-back" size={22} color={COLORS.gold} />
-            </TouchableOpacity>
-            <Avatar iniciais={conversaAtual.iniciais} grande />
-            <View style={styles.flex}>
-              <Text style={styles.chatNome}>{conversaAtual.nome}</Text>
-              <Text style={styles.chatFuncao}>{conversaAtual.funcao}</Text>
-            </View>
-          </View>
-
-          <ScrollView
-            ref={scrollRef}
-            style={styles.flex}
-            contentContainerStyle={styles.chatConteudo}
-            onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
-            {conversaAtual.mensagens.map((m) => {
-              const enviada = m.tipo === 'enviada';
-              return (
-                <View key={m.id} style={[styles.mensagem, enviada ? styles.enviada : styles.recebida]}>
-                  <Text style={[styles.mensagemTxt, enviada && { color: '#0a0a0a' }]}>{m.texto}</Text>
-                  <Text style={[styles.mensagemHora, enviada && { color: 'rgba(10,10,10,0.6)' }]}>{m.hora}</Text>
-                </View>
-              );
-            })}
-          </ScrollView>
-
-          <View style={styles.campoMensagem}>
-            <TextInput
-              style={styles.campoInput}
-              placeholder="Digite sua mensagem..."
-              placeholderTextColor={COLORS.muted}
-              value={texto}
-              onChangeText={setTexto}
-              multiline
-              onSubmitEditing={enviar}
-            />
-            <TouchableOpacity
-              style={[styles.btnEnviar, !texto.trim() && { opacity: 0.4 }]}
-              onPress={enviar}
-              disabled={!texto.trim()}
-              activeOpacity={0.85}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={s.filtros}
+              style={ALTURA_AUTO}
             >
-              <Text style={styles.btnEnviarTxt}>Enviar</Text>
-            </TouchableOpacity>
-          </View>
-        </KeyboardAvoidingView>
-      )}
-
-      {/* Menu lateral */}
-      <Modal visible={menuAberto} transparent animationType="fade" onRequestClose={() => setMenuAberto(false)}>
-        <View style={styles.modalRoot}>
-          <SafeAreaView style={styles.drawer}>
-            <View style={styles.drawerHeader}>
-              <Image source={LOGO} style={styles.logo} resizeMode="contain" />
-              <TouchableOpacity onPress={() => setMenuAberto(false)}>
-                <Ionicons name="close" size={24} color={COLORS.gold} />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView>
-              {MENU.map((item) => (
-                <View key={item.label}>
-                  {item.separador && <View style={styles.drawerSep} />}
-                  <TouchableOpacity
-                    style={[styles.menuItem, item.ativo && styles.menuItemAtivo]}
-                    onPress={() => ir(item.route)}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name={item.icon} size={16} color={item.ativo ? COLORS.gold : COLORS.muted} />
-                    <Text style={[styles.menuItemTxt, item.ativo && { color: COLORS.gold }]}>{item.label}</Text>
-                  </TouchableOpacity>
-                </View>
+              {FILTROS.map((f) => (
+                <Filtro
+                  key={f.chave}
+                  ativo={filtro === f.chave}
+                  rotulo={f.rotulo}
+                  contador={
+                    f.chave === 'naolidas' ? totalNaoLidas : 0
+                  }
+                  onPress={() => setFiltro(f.chave)}
+                />
               ))}
             </ScrollView>
-          </SafeAreaView>
-          <Pressable style={styles.overlay} onPress={() => setMenuAberto(false)} />
-        </View>
-      </Modal>
-    </SafeAreaView>
+
+            <ScrollView
+              style={s.flex}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              nestedScrollEnabled
+            >
+              {filtradas.length === 0 ? (
+                <Text style={s.vazio}>{textoVazio}</Text>
+              ) : (
+                filtradas.map((c, i) => (
+                  <ItemConversa
+                    key={c.id}
+                    item={c}
+                    selecionada={dividido && c.id === conversaId}
+                    ultima={i === filtradas.length - 1}
+                    onPress={() => abrirConversa(c.id)}
+                  />
+                ))
+              )}
+            </ScrollView>
+          </View>
+        );
+
+        const chat = conversaAtual ? (
+          <View style={[s.painel, dividido && s.painelChat]}>
+            <View style={s.chatTopo}>
+              {!dividido && (
+                <Pressable
+                  onPress={() => setConversaId(null)}
+                  style={({ pressed }) => [
+                    s.btnNav,
+                    pressed && s.pressionado,
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Voltar para as conversas"
+                >
+                  <Ionicons
+                    name="chevron-back"
+                    size={18}
+                    color={DOURADO}
+                  />
+                </Pressable>
+              )}
+
+              <Avatar
+                iniciais={conversaAtual.iniciais}
+                online={conversaAtual.online}
+                grande
+              />
+
+              <View style={s.chatInfo}>
+                <Text style={s.chatNome} numberOfLines={1}>
+                  {conversaAtual.nome}
+                </Text>
+
+                <Text
+                  style={[
+                    s.chatStatus,
+                    conversaAtual.online && { color: '#54db83' },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {conversaAtual.online
+                    ? 'Online'
+                    : conversaAtual.funcao}
+                </Text>
+              </View>
+
+              <Pressable
+                onPress={alternarSalvo}
+                style={({ pressed }) => [
+                  s.btnSalvar,
+                  conversaAtual.salvo && s.btnSalvarAtivo,
+                  pressed && s.pressionado,
+                ]}
+                accessibilityRole="button"
+                accessibilityState={{
+                  selected: conversaAtual.salvo,
+                }}
+                accessibilityLabel={
+                  conversaAtual.salvo
+                    ? 'Remover dos salvos'
+                    : 'Salvar contato'
+                }
+              >
+                <Ionicons
+                  name={
+                    conversaAtual.salvo
+                      ? 'star'
+                      : 'star-outline'
+                  }
+                  size={16}
+                  color={
+                    conversaAtual.salvo ? DOURADO : '#d3d4d8'
+                  }
+                />
+
+                {!mobile && (
+                  <Text
+                    style={[
+                      s.btnSalvarTxt,
+                      conversaAtual.salvo && { color: DOURADO },
+                    ]}
+                  >
+                    {conversaAtual.salvo
+                      ? 'Salvo'
+                      : 'Salvar contato'}
+                  </Text>
+                )}
+              </Pressable>
+            </View>
+
+            <ScrollView
+              ref={scrollRef}
+              style={s.flex}
+              contentContainerStyle={s.chatConteudo}
+              onContentSizeChange={() =>
+                scrollRef.current?.scrollToEnd({ animated: true })
+              }
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              nestedScrollEnabled
+            >
+              <View style={s.separador}>
+                <Text style={s.separadorTxt}>Hoje</Text>
+              </View>
+
+              {conversaAtual.mensagens.map((m) => (
+                <Balao key={m.id} msg={m} />
+              ))}
+            </ScrollView>
+
+            <View style={s.campo}>
+              <TextInput
+                style={s.campoInput}
+                value={texto}
+                onChangeText={setTexto}
+                placeholder="Digite sua mensagem..."
+                placeholderTextColor="#777b83"
+                selectionColor={DOURADO}
+                multiline
+                maxLength={1000}
+                accessibilityLabel="Digite sua mensagem"
+              />
+
+              <Pressable
+                onPress={enviar}
+                disabled={!podeEnviar}
+                style={({ pressed }) => [
+                  s.btnEnviar,
+                  !podeEnviar && s.btnEnviarOff,
+                  pressed && s.pressionado,
+                ]}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: !podeEnviar }}
+                accessibilityLabel="Enviar mensagem"
+              >
+                <Ionicons
+                  name="send"
+                  size={18}
+                  color={podeEnviar ? '#111' : '#777'}
+                />
+              </Pressable>
+            </View>
+          </View>
+        ) : (
+          <View
+            style={[
+              s.painel,
+              s.painelChat,
+              s.chatVazio,
+            ]}
+          >
+            <Ionicons
+              name="chatbubble-ellipses-outline"
+              size={44}
+              color="#59431f"
+            />
+
+            <Text style={s.chatVazioTxt}>
+              Selecione uma conversa para começar a conversar.
+            </Text>
+          </View>
+        );
+
+        return (
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={ALTURA_AUTO}
+          >
+            <View
+              style={[
+                s.card,
+                mobile && s.cardMobile,
+                { height: alturaArea },
+              ]}
+            >
+              <View style={[s.area, dividido && s.areaLinha]}>
+                {mostrarLista && lista}
+                {mostrarChat && chat}
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        );
+      }}
+    </LayoutConta>
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.bg },
+const s = StyleSheet.create({
   flex: { flex: 1 },
+  pressionado: { opacity: 0.75 },
 
-  // Topo
-  topo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.goldDim,
-  },
-  topoBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  logo: { width: 80, height: 40 },
-  menuTopo: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  menuTopoTxt: { color: COLORS.text, fontSize: 12, fontWeight: '600' },
-
-  scroll: { padding: 16, paddingBottom: 0 },
-  h1: { color: COLORS.text, fontSize: 22, fontWeight: '700' },
-  sub: { color: COLORS.text, fontSize: 12, marginTop: 4 },
-  divisor: { height: 1, backgroundColor: COLORS.text, marginVertical: 12, opacity: 0.9 },
-
-  // Lista
   card: {
-    backgroundColor: COLORS.card,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 8,
     padding: 14,
-    marginBottom: 20,
+    backgroundColor: '#171717',
+    borderWidth: 1,
+    borderColor: '#292929',
+    borderRadius: 12,
+    overflow: 'hidden',
   },
-  buscar: {
+  cardMobile: {
+    padding: 12,
+    borderRadius: 14,
+  },
+
+  area: { flex: 1 },
+  areaLinha: {
+    flexDirection: 'row',
+    gap: 14,
+  },
+  painel: { flex: 1 },
+  painelLista: {
+    flex: 0,
+    flexBasis: 360,
+    flexGrow: 0,
+    flexShrink: 0,
+  },
+  painelChat: {
+    flex: 1,
+    minWidth: 0,
+    backgroundColor: '#101011',
+    borderWidth: 1,
+    borderColor: '#252729',
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+
+  buscaWrap: { justifyContent: 'center' },
+  buscaIcone: {
+    position: 'absolute',
+    left: 12,
+    zIndex: 1,
+  },
+  inputBusca: {
+    height: 46,
+    paddingLeft: 38,
+    paddingRight: 38,
+    color: '#eee',
+    fontSize: 15,
+    backgroundColor: '#0d0d0e',
+    borderWidth: 1,
+    borderColor: '#292929',
+    borderRadius: 8,
+    ...Platform.select({ web: { outlineStyle: 'none' } }),
+  },
+  buscaLimpar: {
+    position: 'absolute',
+    right: 12,
+  },
+
+  filtros: {
+    gap: 8,
+    paddingVertical: 12,
+  },
+  filtro: {
+    minHeight: 36,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    backgroundColor: COLORS.cardAlt,
+    gap: 7,
+    paddingHorizontal: 14,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    height: 44,
-    marginBottom: 6,
+    borderColor: '#3c4148',
+    borderRadius: 20,
   },
-  buscarInput: { flex: 1, color: COLORS.text, fontSize: 13, padding: 0 },
-  vazio: { color: COLORS.muted, fontSize: 12, textAlign: 'center', paddingVertical: 24 },
+  filtroAtivo: {
+    backgroundColor: '#29231a',
+    borderColor: DOURADO,
+  },
+  textoFiltro: {
+    color: '#d3d4d8',
+    fontSize: 12.5,
+  },
+  textoFiltroAtivo: {
+    color: DOURADO,
+    fontWeight: '600',
+  },
+  contador: {
+    minWidth: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 5,
+    backgroundColor: DOURADO,
+    borderRadius: 9,
+  },
+  contadorAtivo: { backgroundColor: '#111' },
+  contadorTxt: {
+    color: '#111',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  contadorTxtAtivo: { color: DOURADO },
 
+  vazio: {
+    paddingVertical: 32,
+    color: '#a5a5a5',
+    fontSize: 13,
+    textAlign: 'center',
+  },
   conversa: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    minHeight: 72,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 8,
   },
-  conversaNome: { color: COLORS.text, fontSize: 13, fontWeight: '700' },
-  conversaPreview: { color: COLORS.mutedBlue, fontSize: 11, marginTop: 2 },
-  conversaHora: { color: COLORS.muted, fontSize: 10 },
-
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: COLORS.goldDim,
-    backgroundColor: COLORS.bg,
+  conversaDivisor: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#252729',
+    borderRadius: 0,
+  },
+  conversaSel: {
+    backgroundColor: '#29231a',
+    borderRadius: 8,
+  },
+  conversaCorpo: {
+    flex: 1,
+    minWidth: 0,
+    gap: 4,
+  },
+  conversaLinha: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  conversaNome: {
+    flexShrink: 1,
+    color: '#e7e7e7',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  conversaNomeForte: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  conversaPreview: {
+    color: '#8f9497',
+    fontSize: 12,
+  },
+  conversaPreviewForte: {
+    color: '#d5d6da',
+    fontWeight: '600',
+  },
+  conversaLado: {
+    alignSelf: 'stretch',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    paddingVertical: 2,
+  },
+  conversaHora: {
+    color: '#777',
+    fontSize: 11,
+  },
+  badge: {
+    minWidth: 20,
+    height: 20,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 6,
+    backgroundColor: DOURADO,
+    borderRadius: 10,
   },
-  avatarGrande: { width: 44, height: 44, borderRadius: 22 },
-  avatarTxt: { color: COLORS.gold, fontSize: 12, fontWeight: '700' },
+  badgeVazio: { height: 20 },
+  badgeTxt: {
+    color: '#111',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
 
-  // Chat
+  avatar: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#0d0d0e',
+    borderWidth: 1,
+    borderColor: '#8a701e',
+    borderRadius: 22,
+  },
+  avatarGrande: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+  },
+  avatarTxt: {
+    color: DOURADO,
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  online: {
+    position: 'absolute',
+    right: -1,
+    bottom: -1,
+    width: 12,
+    height: 12,
+    backgroundColor: '#54db83',
+    borderWidth: 2,
+    borderColor: '#171717',
+    borderRadius: 6,
+  },
+
   chatTopo: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    padding: 10,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-    backgroundColor: COLORS.card,
+    borderBottomColor: '#292929',
   },
-  voltarBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  chatNome: { color: COLORS.text, fontSize: 15, fontWeight: '700' },
-  chatFuncao: { color: COLORS.mutedBlue, fontSize: 11, marginTop: 1 },
-  chatConteudo: { padding: 16, gap: 10 },
-
-  mensagem: {
-    maxWidth: '80%',
-    borderRadius: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-  },
-  recebida: {
-    alignSelf: 'flex-start',
-    backgroundColor: COLORS.cardAlt,
+  btnNav: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
-    borderColor: COLORS.border,
-    borderBottomLeftRadius: 2,
+    borderColor: '#343940',
+    borderRadius: 18,
   },
-  enviada: {
-    alignSelf: 'flex-end',
-    backgroundColor: COLORS.gold,
-    borderBottomRightRadius: 2,
+  chatInfo: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
   },
-  mensagemTxt: { color: COLORS.text, fontSize: 13, lineHeight: 18 },
-  mensagemHora: { color: COLORS.muted, fontSize: 9, marginTop: 4, alignSelf: 'flex-end' },
+  chatNome: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  chatStatus: {
+    color: '#8f9497',
+    fontSize: 11,
+  },
+  btnSalvar: {
+    minHeight: 36,
+    minWidth: 36,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: '#3c4148',
+    borderRadius: 18,
+  },
+  btnSalvarAtivo: {
+    backgroundColor: '#29231a',
+    borderColor: '#59431f',
+  },
+  btnSalvarTxt: {
+    color: '#d3d4d8',
+    fontSize: 12,
+  },
 
-  campoMensagem: {
+  chatConteudo: {
+    padding: 14,
+    gap: 8,
+  },
+  separador: {
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  separadorTxt: {
+    paddingVertical: 3,
+    paddingHorizontal: 12,
+    color: '#8f9497',
+    fontSize: 10,
+    backgroundColor: '#1a1a1c',
+    borderWidth: 1,
+    borderColor: '#292929',
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+
+  balao: {
+    maxWidth: '82%',
+    paddingVertical: 9,
+    paddingHorizontal: 13,
+    borderRadius: 12,
+  },
+  balaoRecebido: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#1a1a1c',
+    borderWidth: 1,
+    borderColor: '#292929',
+    borderTopLeftRadius: 2,
+  },
+  balaoEnviado: {
+    alignSelf: 'flex-end',
+    backgroundColor: '#29231a',
+    borderWidth: 1,
+    borderColor: '#59431f',
+    borderTopRightRadius: 2,
+  },
+  balaoTxt: {
+    color: '#eee',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  balaoHora: {
+    marginTop: 4,
+    alignSelf: 'flex-end',
+    color: '#888',
+    fontSize: 10,
+  },
+  balaoHoraEnviada: { color: '#b59a58' },
+
+  chatVazio: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    padding: 24,
+  },
+  chatVazioTxt: {
+    color: '#8f9497',
+    fontSize: 13,
+    textAlign: 'center',
+  },
+
+  campo: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: 8,
     padding: 10,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    backgroundColor: COLORS.card,
+    borderTopColor: '#292929',
   },
   campoInput: {
     flex: 1,
-    maxHeight: 100,
-    minHeight: 44,
-    backgroundColor: COLORS.cardAlt,
+    minHeight: 46,
+    maxHeight: 110,
+    paddingHorizontal: 14,
+    paddingTop: 13,
+    paddingBottom: 13,
+    color: '#eee',
+    fontSize: 15,
+    backgroundColor: '#0d0d0e',
     borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingTop: 12,
-    paddingBottom: 12,
-    color: COLORS.text,
-    fontSize: 13,
+    borderColor: '#292929',
+    borderRadius: 8,
+    ...Platform.select({ web: { outlineStyle: 'none' } }),
   },
   btnEnviar: {
-    height: 44,
-    paddingHorizontal: 16,
-    borderRadius: 6,
-    backgroundColor: COLORS.gold,
+    width: 46,
+    height: 46,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: DOURADO,
+    borderRadius: 8,
   },
-  btnEnviarTxt: { color: '#0a0a0a', fontSize: 13, fontWeight: '700' },
-
-  // Rodapé
-  rodape: {
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    paddingVertical: 16,
-    alignItems: 'center',
-    gap: 8,
-    marginHorizontal: -16,
+  btnEnviarOff: {
+    backgroundColor: '#2b2b2e',
   },
-  rodapeTxt: { color: COLORS.muted, fontSize: 10 },
-  rodapeLinks: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  rodapeLink: { color: COLORS.mutedBlue, fontSize: 10 },
-
-  // Drawer
-  modalRoot: { flex: 1, flexDirection: 'row' },
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
-  drawer: {
-    width: 260,
-    backgroundColor: COLORS.bg,
-    borderRightWidth: 1,
-    borderRightColor: COLORS.goldDim,
-    paddingHorizontal: 10,
-  },
-  drawerHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-    marginBottom: 6,
-  },
-  drawerSep: { height: 1, backgroundColor: COLORS.border, marginVertical: 8 },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: COLORS.card,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 6,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    marginBottom: 6,
-  },
-  menuItemAtivo: { borderColor: COLORS.gold, backgroundColor: 'rgba(217,165,32,0.08)' },
-  menuItemTxt: { color: COLORS.text, fontSize: 12, fontWeight: '600' },
 });
