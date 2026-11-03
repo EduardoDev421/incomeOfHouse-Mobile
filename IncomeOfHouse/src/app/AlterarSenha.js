@@ -15,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
 /* =========================================================
-   ROTAS
+   ROTASnpx expo start --clear
    O expo-router só abre rotas cujo ARQUIVO existe dentro da pasta "app".
    Rotas ainda não criadas ficam como null (o toque não faz nada).
 ========================================================= */

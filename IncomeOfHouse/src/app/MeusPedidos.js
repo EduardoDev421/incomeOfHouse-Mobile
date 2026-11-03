@@ -1,47 +1,85 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   View,
   Text,
+  Image,
+  ImageBackground,
+  ScrollView,
   TextInput,
-  Pressable,
   StyleSheet,
+  Pressable,
   Platform,
+  Animated,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { LayoutConta } from '../components/TelaConta';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDeclararConta } from '../components/ContaProvider';
+import ContaMenu from '../components/MenuConta';
 
-const DOURADO = '#d4a63a';
+/* ================================================= */
+/* CONSTANTES                                        */
+/* ================================================= */
 
-const ALTURA_AUTO = { flexGrow: 0, flexShrink: 0, flexBasis: 'auto' };
+const DOURADO = '#c9a45c';
+const LARGURA_DRAWER = 290;
+const POR_PAGINA = 5;
 
-const STATUS = {
-  andamento: { texto: 'Em andamento', cor: '#f0ca61' },
-  concluido: { texto: 'Concluído', cor: '#54db83' },
-  cancelado: { texto: 'Cancelado', cor: '#c3c6d4' },
+// Em coluna, "flex: 0" / "flex: 1" colapsam a altura (flex-basis: 0).
+const ALTURA_AUTO = {
+  flexGrow: 0,
+  flexShrink: 0,
+  flexBasis: 'auto',
 };
 
-const CHIPS = [
+const LOGO = require('../../assets/images/Logo.png');
+const FUNDO = require('../../assets/images/BackgroundFundo.png');
+
+/* ================================================= */
+/* DADOS                                             */
+/* ================================================= */
+
+const LINKS_SITE = [
+  { nome: 'Início', icone: 'home-outline', rota: '/' },
+  { nome: 'Plantas', icone: 'map-outline', rota: '/planta' },
+  { nome: 'Profissionais', icone: 'people-outline', rota: '/profissionais' },
+  { nome: 'Sobre Nós', icone: 'information-circle-outline', rota: '/sobreNos' },
+];
+
+// Mesmas cores do web
+const STATUS = {
+  andamento: { texto: 'Em andamento', cor: '#f0ca61', fundo: 'rgba(174, 137, 43, 0.22)' },
+  concluido: { texto: 'Concluído', cor: '#54db83', fundo: 'rgba(30, 135, 68, 0.23)' },
+  cancelado: { texto: 'Cancelado', cor: '#c3c6d4', fundo: 'rgba(115, 120, 139, 0.28)' },
+};
+
+const FILTROS = [
   { chave: 'todos', texto: 'Todos' },
   { chave: 'andamento', texto: 'Em andamento' },
   { chave: 'concluido', texto: 'Concluídos' },
   { chave: 'cancelado', texto: 'Cancelados' },
 ];
 
-const ORDENS = [
-  { chave: 'recentes', texto: 'Mais recentes' },
-  { chave: 'antigos', texto: 'Mais antigos' },
-  { chave: 'valor', texto: 'Maior valor' },
-];
-
+// Os 5 primeiros são os mesmos do web. Os demais são só exemplo para a paginação.
 const PEDIDOS = [
   { id: '1', titulo: 'Projeto Arquitetônico Residencial', profissional: 'Carlos Silva', funcao: 'Arquiteto', valor: 2800, data: '2025-06-12', status: 'andamento' },
   { id: '2', titulo: 'Reforma e Ampliação', profissional: 'Juliana Martins', funcao: 'Engenheira Civil', valor: 15600, data: '2025-05-28', status: 'concluido' },
-  { id: '3', titulo: 'Consultoria de Viabilidade', profissional: 'Rafael Costa', funcao: '', valor: 950, data: '2025-05-15', status: 'cancelado' },
+  { id: '3', titulo: 'Consultoria de Viabilidade', profissional: 'Rafael Costa', funcao: 'Especialista em Investimentos Imobiliários', valor: 950, data: '2025-05-15', status: 'cancelado' },
   { id: '4', titulo: 'Planta Baixa - Sobrado', profissional: 'Fernanda Lima', funcao: 'Arquiteta', valor: 1750, data: '2025-05-03', status: 'concluido' },
-  { id: '5', titulo: 'Projeto de Interiores', profissional: 'Lucas Pereira', funcao: '', valor: 3400, data: '2025-04-20', status: 'andamento' },
+  { id: '5', titulo: 'Projeto de Interiores', profissional: 'Lucas Pereira', funcao: 'Designer de Interiores', valor: 3400, data: '2025-04-20', status: 'andamento' },
+  { id: '6', titulo: 'Projeto Paisagístico', profissional: 'Mariana Rocha', funcao: 'Paisagista', valor: 2100, data: '2025-04-08', status: 'concluido' },
+  { id: '7', titulo: 'Regularização de Imóvel', profissional: 'Carlos Silva', funcao: 'Arquiteto', valor: 1300, data: '2025-03-25', status: 'concluido' },
+  { id: '8', titulo: 'Análise de Retorno de Aluguel', profissional: 'Rafael Costa', funcao: 'Especialista em Investimentos Imobiliários', valor: 780, data: '2025-03-10', status: 'cancelado' },
+  { id: '9', titulo: 'Projeto Elétrico Residencial', profissional: 'Juliana Martins', funcao: 'Engenheira Civil', valor: 1900, data: '2025-02-27', status: 'concluido' },
+  { id: '10', titulo: 'Planta Baixa - Casa Térrea', profissional: 'Fernanda Lima', funcao: 'Arquiteta', valor: 1450, data: '2025-02-14', status: 'concluido' },
+  { id: '11', titulo: 'Layout de Sala Comercial', profissional: 'Lucas Pereira', funcao: 'Designer de Interiores', valor: 2600, data: '2025-01-30', status: 'cancelado' },
+  { id: '12', titulo: 'Estudo de Fachada', profissional: 'Carlos Silva', funcao: 'Arquiteto', valor: 1650, data: '2025-01-18', status: 'concluido' },
 ];
+
+/* ================================================= */
+/* FUNÇÕES AUXILIARES                                */
+/* ================================================= */
 
 const formatarValor = (n) => {
   const [inteiro, decimal] = n.toFixed(2).split('.');
@@ -56,129 +94,412 @@ const formatarData = (iso) => {
 const normalizar = (t) =>
   t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
-const ordenar = (lista, ordem) => {
-  const copia = [...lista];
-  if (ordem === 'antigos') return copia.sort((a, b) => a.data.localeCompare(b.data));
-  if (ordem === 'valor') return copia.sort((a, b) => b.valor - a.valor);
-  return copia.sort((a, b) => b.data.localeCompare(a.data));
+// Janela de até 5 páginas ao redor da página atual
+const numerosPagina = (atual, total) => {
+  const tamanho = Math.min(5, total);
+  let inicio = Math.max(1, atual - Math.floor(tamanho / 2));
+  if (inicio + tamanho - 1 > total) inicio = total - tamanho + 1;
+  return Array.from({ length: tamanho }, (_, i) => inicio + i);
 };
 
-function CardResumo({ rotulo, valor, mobile }) {
+/* ================================================= */
+/* COMPONENTES                                       */
+/* ================================================= */
+
+function ItemMenu({ nome, icone, onPress }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [s.itemMenu, pressed && s.pressionado]}
+    >
+      <Ionicons name={icone} size={20} color={DOURADO} />
+      <Text style={s.textoMenu}>{nome}</Text>
+    </Pressable>
+  );
+}
+
+function Topo({ mobile, medio, insets, onAbrirMenu, onNavegar }) {
   return (
     <View
-      style={[s.cardResumo, mobile && s.cardResumoMobile]}
-      accessible
-      accessibilityLabel={`${rotulo}: ${valor}`}
+      style={[
+        s.topo,
+        medio && s.topoMedio,
+        mobile && s.topoMobile,
+        { paddingTop: insets.top + (mobile ? 8 : 0) },
+      ]}
     >
-      <Text style={s.rotuloResumo}>{rotulo}</Text>
-      <Text
-        style={[s.valorResumo, mobile && s.valorResumoMobile]}
-        numberOfLines={1}
-        adjustsFontSizeToFit
-        minimumFontScale={0.7}
-      >
-        {valor}
+      {mobile && (
+        <Pressable
+          onPress={onAbrirMenu}
+          style={s.botaoHamburguer}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel="Abrir menu"
+        >
+          <Ionicons name="menu-outline" size={26} color={DOURADO} />
+        </Pressable>
+      )}
+
+      <Pressable onPress={() => onNavegar('/')} accessibilityLabel="Ir para o início">
+        <Image
+          source={LOGO}
+          style={[s.logo, medio && s.logoMedio, mobile && s.logoMobile]}
+          resizeMode="contain"
+        />
+      </Pressable>
+
+      {!mobile && (
+        <View style={s.linksTopo}>
+          {LINKS_SITE.map((link) => (
+            <Pressable key={link.nome} onPress={() => onNavegar(link.rota)}>
+              <Text style={s.linkTopo}>{link.nome}</Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
+
+      {mobile && (
+        <View style={s.avatarTopo}>
+          <Ionicons name="person-outline" size={20} color={DOURADO} />
+        </View>
+      )}
+    </View>
+  );
+}
+
+function CabecalhoPagina({ mobile }) {
+  return (
+    <View style={[s.cabecalho, mobile && s.cabecalhoMobile]}>
+      <Text style={[s.titulo, mobile && s.tituloMobile]}>Meus Pedidos</Text>
+      <Text style={[s.subtitulo, mobile && s.subtituloMobile]}>
+        Acompanhe o andamento e o histórico de todos os seus pedidos.
       </Text>
     </View>
   );
 }
 
-function CardPedido({ pedido, mobile, onDetalhes }) {
-  const status = STATUS[pedido.status];
+function Status({ tipo }) {
+  const status = STATUS[tipo];
+
+  return (
+    <View style={[s.status, { backgroundColor: status.fundo }]}>
+      <View style={[s.pontoStatus, { backgroundColor: status.cor }]} />
+      <Text style={[s.textoStatus, { color: status.cor }]}>{status.texto}</Text>
+    </View>
+  );
+}
+
+function CardPedido({ pedido, mobile, linha, onDetalhes }) {
+  const icone = (
+    <View style={s.iconePedido}>
+      <Ionicons name="home-outline" size={26} color={DOURADO} />
+    </View>
+  );
+
+  const principal = (
+    <View style={s.principalPedido}>
+      <Text style={[s.tituloPedido, mobile && s.tituloPedidoMobile]} numberOfLines={mobile ? 2 : 1}>
+        {pedido.titulo}
+      </Text>
+      <Text style={[s.nomeProfissional, mobile && s.nomeProfissionalMobile]} numberOfLines={1}>
+        {pedido.profissional}
+      </Text>
+      <Text style={s.funcao} numberOfLines={1}>
+        {pedido.funcao}
+      </Text>
+    </View>
+  );
+
+  const pedidoEm = (
+    <View style={s.detalhe}>
+      <Text style={s.rotuloDetalhe}>Pedido em</Text>
+      <Text style={[s.valorDetalhe, mobile && s.valorDetalheMobile]}>
+        {formatarData(pedido.data)}
+      </Text>
+    </View>
+  );
+
+  const valor = (
+    <View style={s.detalhe}>
+      <Text style={s.rotuloDetalhe}>Valor</Text>
+      <Text style={[s.valorDetalhe, mobile && s.valorDetalheMobile]}>
+        {formatarValor(pedido.valor)}
+      </Text>
+    </View>
+  );
+
+  const botao = (
+    <View style={[s.botaoDetalhes, linha && s.botaoDetalhesLinha, mobile && s.botaoDetalhesMobile]}>
+      <Text style={[s.textoDetalhes, mobile && s.textoDetalhesMobile]}>Ver detalhes</Text>
+    </View>
+  );
 
   return (
     <Pressable
       onPress={onDetalhes}
       style={({ pressed }) => [s.pedido, mobile && s.pedidoMobile, pressed && s.pressionado]}
       accessibilityRole="button"
-      accessibilityLabel={`Pedido ${pedido.titulo}, ${status.texto}. Ver detalhes`}
+      accessibilityLabel={`Pedido ${pedido.titulo}, ${STATUS[pedido.status].texto}. Ver detalhes`}
     >
-      <View style={s.topoCard}>
-        <View style={s.icone}>
-          <Ionicons name="bag-handle-outline" size={22} color={DOURADO} />
+      {linha ? (
+        // Tela larga: tudo em uma linha, igual ao web
+        <View style={s.linhaPedido}>
+          {icone}
+          {principal}
+          {pedidoEm}
+          {valor}
+          <Status tipo={pedido.status} />
+          {botao}
         </View>
+      ) : (
+        // Celular / tablet: empilhado, igual ao web em tela pequena
+        <>
+          <View style={s.topoCard}>
+            {icone}
+            {principal}
+          </View>
 
-        <View style={s.dados}>
-          <Text style={s.titulo} numberOfLines={2}>
-            {pedido.titulo}
-          </Text>
-          <Text style={s.profissional} numberOfLines={1}>
-            {pedido.profissional}
-            {pedido.funcao ? ` · ${pedido.funcao}` : ''}
-          </Text>
-        </View>
-      </View>
+          <View style={s.meta}>
+            {pedidoEm}
+            {valor}
+          </View>
 
-      <View style={[s.status, { borderColor: status.cor }]}>
-        <View style={[s.pontoStatus, { backgroundColor: status.cor }]} />
-        <Text style={[s.textoStatus, { color: status.cor }]}>{status.texto}</Text>
-      </View>
-
-      <View style={s.meta}>
-        <View style={s.metaItem}>
-          <Text style={s.metaRotulo}>Pedido em</Text>
-          <Text style={s.metaValor}>{formatarData(pedido.data)}</Text>
-        </View>
-        <View style={s.metaItem}>
-          <Text style={s.metaRotulo}>Valor</Text>
-          <Text style={s.metaValor}>{formatarValor(pedido.valor)}</Text>
-        </View>
-      </View>
-
-      <View style={s.botaoDetalhes}>
-        <Text style={s.textoDetalhes}>Ver detalhes</Text>
-        <Ionicons name="chevron-forward" size={14} color={DOURADO} />
-      </View>
+          <Status tipo={pedido.status} />
+          {botao}
+        </>
+      )}
     </Pressable>
   );
 }
 
+function Paginacao({ atual, total, onMudar }) {
+  if (total <= 1) return null;
+
+  const anteriorOff = atual === 1;
+  const proximaOff = atual === total;
+
+  return (
+    <View style={s.paginacao}>
+      <Pressable
+        onPress={() => onMudar(atual - 1)}
+        disabled={anteriorOff}
+        style={({ pressed }) => [
+          s.pagina,
+          s.seta,
+          anteriorOff && s.paginaDesativada,
+          pressed && s.pressionado,
+        ]}
+        accessibilityRole="button"
+        accessibilityLabel="Página anterior"
+        accessibilityState={{ disabled: anteriorOff }}
+      >
+        <Ionicons name="chevron-back" size={18} color={DOURADO} />
+      </Pressable>
+
+      {numerosPagina(atual, total).map((n) => {
+        const selecionada = n === atual;
+        return (
+          <Pressable
+            key={n}
+            onPress={() => onMudar(n)}
+            style={({ pressed }) => [
+              s.pagina,
+              selecionada && s.paginaSelecionada,
+              pressed && s.pressionado,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel={`Página ${n}`}
+            accessibilityState={{ selected: selecionada }}
+          >
+            <Text style={[s.textoPagina, selecionada && s.textoPaginaSelecionada]}>{n}</Text>
+          </Pressable>
+        );
+      })}
+
+      <Pressable
+        onPress={() => onMudar(atual + 1)}
+        disabled={proximaOff}
+        style={({ pressed }) => [
+          s.pagina,
+          s.seta,
+          proximaOff && s.paginaDesativada,
+          pressed && s.pressionado,
+        ]}
+        accessibilityRole="button"
+        accessibilityLabel="Próxima página"
+        accessibilityState={{ disabled: proximaOff }}
+      >
+        <Ionicons name="chevron-forward" size={18} color={DOURADO} />
+      </Pressable>
+    </View>
+  );
+}
+
+function SemPedidos({ onExplorar }) {
+  return (
+    <View style={s.vazio}>
+      <Text style={s.tituloVazio}>Nenhum pedido encontrado</Text>
+      <Text style={s.textoVazio}>
+        Explore nossos profissionais e encontre o serviço ideal para o seu projeto.
+      </Text>
+      <Pressable
+        onPress={onExplorar}
+        style={({ pressed }) => [s.btnPrincipal, pressed && s.pressionado]}
+        accessibilityRole="button"
+      >
+        <Text style={s.textoPrincipal}>Explorar profissionais</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+function Rodape({ mobile, insets }) {
+  return (
+    <View
+      style={[
+        s.rodape,
+        mobile && s.rodapeMobile,
+        { paddingBottom: 15 + insets.bottom },
+      ]}
+    >
+      <Text style={s.textoRodape}>
+        ©IncomeOfHouses. Todos os direitos reservados.
+      </Text>
+      <Text style={s.termos}>Termos de Uso  |  Política de Privacidade</Text>
+    </View>
+  );
+}
+
+function Drawer({ aberto, deslize, fade, insets, paisagem, onFechar, onNavegar, children }) {
+  return (
+    <View style={s.camadaDrawer} pointerEvents={aberto ? 'auto' : 'none'}>
+      <Animated.View style={[s.overlay, { opacity: fade }]}>
+        <Pressable style={s.areaFechar} onPress={onFechar} />
+      </Animated.View>
+
+      <Animated.View
+        style={[
+          s.drawer,
+          {
+            paddingTop: (paisagem ? 8 : 16) + insets.top,
+            paddingBottom: insets.bottom,
+            transform: [{ translateX: deslize }],
+          },
+        ]}
+      >
+        <View style={s.drawerTopo}>
+          <View style={s.drawerUsuario}>
+            <Ionicons name="person-circle-outline" size={44} color={DOURADO} />
+            <View>
+              <Text style={s.drawerTitulo}>Minha Conta</Text>
+              <Text style={s.drawerSub}>Usuário não identificado</Text>
+            </View>
+          </View>
+
+          <Pressable onPress={onFechar} hitSlop={10} accessibilityLabel="Fechar menu">
+            <Ionicons name="close-outline" size={28} color={DOURADO} />
+          </Pressable>
+        </View>
+
+        <ScrollView contentContainerStyle={s.drawerLista} showsVerticalScrollIndicator={false}>
+          <Text style={s.drawerSecao}>NAVEGAÇÃO</Text>
+          {LINKS_SITE.map((link) => (
+            <ItemMenu
+              key={link.nome}
+              nome={link.nome}
+              icone={link.icone}
+              onPress={() => onNavegar(link.rota)}
+            />
+          ))}
+
+          <Text style={[s.drawerSecao, s.drawerSecaoSeparada]}>MINHA CONTA</Text>
+          {children}
+        </ScrollView>
+      </Animated.View>
+    </View>
+  );
+}
+
+/* ================================================= */
+/* TELA                                              */
+/* ================================================= */
+
 export default function MeusPedidos() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   useDeclararConta('usuario');
+  const { width, height } = useWindowDimensions();
 
-  const [status, setStatus] = useState('todos');
+  // Mesmos breakpoints do PerfilUsuario
+  const mobile = width < 650;
+  const medio = !mobile && (width < 1000 || height < 500);
+  const paisagem = height < 500;
+
+  // Tela larga mostra cada pedido em uma linha, como no web
+  const linha = !mobile && !medio;
+
+  const scrollRef = useRef(null);
+
+  /* ----- Drawer ----- */
+  const [menuAberto, setMenuAberto] = useState(false);
+  const deslize = useRef(new Animated.Value(-LARGURA_DRAWER)).current;
+  const fade = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(deslize, {
+        toValue: menuAberto ? 0 : -LARGURA_DRAWER,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fade, {
+        toValue: menuAberto ? 1 : 0,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [menuAberto]);
+
+  useEffect(() => {
+    if (!mobile) setMenuAberto(false);
+  }, [mobile]);
+
+  /* ----- Filtro, busca e paginação ----- */
+  const [filtro, setFiltro] = useState('todos');
   const [busca, setBusca] = useState('');
-  const [indiceOrdem, setIndiceOrdem] = useState(0);
-  const ordem = ORDENS[indiceOrdem];
+  const [pagina, setPagina] = useState(1);
 
-  const resumo = useMemo(() => {
-    const concluidos = PEDIDOS.filter((p) => p.status === 'concluido');
-    return {
-      total: PEDIDOS.length,
-      andamento: PEDIDOS.filter((p) => p.status === 'andamento').length,
-      concluidos: concluidos.length,
-      cancelados: PEDIDOS.filter((p) => p.status === 'cancelado').length,
-      valor: concluidos.reduce((soma, p) => soma + p.valor, 0),
-    };
-  }, []);
-
-  const contagens = {
-    todos: resumo.total,
-    andamento: resumo.andamento,
-    concluido: resumo.concluidos,
-    cancelado: resumo.cancelados,
-  };
+  // Qualquer mudança de filtro ou busca volta para a primeira página
+  useEffect(() => {
+    setPagina(1);
+  }, [filtro, busca]);
 
   const visiveis = useMemo(() => {
     const termo = normalizar(busca.trim());
 
-    const filtrados = PEDIDOS.filter(
+    return PEDIDOS.filter(
       (p) =>
-        (status === 'todos' || p.status === status) &&
+        (filtro === 'todos' || p.status === filtro) &&
         (!termo ||
           normalizar(p.titulo).includes(termo) ||
           normalizar(p.profissional).includes(termo))
     );
+  }, [filtro, busca]);
 
-    return ordenar(filtrados, ordem.chave);
-  }, [status, busca, ordem]);
+  const totalPaginas = Math.max(1, Math.ceil(visiveis.length / POR_PAGINA));
+  const paginaAtual = Math.min(pagina, totalPaginas);
+  const inicio = (paginaAtual - 1) * POR_PAGINA;
+  const daPagina = visiveis.slice(inicio, inicio + POR_PAGINA);
 
-  const filtrosAtivos = status !== 'todos' || !!busca.trim();
+  const mudarPagina = (n) => {
+    setPagina(Math.min(Math.max(n, 1), totalPaginas));
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
+  };
 
-  const limparFiltros = () => {
-    setStatus('todos');
-    setBusca('');
+  /* ----- Navegação ----- */
+  const navegar = (rota) => {
+    setMenuAberto(false);
+    router.push(rota);
   };
 
   const abrirDetalhes = (pedido) =>
@@ -189,67 +510,75 @@ export default function MeusPedidos() {
         titulo: pedido.titulo,
         descricao: `${formatarValor(pedido.valor)} · Pedido em ${formatarData(pedido.data)}`,
         status: STATUS[pedido.status].texto,
-        profissional: pedido.funcao
-          ? `${pedido.profissional} · ${pedido.funcao}`
-          : pedido.profissional,
+        profissional: `${pedido.profissional} · ${pedido.funcao}`,
       },
     });
 
+  const menuConta = (
+    <ContaMenu tipo="usuario" aoSelecionar={() => setMenuAberto(false)} />
+  );
+
   return (
-    <LayoutConta
-      ativo="pedidos"
-      titulo="Meus Pedidos"
-      subtitulo="Acompanhe o andamento e o histórico de todos os seus pedidos."
-    >
-      {({ mobile }) =>
-        PEDIDOS.length === 0 ? (
-          <View style={s.vazio}>
-            <View style={s.vazioIcone}>
-              <Ionicons name="bag-handle-outline" size={28} color={DOURADO} />
-            </View>
-            <Text style={s.tituloVazio}>Você ainda não fez nenhum pedido</Text>
-            <Text style={s.textoVazio}>
-              Encontre um profissional e solicite o seu primeiro projeto.
-            </Text>
-            <Pressable
-              onPress={() => router.push('/profissionais')}
-              style={({ pressed }) => [s.btnPrincipal, pressed && s.pressionado]}
-              accessibilityRole="button"
-            >
-              <Text style={s.textoPrincipal}>Encontrar profissionais</Text>
-            </Pressable>
-          </View>
-        ) : (
-          <>
-            <View style={s.resumo}>
-              <CardResumo rotulo="Total de pedidos" valor={String(resumo.total)} mobile={mobile} />
-              <CardResumo rotulo="Em andamento" valor={String(resumo.andamento)} mobile={mobile} />
-              <CardResumo rotulo="Concluídos" valor={String(resumo.concluidos)} mobile={mobile} />
-              <CardResumo rotulo="Valor dos concluídos" valor={formatarValor(resumo.valor)} mobile={mobile} />
-            </View>
+    <ImageBackground source={FUNDO} style={s.fundo} resizeMode="cover">
+      <View style={s.sombra} />
 
-            <View style={s.chips}>
-              {CHIPS.map((chip) => {
-                const ativo = status === chip.chave;
-                return (
-                  <Pressable
-                    key={chip.chave}
-                    onPress={() => setStatus(chip.chave)}
-                    style={({ pressed }) => [s.chip, ativo && s.chipAtivo, pressed && s.pressionado]}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: ativo }}
-                  >
-                    <Text style={[s.textoChip, ativo && s.textoChipAtivo]}>
-                      {chip.texto} ({contagens[chip.chave]})
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
+      <ScrollView
+        ref={scrollRef}
+        contentContainerStyle={s.conteudo}
+        showsVerticalScrollIndicator={false}
+        stickyHeaderIndices={[0]}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Topo
+          mobile={mobile}
+          medio={medio}
+          insets={insets}
+          onAbrirMenu={() => setMenuAberto(true)}
+          onNavegar={navegar}
+        />
 
-            <View style={[s.controles, mobile && s.controlesMobile]}>
+        <View style={[s.painel, medio && s.painelMedio, mobile && s.painelMobile]}>
+          {!mobile && (
+            <View style={[s.menuLateral, medio && s.menuLateralMedio]}>
+              {menuConta}
+            </View>
+          )}
+
+          <View
+            style={[
+              s.principal,
+              medio && s.principalMedio,
+              mobile && s.principalMobile,
+            ]}
+          >
+            <CabecalhoPagina mobile={mobile} />
+
+            {/* Chips + busca (lado a lado no site, empilhados no celular) */}
+            <View style={[s.filtros, mobile && s.filtrosMobile]}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={[s.chips, mobile && s.sangriaConteudo]}
+                style={[s.chipsScroll, mobile && s.sangria]}
+              >
+                {FILTROS.map((item) => {
+                  const ativo = filtro === item.chave;
+                  return (
+                    <Pressable
+                      key={item.chave}
+                      onPress={() => setFiltro(item.chave)}
+                      style={({ pressed }) => [s.chip, ativo && s.chipAtivo, pressed && s.pressionado]}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: ativo }}
+                    >
+                      <Text style={[s.textoChip, ativo && s.textoChipAtivo]}>{item.texto}</Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+
               <View style={[s.campoBusca, mobile && s.campoBuscaMobile]}>
-                <Ionicons name="search-outline" size={16} color={DOURADO} />
+                <Ionicons name="search-outline" size={18} color={DOURADO} />
                 <TextInput
                   style={s.inputBusca}
                   placeholder="Buscar por pedido ou profissional"
@@ -272,80 +601,222 @@ export default function MeusPedidos() {
                   </Pressable>
                 )}
               </View>
-
-              <Pressable
-                onPress={() => setIndiceOrdem((i) => (i + 1) % ORDENS.length)}
-                style={({ pressed }) => [s.botaoOrdem, pressed && s.pressionado]}
-                accessibilityRole="button"
-                accessibilityLabel={`Ordenação: ${ordem.texto}. Tocar para alternar`}
-              >
-                <Ionicons name="swap-vertical-outline" size={16} color={DOURADO} />
-                <Text style={s.textoOrdem}>{ordem.texto}</Text>
-              </Pressable>
             </View>
 
-            <Text style={s.contagem} accessibilityLiveRegion="polite">
-              {visiveis.length === 1 ? '1 pedido encontrado' : `${visiveis.length} pedidos encontrados`}
-            </Text>
-
             {visiveis.length === 0 ? (
-              <View style={s.vazio}>
-                <Ionicons name="folder-open-outline" size={32} color={DOURADO} />
-                <Text style={s.textoVazio}>Nenhum pedido encontrado.</Text>
-                {filtrosAtivos && (
-                  <Pressable
-                    onPress={limparFiltros}
-                    style={({ pressed }) => [s.btnSecundario, pressed && s.pressionado]}
-                    accessibilityRole="button"
-                  >
-                    <Text style={s.textoSecundario}>Limpar filtros</Text>
-                  </Pressable>
-                )}
-              </View>
+              <SemPedidos onExplorar={() => navegar('/profissionais')} />
             ) : (
-              <View style={[s.grade, mobile && s.gradeMobile]}>
-                {visiveis.map((pedido) => (
-                  <CardPedido
-                    key={pedido.id}
-                    pedido={pedido}
-                    mobile={mobile}
-                    onDetalhes={() => abrirDetalhes(pedido)}
-                  />
-                ))}
-              </View>
+              <>
+                <View style={s.lista}>
+                  {daPagina.map((pedido) => (
+                    <CardPedido
+                      key={pedido.id}
+                      pedido={pedido}
+                      mobile={mobile}
+                      linha={linha}
+                      onDetalhes={() => abrirDetalhes(pedido)}
+                    />
+                  ))}
+                </View>
+
+                <Paginacao atual={paginaAtual} total={totalPaginas} onMudar={mudarPagina} />
+              </>
             )}
-          </>
-        )
-      }
-    </LayoutConta>
+          </View>
+        </View>
+
+        <Rodape mobile={mobile} insets={insets} />
+      </ScrollView>
+
+      {mobile && (
+        <Drawer
+          aberto={menuAberto}
+          deslize={deslize}
+          fade={fade}
+          insets={insets}
+          paisagem={paisagem}
+          onFechar={() => setMenuAberto(false)}
+          onNavegar={navegar}
+        >
+          {menuConta}
+        </Drawer>
+      )}
+    </ImageBackground>
   );
 }
 
+/* ================================================= */
+/* ESTILOS                                           */
+/* ================================================= */
+
 const s = StyleSheet.create({
+  /* ----- Base ----- */
+  fundo: { flex: 1, backgroundColor: '#090909' },
+  sombra: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0, 0, 0, 0.65)' },
+  conteudo: { flexGrow: 1 },
   pressionado: { opacity: 0.75 },
 
-  resumo: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  cardResumo: {
-    flexGrow: 1,
-    flexBasis: '22%',
-    minWidth: 150,
-    gap: 8,
-    padding: 16,
-    backgroundColor: '#171717',
-    borderWidth: 1,
+  // Faz os chips irem até a borda da tela no celular (o painel tem padding 16)
+  sangria: { marginHorizontal: -16 },
+  sangriaConteudo: { paddingHorizontal: 16 },
+
+  /* ----- Topo ----- */
+  topo: {
+    minHeight: 76,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingHorizontal: 25,
+    backgroundColor: 'rgba(9, 9, 9, 0.96)',
+    borderBottomWidth: 1,
     borderColor: '#292929',
+  },
+  topoMedio: { minHeight: 56, paddingHorizontal: 16 },
+  topoMobile: {
+    minHeight: 0,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+    borderColor: '#3a3220',
+  },
+  botaoHamburguer: {
+    width: 42,
+    height: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#1d1d1f',
+    borderWidth: 1,
+    borderColor: '#6e572b',
     borderRadius: 10,
   },
-  cardResumoMobile: { flexBasis: '47%', minWidth: 0, padding: 14 },
-  rotuloResumo: { color: '#a5a5a5', fontSize: 12 },
-  valorResumo: { color: DOURADO, fontSize: 22, fontWeight: 'bold' },
-  valorResumoMobile: { fontSize: 18 },
+  avatarTopo: {
+    width: 42,
+    height: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#1d1d1f',
+    borderWidth: 1,
+    borderColor: DOURADO,
+    borderRadius: 21,
+  },
+  logo: { width: 110, height: 62 },
+  logoMedio: { width: 80, height: 44 },
+  logoMobile: { width: 90, height: 48 },
+  linksTopo: { flexDirection: 'row', flexWrap: 'wrap', gap: 30 },
+  linkTopo: { color: '#fff', fontSize: 13 },
 
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  /* ----- Painel ----- */
+  painel: {
+    width: '96%',
+    maxWidth: 1120,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    marginTop: 28,
+    marginBottom: 90,
+    backgroundColor: '#111',
+    borderWidth: 1,
+    borderColor: '#333',
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  painelMedio: { marginTop: 12, marginBottom: 30 },
+  painelMobile: {
+    ...ALTURA_AUTO,
+    width: '100%',
+    flexDirection: 'column',
+    marginTop: 0,
+    marginBottom: 24,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    borderRadius: 0,
+  },
+
+  /* ----- Menu lateral ----- */
+  menuLateral: {
+    width: 180,
+    padding: 3,
+    backgroundColor: '#101010',
+    borderRightWidth: 1,
+    borderColor: '#333',
+  },
+  menuLateralMedio: { width: 150 },
+  itemMenu: {
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingHorizontal: 14,
+    backgroundColor: '#1d1d1f',
+    borderWidth: 1,
+    borderColor: 'transparent',
+    borderRadius: 10,
+  },
+  textoMenu: { flexShrink: 1, color: '#fff', fontSize: 15 },
+
+  /* ----- Drawer ----- */
+  camadaDrawer: { ...StyleSheet.absoluteFillObject, zIndex: 100 },
+  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0, 0, 0, 0.7)' },
+  areaFechar: { flex: 1 },
+  drawer: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    width: LARGURA_DRAWER,
+    backgroundColor: '#101010',
+    borderRightWidth: 1,
+    borderColor: '#333',
+  },
+  drawerTopo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderColor: DOURADO,
+  },
+  drawerUsuario: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  drawerTitulo: { color: '#fff', fontSize: 17, fontWeight: 'bold' },
+  drawerSub: { marginTop: 1, color: '#aaa', fontSize: 12 },
+  drawerLista: { padding: 12, gap: 6 },
+  drawerSecao: { marginLeft: 4, marginBottom: 2, color: '#777', fontSize: 11, letterSpacing: 1 },
+  drawerSecaoSeparada: { marginTop: 14 },
+
+  /* ----- Conteúdo principal ----- */
+  principal: { flex: 1, minWidth: 0, padding: 12, gap: 14 },
+  principalMedio: { padding: 10 },
+  principalMobile: { ...ALTURA_AUTO, padding: 16, gap: 14 },
+
+  /* ----- Cabeçalho ----- */
+  cabecalho: {
+    marginTop: 14,
+    paddingBottom: 17,
+    borderBottomWidth: 1,
+    borderColor: DOURADO,
+  },
+  cabecalhoMobile: { ...ALTURA_AUTO, marginTop: 0, paddingBottom: 12 },
+  titulo: { color: '#fff', fontSize: 21, fontWeight: 'bold' },
+  tituloMobile: { fontSize: 26 },
+  subtitulo: { color: '#eee', fontSize: 12 },
+  subtituloMobile: { marginTop: 2, color: '#bbb', fontSize: 14 },
+
+  /* ----- Filtros + busca ----- */
+  filtros: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  filtrosMobile: { ...ALTURA_AUTO, flexDirection: 'column', flexWrap: 'nowrap', alignItems: 'stretch' },
+  chipsScroll: { flexGrow: 0 },
+  chips: { flexDirection: 'row', gap: 8 },
   chip: {
     minHeight: 40,
     justifyContent: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: 18,
+    backgroundColor: '#171717',
     borderWidth: 1,
     borderColor: '#3c4148',
     borderRadius: 20,
@@ -354,21 +825,20 @@ const s = StyleSheet.create({
   textoChip: { color: '#d3d4d8', fontSize: 13 },
   textoChipAtivo: { color: '#111', fontWeight: '600' },
 
-  controles: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  controlesMobile: { ...ALTURA_AUTO, flexDirection: 'column', flexWrap: 'nowrap' },
   campoBusca: {
-    width: 320,
-    height: 46,
+    width: 340,
+    maxWidth: '100%',
+    height: 44,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
+    gap: 10,
+    paddingHorizontal: 14,
     backgroundColor: '#171717',
     borderWidth: 1,
     borderColor: '#292929',
-    borderRadius: 8,
+    borderRadius: 22,
   },
-  campoBuscaMobile: { width: '100%' },
+  campoBuscaMobile: { width: '100%', height: 48, borderRadius: 24 },
   inputBusca: {
     flex: 1,
     height: '100%',
@@ -376,112 +846,119 @@ const s = StyleSheet.create({
     fontSize: 16,
     ...Platform.select({ web: { outlineStyle: 'none' } }),
   },
-  botaoOrdem: {
-    height: 46,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 14,
-    backgroundColor: '#171717',
-    borderWidth: 1,
-    borderColor: '#292929',
-    borderRadius: 8,
-  },
-  textoOrdem: { color: '#eee', fontSize: 13 },
 
-  contagem: { color: '#a5a5a5', fontSize: 13 },
-
-  grade: { flexDirection: 'row', flexWrap: 'wrap', gap: 16 },
-  gradeMobile: { ...ALTURA_AUTO, flexDirection: 'column', flexWrap: 'nowrap' },
+  /* ----- Lista de pedidos ----- */
+  lista: { gap: 12 },
 
   pedido: {
-    flexGrow: 1,
-    flexBasis: 320,
-    minWidth: 280,
     gap: 12,
-    padding: 16,
+    padding: 14,
     backgroundColor: '#171717',
     borderWidth: 1,
     borderColor: '#292929',
     borderRadius: 10,
   },
-  pedidoMobile: { ...ALTURA_AUTO, minWidth: 0, borderRadius: 14 },
+  pedidoMobile: {
+    ...ALTURA_AUTO,
+    padding: 16,
+    backgroundColor: 'rgba(23, 23, 23, 0.95)',
+    borderRadius: 14,
+  },
 
-  topoCard: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  icone: {
-    width: 48,
-    height: 48,
+  // Tela larga: ícone | info | pedido em | valor | status | botão
+  linhaPedido: { flexDirection: 'row', alignItems: 'center', gap: 18 },
+
+  topoCard: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+
+  iconePedido: {
+    width: 56,
+    height: 56,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#29231a',
+    backgroundColor: '#0d0d0e',
     borderWidth: 1,
     borderColor: '#59431f',
     borderRadius: 12,
   },
-  dados: { flex: 1, minWidth: 0, gap: 3 },
-  titulo: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  profissional: { color: '#a5a5a5', fontSize: 13 },
+
+  principalPedido: { flex: 1, minWidth: 0, gap: 2 },
+  tituloPedido: { color: '#fff', fontSize: 15, fontWeight: '500' },
+  tituloPedidoMobile: { fontSize: 16 },
+  nomeProfissional: { color: '#d5d6da', fontSize: 13 },
+  nomeProfissionalMobile: { fontSize: 14 },
+  funcao: { color: '#999', fontSize: 11 },
+
+  meta: { flexDirection: 'row', gap: 10 },
+  detalhe: { gap: 4, minWidth: 100 },
+  rotuloDetalhe: { color: '#999', fontSize: 11 },
+  valorDetalhe: { color: '#fff', fontSize: 13 },
+  valorDetalheMobile: { fontSize: 15, fontWeight: '600' },
 
   status: {
     alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
-    paddingVertical: 4,
+    justifyContent: 'center',
+    gap: 8,
+    height: 29,
     paddingHorizontal: 12,
-    backgroundColor: 'rgba(13, 13, 14, 0.85)',
-    borderWidth: 1,
-    borderRadius: 16,
+    borderRadius: 15,
   },
-  pontoStatus: { width: 7, height: 7, borderRadius: 4 },
+  pontoStatus: { width: 8, height: 8, borderRadius: 4 },
   textoStatus: { fontSize: 12 },
 
-  meta: {
-    flexDirection: 'row',
-    gap: 10,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: '#292929',
-  },
-  metaItem: { flex: 1, gap: 3 },
-  metaRotulo: { color: '#a5a5a5', fontSize: 12 },
-  metaValor: { color: '#fff', fontSize: 14 },
-
   botaoDetalhes: {
-    minHeight: 44,
-    flexDirection: 'row',
+    minHeight: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
     paddingHorizontal: 16,
     backgroundColor: '#292929',
     borderWidth: 1,
     borderColor: DOURADO,
     borderRadius: 8,
   },
-  textoDetalhes: { color: DOURADO, fontSize: 14, fontWeight: '600' },
+  botaoDetalhesLinha: { width: 120 },
+  botaoDetalhesMobile: { minHeight: 46, borderRadius: 10 },
+  textoDetalhes: { color: DOURADO, fontSize: 13 },
+  textoDetalhesMobile: { fontSize: 14, fontWeight: '600' },
 
+  /* ----- Paginação ----- */
+  paginacao: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+  },
+  pagina: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: 'transparent',
+    borderRadius: 20,
+  },
+  paginaSelecionada: { backgroundColor: DOURADO },
+  paginaDesativada: { opacity: 0.35 },
+  seta: { borderColor: '#343940' },
+  textoPagina: { color: '#c4c6cb', fontSize: 13 },
+  textoPaginaSelecionada: { color: '#111', fontWeight: 'bold' },
+
+  /* ----- Sem pedidos ----- */
   vazio: {
     alignItems: 'center',
-    gap: 10,
-    paddingVertical: 36,
+    gap: 8,
+    paddingVertical: 28,
     paddingHorizontal: 20,
     backgroundColor: '#171717',
     borderWidth: 1,
     borderColor: '#292929',
     borderRadius: 10,
   },
-  vazioIcone: {
-    width: 60,
-    height: 60,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#29231a',
-    borderRadius: 30,
-  },
-  tituloVazio: { color: '#fff', fontSize: 17, fontWeight: '600', textAlign: 'center' },
-  textoVazio: { color: '#a5a5a5', fontSize: 14, lineHeight: 21, textAlign: 'center', maxWidth: 360 },
+  tituloVazio: { color: '#fff', fontSize: 16, fontWeight: '500', textAlign: 'center' },
+  textoVazio: { color: '#999', fontSize: 13, lineHeight: 20, textAlign: 'center', maxWidth: 360 },
   btnPrincipal: {
     minHeight: 44,
     justifyContent: 'center',
@@ -490,14 +967,23 @@ const s = StyleSheet.create({
     backgroundColor: DOURADO,
     borderRadius: 8,
   },
-  textoPrincipal: { color: '#111', fontSize: 14, fontWeight: 'bold' },
-  btnSecundario: {
-    minHeight: 44,
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderColor: '#4a4a4a',
-    borderRadius: 8,
+  textoPrincipal: { color: '#111', fontSize: 14, fontWeight: '600' },
+
+  /* ----- Rodapé ----- */
+  rodape: {
+    minHeight: 55,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 10,
+    paddingTop: 15,
+    paddingHorizontal: 25,
+    backgroundColor: '#090909',
+    borderTopWidth: 1,
+    borderColor: DOURADO,
   },
-  textoSecundario: { color: '#fff', fontSize: 14 },
+  rodapeMobile: { flexDirection: 'column', justifyContent: 'center', paddingHorizontal: 16 },
+  textoRodape: { color: '#aaa', fontSize: 11, textAlign: 'center' },
+  termos: { color: DOURADO, fontSize: 11 },
 });

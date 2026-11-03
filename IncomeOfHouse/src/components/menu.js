@@ -68,13 +68,13 @@ export const MENUS = {
       id: 'portfolio',
       nome: 'Meu Portfolio',
       icone: 'images-outline',
-      rota: '/MeuPortfolio',
+      rota: '/Meuportfolio',
     },
     {
       id: 'plantas',
       nome: 'Publicar Plantas',
       icone: 'cloud-upload-outline',
-      rota: '/PublicarPlanta',
+      rota: '/publicarPlanta',
     },
     {
       id: 'projetos',
@@ -104,7 +104,7 @@ export const MENUS = {
       id: 'config',
       nome: 'Configurações',
       icone: 'settings-outline',
-      rota: '/configuracoesProfissional',
+      rota: '/ConfigProfissionais',
     },
   ],
 };
