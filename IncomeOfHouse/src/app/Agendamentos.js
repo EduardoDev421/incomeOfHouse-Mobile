@@ -11,7 +11,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LayoutConta } from '../components/TelaConta';
-import { useDeclararConta } from '../components/ContaProvider';
 
 /* ------------------------------------------------------------------ */
 /* Constantes (mesmas cores das outras telas da conta)                 */
@@ -221,7 +220,6 @@ function ItemCompromisso({ item, confirmando, onPedirRemocao, onCancelar, onRemo
 /* ------------------------------------------------------------------ */
 
 export default function Agendamentos() {
-  useDeclararConta('usuario');
   const { width } = useWindowDimensions();
 
   const hoje = useMemo(() => new Date(), []);

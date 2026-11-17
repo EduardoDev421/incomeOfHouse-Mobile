@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
@@ -609,19 +608,8 @@ export default function Meusenderecos() {
     router.push(rota);
   };
 
-  const sair = async () => {
-    setMenuAberto(false);
-
-    try {
-      await limpar();
-      router.replace('/login');
-    } catch {
-      Alert.alert('Erro', 'Não foi possível sair da sua conta.');
-    }
-  };
-
   const menuConta = (
-     <ContaMenu ativo="enderecos" aoSelecionar={() => setMenuAberto(false)} />
+    <ContaMenu aoSelecionar={() => setMenuAberto(false)} />
   );
 
   return (

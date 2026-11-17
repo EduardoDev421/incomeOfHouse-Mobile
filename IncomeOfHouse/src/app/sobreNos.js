@@ -87,16 +87,17 @@ export default function Sobre() {
             </Text>
 
             <Text style={styles.paragrafo}>
-              A Income Of Houses é uma plataforma dedicada a conectar pessoas à
-              natureza. Oferecemos uma seleção de plantas de alta qualidade e
-              reunimos profissionais especializados em paisagismo e jardinagem
-              para transformar ambientes com praticidade, confiança e excelência.
+              A IncomeOfHouse é uma plataforma dedicada à divulgação e
+              comercialização de projetos arquitetônicos residenciais. Reunimos
+              projetos residenciais e profissionais da arquitetura e construção
+              civil em um ambiente pensado para facilitar a busca e a divulgação
+              de plantas arquitetônicas.
             </Text>
 
             <Text style={styles.paragrafo}>
-              Nosso compromisso é proporcionar uma experiência simples, segura e
-              inspiradora, ajudando você a criar espaços mais verdes, acolhedores
-              e cheios de vida.
+              Nosso objetivo é tornar a busca por projetos arquitetônicos mais
+              simples e acessível, ajudando pessoas a encontrar opções alinhadas
+              às suas necessidades de construção.
             </Text>
           </View>
 

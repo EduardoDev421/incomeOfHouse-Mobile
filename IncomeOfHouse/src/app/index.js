@@ -34,19 +34,21 @@ const menu = [
 const destaques = [
   {
     icone: 'folder-open-outline',
-    titulo: 'Diversos Projetos',
-    texto: 'Encontre plantas para casas pequenas, médias e grandes.',
+    titulo: 'Diversidade de Projetos',
+    texto:
+      'Explore plantas residenciais com diferentes tamanhos, distribuições e características para encontrar opções que atendam às suas necessidades.',
   },
   {
     icone: 'people-outline',
-    titulo: 'Profissionais Especializados',
-    texto: 'Encontre arquitetos e profissionais para desenvolver seu projeto.',
+    titulo: 'Conheça Profissionais',
+    texto:
+      'Descubra profissionais da arquitetura e construção civil e conheça seus trabalhos e projetos publicados na plataforma.',
   },
   {
     icone: 'ribbon-outline',
-    titulo: 'Profissionais Certificados',
+    titulo: 'Encontre Seu Projeto',
     texto:
-      'Conecte-se com profissionais experientes para criar projetos e espaços únicos.',
+      'Compare características, explore diferentes plantas e descubra os projetos que combinam com o que você procura.',
   },
 ];
 
@@ -178,14 +180,15 @@ export default function Home() {
                 },
               ]}
             >
-              PLANEJE.{'\n'}
+              ENCONTRE.{'\n'}
               PROJETE.{'\n'}
               <Text style={styles.destaque}>REALIZE.</Text>
             </Text>
 
             <Text style={styles.descricao}>
-              Encontre as melhores plantas e profissionais para transformar seu
-              sonho em realidade.
+              Descubra projetos arquitetônicos residenciais, explore diferentes
+              modelos de plantas e conheça profissionais para transformar seus
+              planos em realidade.
             </Text>
 
             <View style={[styles.botoes, largo && styles.botoesLargo]}>
@@ -195,9 +198,9 @@ export default function Home() {
                   styles.botaoCriar,
                   pressed && styles.pressionado,
                 ]}
-                onPress={() => navegar('/cadastro')}
+                onPress={() => navegar('/planta')}
               >
-                <Text style={styles.textoBotaoCriar}>Crie sua Conta</Text>
+                <Text style={styles.textoBotaoCriar}>Explorar Plantas</Text>
               </Pressable>
 
               <Pressable
@@ -206,9 +209,9 @@ export default function Home() {
                   styles.botaoLogar,
                   pressed && styles.pressionado,
                 ]}
-                onPress={() => navegar('/login')}
+                onPress={() => navegar('/profissionais')}
               >
-                <Text style={styles.textoBotaoLogar}>Entre em sua Conta</Text>
+                <Text style={styles.textoBotaoLogar}>Conhecer Profissionais</Text>
               </Pressable>
             </View>
           </View>
@@ -410,7 +413,7 @@ const styles = StyleSheet.create({
     lineHeight: 26,
     marginTop: 20,
     marginBottom: 28,
-    maxWidth: 420,
+    maxWidth: 480,
   },
 
   botoes: {
