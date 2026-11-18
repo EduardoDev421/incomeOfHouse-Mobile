@@ -14,7 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { usarConta } from './ContaProvider';
+import { usarConta, MENUS } from './ContaProvider';
 import { useLegal } from './LegalProvider';
 
 const gold = '#c9a45c';
@@ -54,11 +54,12 @@ function ItemMenu({ nome, icone, ativo, mobile, medio, onPress }) {
   );
 }
 
-export function LayoutConta({ titulo, subtitulo, ativo, children }) {
+export function LayoutConta({ titulo, subtitulo, ativo, tipo: tipoDaTela, children }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { abrirLegal } = useLegal();
-  const { menu, limpar } = usarConta();
+  const { menu: menuDaConta, limpar } = usarConta();
+  const menu = tipoDaTela ? MENUS[tipoDaTela] : menuDaConta;
   const { width, height } = useWindowDimensions();
 
   const mobile = width < 650;

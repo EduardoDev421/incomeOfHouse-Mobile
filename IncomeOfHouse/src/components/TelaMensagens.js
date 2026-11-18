@@ -12,7 +12,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LayoutConta } from '../components/TelaConta';
+import { LayoutConta } from './TelaConta';
 
 const DOURADO = '#d4a63a';
 const ALTURA_AUTO = { flexGrow: 0, flexShrink: 0, flexBasis: 'auto' };
@@ -200,7 +200,7 @@ function Balao({ msg }) {
   );
 }
 
-export default function Mensagens() {
+export default function TelaMensagens({ tipo: tipoConta }) {
   const { width, height } = useWindowDimensions();
 
   const [conversas, setConversas] = useState(CONVERSAS_INICIAIS);
@@ -316,6 +316,7 @@ export default function Mensagens() {
 
   return (
     <LayoutConta
+      tipo={tipoConta}
       ativo="mensagem"
       titulo="Mensagens"
       subtitulo="Converse diretamente com profissionais e clientes."

@@ -10,7 +10,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LayoutConta } from '../components/TelaConta';
+import { LayoutConta } from './TelaConta';
 
 /* ------------------------------------------------------------------ */
 /* Constantes (mesmas cores das outras telas da conta)                 */
@@ -219,7 +219,7 @@ function ItemCompromisso({ item, confirmando, onPedirRemocao, onCancelar, onRemo
 /* Tela                                                                */
 /* ------------------------------------------------------------------ */
 
-export default function Agendamentos() {
+export default function TelaAgendamentos({ tipo: tipoConta }) {
   const { width } = useWindowDimensions();
 
   const hoje = useMemo(() => new Date(), []);
@@ -376,6 +376,7 @@ export default function Agendamentos() {
 
   return (
     <LayoutConta
+      tipo={tipoConta}
       ativo="agendamentos"
       titulo="Agendamentos"
       subtitulo="Escolha o dia no calendário e marque visitas, reuniões e entregas."

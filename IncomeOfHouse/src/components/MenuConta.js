@@ -6,14 +6,15 @@ import { useRouter, usePathname } from 'expo-router';
 
 import { usarConta, MENUS, DEBUG_CONTA } from './ContaProvider';
 
-// O menu vem SEMPRE do tipo de conta guardado no Provider, em todas as telas.
-// A prop "tipo" só é usada como reserva quando ainda não existe conta definida.
+// Cada tela é de UM tipo de conta (ex.: EnderecosUsuario, EnderecosProfissional),
+// então ela informa o "tipo" e o menu certo aparece, sem depender de mais nada.
+// Sem a prop, o menu usa o tipo de conta guardado no Provider.
 export default function ContaMenu({ tipo: tipoDaTela, aoSelecionar }) {
   const conta = usarConta();
   const router = useRouter();
   const pathname = usePathname().toLowerCase();
 
-  const tipo = conta.tipo || tipoDaTela || null;
+  const tipo = tipoDaTela || conta.tipo || null;
   const menu = tipo ? MENUS[tipo] || [] : [];
 
   // Aguarda o AsyncStorage terminar de carregar
