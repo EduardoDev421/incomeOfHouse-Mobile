@@ -235,6 +235,7 @@ export default function TelaAgendamentos({ tipo: tipoConta }) {
   const [slot, setSlot] = useState(null);
   const [titulo, setTitulo] = useState('');
   const [tipo, setTipo] = useState('visita');
+  const [tipoAberto, setTipoAberto] = useState(false);
   const [prof, setProf] = useState('');
   const [msg, setMsg] = useState({ texto: '', ok: true });
 
@@ -584,40 +585,66 @@ export default function TelaAgendamentos({ tipo: tipoConta }) {
                 accessibilityLabel="Título do agendamento"
               />
 
-              <Text style={s.label}>Tipo</Text>
-              <View style={s.tipos}>
-                {Object.entries(TIPOS).map(([chave, t]) => {
-                  const ativo = tipo === chave;
-                  return (
+              <View style={s.camposExtras}>
+                <View style={s.campoTipo}>
+                  <Text style={s.label}>Tipo</Text>
+                  <View style={s.tipoDropdown}>
                     <Pressable
-                      key={chave}
-                      onPress={() => setTipo(chave)}
-                      style={({ pressed }) => [
-                        s.tipoChip,
-                        ativo && s.tipoChipAtivo,
-                        pressed && s.pressionado,
-                      ]}
+                      onPress={() => setTipoAberto((aberto) => !aberto)}
+                      style={({ pressed }) => [s.tipoSelecionado, pressed && s.pressionado]}
                       accessibilityRole="button"
-                      accessibilityState={{ selected: ativo }}
+                      accessibilityState={{ expanded: tipoAberto }}
+                      accessibilityLabel="Selecionar tipo de visita"
                     >
-                      <View style={[s.pontoFiltro, { backgroundColor: t.cor }]} />
-                      <Text style={[s.tipoChipTxt, ativo && s.tipoChipTxtAtivo]}>{t.rotulo}</Text>
+                      <Text style={s.tipoSelecionadoTxt}>{TIPOS[tipo].rotulo}</Text>
+                      <Ionicons
+                        name={tipoAberto ? 'chevron-up' : 'chevron-down'}
+                        size={18}
+                        color="#fff"
+                      />
                     </Pressable>
-                  );
-                })}
-              </View>
 
-              <Text style={s.label}>Profissional</Text>
-              <TextInput
-                style={s.input}
-                value={prof}
-                onChangeText={setProf}
-                maxLength={40}
-                placeholder="Nome"
-                placeholderTextColor="#777b83"
-                selectionColor={DOURADO}
-                accessibilityLabel="Nome do profissional"
-              />
+                    {tipoAberto && (
+                      <View style={s.tipoLista}>
+                        {Object.entries(TIPOS).map(([chave, item]) => (
+                          <Pressable
+                            key={chave}
+                            onPress={() => {
+                              setTipo(chave);
+                              setTipoAberto(false);
+                            }}
+                            style={({ pressed }) => [
+                              s.tipoOpcao,
+                              tipo === chave && s.tipoOpcaoAtiva,
+                              pressed && s.pressionado,
+                            ]}
+                            accessibilityRole="button"
+                            accessibilityState={{ selected: tipo === chave }}
+                          >
+                            <Text style={[s.tipoOpcaoTxt, tipo === chave && s.tipoOpcaoTxtAtiva]}>
+                              {item.rotulo}
+                            </Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                </View>
+
+                <View style={s.campoProfissional}>
+                  <Text style={s.label}>Profissional</Text>
+                  <TextInput
+                    style={s.inputProfissional}
+                    value={prof}
+                    onChangeText={setProf}
+                    maxLength={40}
+                    placeholder="Nome"
+                    placeholderTextColor="#777b83"
+                    selectionColor={DOURADO}
+                    accessibilityLabel="Nome do profissional"
+                  />
+                </View>
+              </View>
 
               {!!msg.texto && (
                 <Text
@@ -885,21 +912,86 @@ const s = StyleSheet.create({
     borderRadius: 8,
     ...Platform.select({ web: { outlineStyle: 'none' } }),
   },
-  tipos: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  tipos: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginTop: 6,
+    marginBottom: 8,
+  },
   tipoChip: {
-    minHeight: 40,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
-    paddingHorizontal: 14,
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: '#0d0d0e',
     borderWidth: 1,
-    borderColor: '#3c4148',
-    borderRadius: 20,
+    borderColor: '#292929',
+    borderRadius: 8,
   },
   tipoChipAtivo: { backgroundColor: '#29231a', borderColor: DOURADO },
-  tipoChipTxt: { color: '#d3d4d8', fontSize: 13 },
+  tipoChipTxt: { color: '#fff', fontSize: 15 },
   tipoChipTxtAtivo: { color: DOURADO, fontWeight: '600' },
-
+  camposExtras: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    marginTop: 0,
+  },
+  campoTipo: { flex: 1, zIndex: 20 },
+  campoProfissional: { flex: 1 },
+  tipoDropdown: { position: 'relative', zIndex: 30 },
+  tipoSelecionado: {
+    height: 46,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    backgroundColor: '#0d0d0e',
+    borderWidth: 1,
+    borderColor: '#292929',
+    borderRadius: 8,
+  },
+  tipoSelecionadoTxt: { flex: 1, color: '#eee', fontSize: 15 },
+  tipoLista: {
+    position: 'absolute',
+    top: 50,
+    left: 0,
+    right: 0,
+    zIndex: 100,
+    backgroundColor: '#111217',
+    borderWidth: 1,
+    borderColor: '#343940',
+    borderRadius: 8,
+    elevation: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.45,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  tipoOpcao: {
+    minHeight: 46,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#292929',
+  },
+  tipoOpcaoAtiva: { backgroundColor: '#29231a' },
+  tipoOpcaoTxt: { color: '#eee', fontSize: 15 },
+  tipoOpcaoTxtAtiva: { color: DOURADO, fontWeight: '700' },
+  inputProfissional: {
+    height: 46,
+    paddingHorizontal: 12,
+    color: '#eee',
+    fontSize: 16,
+    backgroundColor: '#0d0d0e',
+    borderWidth: 1,
+    borderColor: '#292929',
+    borderRadius: 8,
+    ...Platform.select({ web: { outlineStyle: 'none' } }),
+  },
+  profissionalContainer: { flex: 1 },
   msg: { marginTop: 14, fontSize: 13, fontWeight: '600' },
   btnAgendar: {
     minHeight: 46,
