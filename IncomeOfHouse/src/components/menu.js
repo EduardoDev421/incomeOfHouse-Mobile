@@ -11,7 +11,7 @@ export const MENUS = {
       id: 'enderecos',
       nome: 'Meus Endereços',
       icone: 'location-outline',
-      rota: '/Meusenderecos',
+      rota: '/meusenderecosU',
     },
     {
       id: 'pedidos',
@@ -35,13 +35,13 @@ export const MENUS = {
       id: 'agendamentos',
       nome: 'Agendamentos',
       icone: 'calendar-outline',
-      rota: '/Agendamentos',
+      rota: '/AgendamentosU',
     },
     {
       id: 'mensagem',
       nome: 'Mensagem',
       icone: 'chatbox-outline',
-      rota: '/Mensagens',
+      rota: '/MensagensU',
     },
     {
       id: 'configUsuario',
@@ -62,19 +62,19 @@ export const MENUS = {
       id: 'enderecos',
       nome: 'Meus Endereços',
       icone: 'location-outline',
-      rota: '/Meusenderecos',
+      rota: '/MeusenderecosP',
     },
     {
       id: 'portfolio',
       nome: 'Meu Portfolio',
       icone: 'images-outline',
-      rota: '/MeuPortfolio',
+      rota: '/Meuportfolio',
     },
     {
       id: 'plantas',
       nome: 'Publicar Plantas',
       icone: 'cloud-upload-outline',
-      rota: '/PublicarPlanta',
+      rota: '/publicarPlanta',
     },
     {
       id: 'projetos', 
@@ -92,13 +92,13 @@ export const MENUS = {
       id: 'agendamentos',
       nome: 'Agendamentos',
       icone: 'calendar-outline',
-      rota: '/Agendamentos',
+      rota: '/AgendamentosP',
     },
     {
       id: 'mensagem',
       nome: 'Mensagem',
       icone: 'chatbox-outline',
-      rota: '/Mensagens',
+      rota: '/MensagensP',
     },
     {
       id: 'config',

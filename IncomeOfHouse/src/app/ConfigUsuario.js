@@ -29,8 +29,8 @@ const PERIGO = '#ff7777';
 
 const SEGURANCA = [
   { icone: 'key-outline', titulo: 'Alterar Senha', texto: 'Atualize sua senha de acesso', rota: '/AlterarSenha' },
-  { icone: 'finger-print-outline', titulo: 'Autenticação em duas etapas', texto: 'Aumente a segurança da sua conta', rota: null },
-  { icone: 'laptop-outline', titulo: 'Dispositivos conectados', texto: 'Gerencie dispositivos e sessões ativas', rota: null },
+  { icone: 'finger-print-outline', titulo: 'Autenticação em duas etapas', texto: 'Aumente a segurança da sua conta', rota: '/AutenticacaoDuasEtapas' },
+  { icone: 'laptop-outline', titulo: 'Dispositivos conectados', texto: 'Gerencie dispositivos e sessões ativas', rota: '/DispositivosConectados' },
 ];
 
 const NOTIFICACOES = [
@@ -72,14 +72,14 @@ const PERSONALIZACAO = [
 ];
 
 const PRIVACIDADE = [
-  { icone: 'eye-outline', titulo: 'Quem pode ver seu perfil', texto: 'Gerenciar a visibilidade do seu perfil', rota: null },
-  { icone: 'shield-half-outline', titulo: 'Dados e permissões', texto: 'Gerencie seus dados e permissões', rota: null },
+  { icone: 'eye-outline', titulo: 'Quem pode ver seu perfil', texto: 'Gerenciar a visibilidade do seu perfil', rota: '/DadosPermissoes' },
+  { icone: 'shield-half-outline', titulo: 'Dados e permissões', texto: 'Gerencie seus dados e permissões', rota: '/DadosPermissoes' },
   { icone: 'trash-outline', titulo: 'Excluir conta', texto: 'Excluir sua conta permanentemente', rota: null, perigo: true },
 ];
 
 const AJUDA = [
-  { icone: 'help-circle-outline', titulo: 'Perguntas frequentes', texto: 'Encontre respostas para dúvidas comuns', rota: null },
-  { icone: 'headset-outline', titulo: 'Fale conosco', texto: 'Entre em contato com nosso suporte', rota: null },
+  { icone: 'help-circle-outline', titulo: 'Perguntas frequentes', texto: 'Encontre respostas para dúvidas comuns', rota: '/perguntasFrequentes' },
+  { icone: 'headset-outline', titulo: 'Fale conosco', texto: 'Entre em contato com nosso suporte', rota: '/faleConosco' },
   { icone: 'school-outline', titulo: 'Tutoriais', texto: 'Aprenda a usar a plataforma', rota: '/Tutoriais' },
 ];
 

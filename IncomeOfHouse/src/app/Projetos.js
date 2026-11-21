@@ -488,7 +488,7 @@ export default function Projetos() {
         titulo="Você ainda não tem nenhum projeto"
         texto="Publique uma planta para começar a montar a sua lista de projetos."
         acao="Publicar planta"
-        onAcao={() => navegar('/PublicarPlanta')}
+        onAcao={() => navegar('/publicarPlanta')}
         primario
       />
     ) : (

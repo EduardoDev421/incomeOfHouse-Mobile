@@ -12,6 +12,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useLegal } from '../components/LegalProvider';
 
 /* =========================================================
    ROTAS
@@ -21,24 +22,22 @@ import { useRouter } from 'expo-router';
 
 const ROTAS = {
   inicio: '/',
-  plantas: null,         // ex.: '/plantas'
-  profissionais: null,   // ex.: '/profissionais'
-  sobre: null,           // ex.: '/sobre'
-  termos: null,          // ex.: '/termos-de-uso'
-  privacidade: null,     // ex.: '/politica-de-privacidade'
+  plantas: '/planta',
+  profissionais: '/profissionais',
+  sobre: '/sobreNos',
 };
 
 // Menu lateral (sem ícones)
 const MENU_LATERAL = [
-  { texto: 'Meu Perfil', rota: null },                    // PerfilProfissional
-  { texto: 'Meus Endereços', rota: null },                // MeusEndereços
-  { texto: 'Meus Pedidos', rota: null },                  // MeusPedidos
-  { texto: 'Meus Profissionais Favoritos', rota: null },  // MeusProfissionais
-  { texto: 'Projetos Salvos', rota: null },               // ProjetosSalvos
-  { texto: 'Agendamentos', rota: null },                  // Agendamentos
-  { texto: 'Mensagem', rota: null },                      // Mensagem
-  { texto: 'Configurações', rota: null, ativo: true },    // ConfiguraçõesProfissionais
-  { texto: 'Sair', rota: '/' },                           // index
+  { texto: 'Meu Perfil', rota: '/PerfilProfissional' },
+  { texto: 'Meus Endereços', rota: '/MeusenderecosP' },
+  { texto: 'Meus Pedidos', rota: '/Projetos' },
+  { texto: 'Meus Profissionais Favoritos', rota: '/Meusprofissionais' },
+  { texto: 'Projetos Salvos', rota: '/MeusProjetos' },
+  { texto: 'Agendamentos', rota: '/AgendamentosP' },
+  { texto: 'Mensagem', rota: '/MensagensP' },
+  { texto: 'Configurações', rota: '/ConfigProfissionais', ativo: true },
+  { texto: 'Sair', rota: '/login' },
 ];
 
 /* =========================================================
@@ -221,6 +220,7 @@ function CartaoTransacao({ t, onComprovante }) {
 
 export default function HistoricoPagamentos() {
   const router = useRouter();
+  const { abrirLegal } = useLegal();
   const { width, height } = useWindowDimensions();
   const menuCentralizado = width >= 900; // menu no centro do header
   const lateral = width >= 900;          // menu lateral ao lado do conteúdo
@@ -484,11 +484,11 @@ export default function HistoricoPagamentos() {
         <View style={styles.rodape}>
           <Text style={styles.rodapeTexto}>©IncomeOfHouses. Todos os direitos reservados.</Text>
           <View style={styles.rodapeLinks}>
-            <Pressable onPress={() => ir(ROTAS.termos)}>
+            <Pressable onPress={() => abrirLegal('termos')}>
               <Text style={styles.rodapeLink}>Termos de Uso</Text>
             </Pressable>
             <Text style={styles.rodapeSep}>|</Text>
-            <Pressable onPress={() => ir(ROTAS.privacidade)}>
+            <Pressable onPress={() => abrirLegal('privacidade')}>
               <Text style={styles.rodapeLink}>Política de Privacidade</Text>
             </Pressable>
           </View>

@@ -6,13 +6,34 @@ import { useRouter, usePathname } from 'expo-router';
 
 import { usarConta, MENUS, DEBUG_CONTA } from './ContaProvider';
 
+function ItemConta({ item, router, aoSelecionar }) {
+  const pathname = usePathname().toLowerCase();
+  const ativo = pathname === item.rota.toLowerCase();
+
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        styles.item,
+        ativo && styles.ativo,
+        pressed && styles.pressionado,
+      ]}
+      onPress={() => {
+        aoSelecionar?.();
+        if (!ativo) router.push(item.rota);
+      }}
+    >
+      <Ionicons name={item.icone} size={20} color="#c9a45c" />
+      <Text style={styles.texto}>{item.nome}</Text>
+    </Pressable>
+  );
+}
+
 // Cada tela é de UM tipo de conta (ex.: EnderecosUsuario, EnderecosProfissional),
 // então ela informa o "tipo" e o menu certo aparece, sem depender de mais nada.
 // Sem a prop, o menu usa o tipo de conta guardado no Provider.
 export default function ContaMenu({ tipo: tipoDaTela, aoSelecionar }) {
   const conta = usarConta();
   const router = useRouter();
-  const pathname = usePathname().toLowerCase();
 
   const tipo = tipoDaTela || conta.tipo || null;
   const menu = tipo ? MENUS[tipo] || [] : [];
@@ -39,31 +60,18 @@ export default function ContaMenu({ tipo: tipoDaTela, aoSelecionar }) {
     <View style={styles.container}>
       {DEBUG_CONTA && (
         <Text style={styles.debug}>
-          DEBUG conta: {String(conta.tipo)} | rota: {pathname}
+          DEBUG conta: {String(conta.tipo)}
         </Text>
       )}
 
-      {menu.map((item) => {
-        const ativo = pathname === item.rota.toLowerCase();
-
-        return (
-          <Pressable
-            key={item.id}
-            style={({ pressed }) => [
-              styles.item,
-              ativo && styles.ativo,
-              pressed && styles.pressionado,
-            ]}
-            onPress={() => {
-              aoSelecionar?.();
-              if (!ativo) router.push(item.rota);
-            }}
-          >
-            <Ionicons name={item.icone} size={20} color="#c9a45c" />
-            <Text style={styles.texto}>{item.nome}</Text>
-          </Pressable>
-        );
-      })}
+      {menu.map((item) => (
+        <ItemConta
+          key={item.id}
+          item={item}
+          router={router}
+          aoSelecionar={aoSelecionar}
+        />
+      ))}
 
       <View style={styles.divisor} />
 

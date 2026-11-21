@@ -103,7 +103,7 @@ export default function DetalhesPlantas() {
     <View style={[styles.topo, largo ? styles.topoLargo : styles.topoEstreito]}>
       <Pressable onPress={() => navegar('/')}>
         <Image
-          source={require('../assets/images/Logo.png')}
+          source={require('../../assets/images/Logo.png')}
           style={styles.logo}
           resizeMode="contain"
         />
@@ -119,7 +119,7 @@ export default function DetalhesPlantas() {
         <Pressable style={styles.item} onPress={() => navegar('/profissionais')}>
           <Text style={styles.textoItem}>Profissionais</Text>
         </Pressable>
-        <Pressable style={styles.item} onPress={() => navegar('/sobre')}>
+        <Pressable style={styles.item} onPress={() => navegar('/sobreNos')}>
           <Text style={styles.textoItem}>Sobre Nós</Text>
         </Pressable>
       </View>

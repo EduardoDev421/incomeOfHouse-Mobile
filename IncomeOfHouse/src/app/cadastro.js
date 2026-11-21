@@ -54,7 +54,7 @@ export default function Cadastro() {
     try {
       // TODO: salvar o usuário no seu backend aqui
       // replace: depois de cadastrar, o botão voltar não deve retornar ao formulário
-      router.replace('/login');
+      router.replace('/login?tipo=usuario');
     } catch (e) {
       setErro('Não foi possível concluir o cadastro. Tente novamente.');
     } finally {
@@ -171,7 +171,7 @@ export default function Cadastro() {
       <LinkConta
         pergunta="Já possui uma conta?"
         acao="Entrar"
-        aoPressionar={() => router.push('/login')}
+        aoPressionar={() => router.push('/login?tipo=usuario')}
       />
 
       <LinkContorno

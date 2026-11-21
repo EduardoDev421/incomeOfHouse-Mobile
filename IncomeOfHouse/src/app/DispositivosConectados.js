@@ -14,8 +14,9 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useLegal } from '../components/LegalProvider';
 
-const LOGO = require('../assets/images/Logo.png');
+const LOGO = require('../../assets/images/Logo.png');
 
 const COLORS = {
   bg: '#0a0a0a',
@@ -34,13 +35,13 @@ const COLORS = {
 
 // Ajuste as rotas conforme os nomes dos arquivos em src/app
 const MENU = [
-  { label: 'Meu Perfil', icon: 'person-circle-outline', route: '/perfilProfissional' },
-  { label: 'Meus Endereços', icon: 'location-outline', route: '/meusEnderecos' },
-  { label: 'Meus Pedidos', icon: 'grid-outline', route: '/meusPedidos' },
-  { label: 'Meus Profissionais Favoritos', icon: 'star-outline', route: '/meusProfissionais' },
-  { label: 'Projetos Salvos', icon: 'bookmark-outline', route: '/projetosSalvos' },
-  { label: 'Agendamentos', icon: 'calendar-outline', route: '/agendamentos' },
-  { label: 'Mensagem', icon: 'chatbox-ellipses-outline', route: '/mensagem' },
+  { label: 'Meu Perfil', icon: 'person-circle-outline', route: '/PerfilProfissional' },
+  { label: 'Meus Endereços', icon: 'location-outline', route: '/MeusenderecosP' },
+  { label: 'Meus Pedidos', icon: 'grid-outline', route: '/Projetos' },
+  { label: 'Meus Profissionais Favoritos', icon: 'star-outline', route: '/Meusprofissionais' },
+  { label: 'Projetos Salvos', icon: 'bookmark-outline', route: '/MeusProjetos' },
+  { label: 'Agendamentos', icon: 'calendar-outline', route: '/AgendamentosP' },
+  { label: 'Mensagem', icon: 'chatbox-ellipses-outline', route: '/MensagensP' },
   { label: 'Configurações', icon: 'settings-outline', route: '/DispositivosConectados', ativo: true },
   { label: 'Sair', icon: 'log-out-outline', route: '/login', separador: true },
 ];
@@ -49,7 +50,7 @@ const LINKS_TOPO = [
   ['Início', '/'],
   ['Plantas', '/planta'],
   ['Profissionais', '/profissionais'],
-  ['Sobre', '/sobre'],
+  ['Sobre', '/sobreNos'],
 ];
 
 const DEVICES_INICIAIS = [
@@ -61,6 +62,7 @@ const DEVICES_INICIAIS = [
 
 export default function DispositivosConectados() {
   const router = useRouter();
+  const { abrirLegal } = useLegal();
   const [menuAberto, setMenuAberto] = useState(false);
   const [devices, setDevices] = useState(DEVICES_INICIAIS);
 
@@ -236,11 +238,11 @@ export default function DispositivosConectados() {
         <View style={styles.rodape}>
           <Text style={styles.rodapeTxt}>©IncomeOfHouses. Todos os direitos reservados.</Text>
           <View style={styles.rodapeLinks}>
-            <TouchableOpacity onPress={() => ir('/termosUso')}>
+            <TouchableOpacity onPress={() => abrirLegal('termos')}>
               <Text style={styles.rodapeLink}>Termos de Uso</Text>
             </TouchableOpacity>
             <Text style={styles.rodapeSep}>|</Text>
-            <TouchableOpacity onPress={() => ir('/politicaPrivacidade')}>
+            <TouchableOpacity onPress={() => abrirLegal('privacidade')}>
               <Text style={styles.rodapeLink}>Política de Privacidade</Text>
             </TouchableOpacity>
           </View>

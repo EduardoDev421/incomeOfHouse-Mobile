@@ -146,7 +146,7 @@ export default function CadastroProfissional() {
     try {
       // TODO: enviar os dados e o arquivo (arquivo.uri) para o seu backend aqui
       // replace: depois de cadastrar, o botão voltar não deve retornar ao formulário
-      router.replace('/login');
+      router.replace('/login?tipo=profissional');
     } catch (e) {
       setErro('Não foi possível concluir o cadastro. Tente novamente.');
     } finally {
@@ -339,7 +339,7 @@ export default function CadastroProfissional() {
       <LinkConta
         pergunta="Já possui um cadastro?"
         acao="Entrar"
-        aoPressionar={() => router.push('/login')}
+        aoPressionar={() => router.push('/login?tipo=profissional')}
       />
 
       <LinkContorno

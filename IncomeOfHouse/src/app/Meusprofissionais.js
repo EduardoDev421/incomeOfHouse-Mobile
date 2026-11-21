@@ -17,6 +17,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDeclararConta } from '../components/ContaProvider';
 import ContaMenu from '../components/MenuConta';
+import { PROFISSIONAIS } from '../constants/profissionais';
 
 /* ================================================= */
 /* CONSTANTES                                        */
@@ -46,14 +47,12 @@ const LINKS_SITE = [
   { nome: 'Sobre Nós', icone: 'information-circle-outline', rota: '/sobreNos' },
 ];
 
-const FAVORITOS_INICIAIS = [
-  { id: '1', nome: 'Carlos Silva', funcao: 'Arquiteto', especialidade: 'Projetos residenciais e comerciais' },
-  { id: '2', nome: 'Juliana Martins', funcao: 'Engenheira Civil', especialidade: 'Reformas e ampliações' },
-  { id: '3', nome: 'Rafael Costa', funcao: 'Investimentos Imobiliários', especialidade: 'Consultoria de viabilidade' },
-  { id: '4', nome: 'Fernanda Lima', funcao: 'Arquiteta', especialidade: 'Plantas baixas e interiores' },
-  { id: '5', nome: 'Lucas Pereira', funcao: 'Designer de Interiores', especialidade: '' },
-  { id: '6', nome: 'Mariana Rocha', funcao: 'Paisagista', especialidade: 'Áreas externas e jardins' },
-];
+const FAVORITOS_INICIAIS = PROFISSIONAIS.map((profissional) => ({
+  id: profissional.id,
+  nome: profissional.nome,
+  funcao: profissional.profissaoNome,
+  especialidade: profissional.especialidade,
+}));
 
 /* ================================================= */
 /* FUNÇÕES AUXILIARES                                */
@@ -519,7 +518,7 @@ export default function Meusprofissionais() {
                   mobile={mobile}
                   medio={medio}
                   onPerfil={() => abrirPerfil(profissional)}
-                  onMensagem={() => navegar('/Mensagens')}
+                  onMensagem={() => navegar('/MensagensU')}
                   onRemover={() => remover(profissional)}
                 />
               ))}

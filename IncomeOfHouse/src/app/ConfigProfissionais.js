@@ -6,9 +6,10 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useLegal } from '../components/LegalProvider';
 
 // >>> Ajuste os caminhos conforme a pasta deste arquivo
-const LOGO = require('../assets/images/Logo.png');
+const LOGO = require('../../assets/images/Logo.png');
 const FUNDO = require('../../assets/images/BackgroundFundo.png');
 
 const COLORS = {
@@ -27,14 +28,14 @@ const LARGURA_DRAWER = 270;
 
 // Ajuste as rotas conforme os nomes dos arquivos em src/app
 const MENU = [
-  { label: 'Meu Perfil', icon: 'person-outline', route: '/perfilUsuario' },
-  { label: 'Meus Endereços', icon: 'location-outline', route: '/meusEnderecos' },
-  { label: 'Meus Pedidos', icon: 'grid-outline', route: '/meusPedidos' },
-  { label: 'Meus Profissionais Favoritos', icon: 'star-outline', route: '/profissionaisFavoritos' },
-  { label: 'Projetos Salvos', icon: 'bookmark-outline', route: '/projetosSalvos' },
-  { label: 'Agendamentos', icon: 'calendar-outline', route: '/agendamentos' },
-  { label: 'Mensagens', icon: 'chatbox-outline', route: '/mensagem' },
-  { label: 'Configurações', icon: 'settings-outline', route: '/configuracoesProfissionais', ativo: true },
+  { label: 'Meu Perfil', icon: 'person-outline', route: '/PerfilProfissional' },
+  { label: 'Meus Endereços', icon: 'location-outline', route: '/MeusenderecosP' },
+  { label: 'Meus Pedidos', icon: 'grid-outline', route: '/MeusPedidos' },
+  { label: 'Meus Profissionais Favoritos', icon: 'star-outline', route: '/Meusprofissionais' },
+  { label: 'Projetos Salvos', icon: 'bookmark-outline', route: '/MeusProjetos' },
+  { label: 'Agendamentos', icon: 'calendar-outline', route: '/AgendamentosP' },
+  { label: 'Mensagens', icon: 'chatbox-outline', route: '/MensagensP' },
+  { label: 'Configurações', icon: 'settings-outline', route: '/ConfigProfissionais', ativo: true },
   { label: 'Sair', icon: 'log-out-outline', route: '/login', separador: true },
 ];
 
@@ -42,7 +43,7 @@ const LINKS_TOPO = [
   ['Início', '/'],
   ['Plantas', '/planta'],
   ['Profissionais', '/profissionais'],
-  ['Sobre', '/sobre'],
+  ['Sobre', '/sobreNos'],
 ];
 
 /* ---------- Opções dos seletores ---------- */
@@ -269,6 +270,7 @@ function GrupoSwitches({ itens, estado, onChange }) {
 
 export default function ConfigProfissionais() {
   const router = useRouter();
+  const { abrirLegal } = useLegal();
   const { mobile, medio, largo, height } = useLayout();
   const paisagem = height < 500;
 
@@ -464,7 +466,7 @@ export default function ConfigProfissionais() {
 
           {!mobile && renderLinksTopo()}
 
-          <Pressable onPress={() => ir('/perfilUsuario')} style={s.botaoPerfil} hitSlop={10}>
+          <Pressable onPress={() => ir('/PerfilProfissional')} style={s.botaoPerfil} hitSlop={10}>
             <Ionicons name="person-outline" size={22} color={COLORS.gold} />
           </Pressable>
 
@@ -578,11 +580,11 @@ export default function ConfigProfissionais() {
         <View style={s.rodape}>
           <Text style={s.rodapeTxt}>©IncomeOfHouses. Todos os direitos reservados.</Text>
           <View style={s.rodapeLinks}>
-            <Pressable onPress={() => ir('/termosUso')}>
+            <Pressable onPress={() => abrirLegal('termos')}>
               <Text style={s.rodapeLink}>Termos de Uso</Text>
             </Pressable>
             <Text style={s.rodapeSep}>|</Text>
-            <Pressable onPress={() => ir('/politicaPrivacidade')}>
+            <Pressable onPress={() => abrirLegal('privacidade')}>
               <Text style={s.rodapeLink}>Política de Privacidade</Text>
             </Pressable>
           </View>

@@ -555,7 +555,7 @@ export default function PerfilProfissional() {
             </View>
           ))}
         </View>
-        <BotaoCard texto="Ver portfólio completo" mobile={mobile} onPress={() => navegar('/meuportfolio')} />
+        <BotaoCard texto="Ver portfólio completo" mobile={mobile} onPress={() => navegar('/Meuportfolio')} />
       </Card>
 
       <Card titulo="Avaliações recentes" icone="star-outline" mobile={mobile}>
@@ -569,7 +569,7 @@ export default function PerfilProfissional() {
             <Text style={s.avaliacaoTexto}>{a.texto}</Text>
           </View>
         ))}
-        <BotaoCard texto="Ver todas as avaliações" mobile={mobile} onPress={() => navegar('/comentarios')} />
+        <BotaoCard texto="Ver todas as avaliações" mobile={mobile} onPress={() => navegar('/Comentarios')} />
       </Card>
     </View>
   );
@@ -619,13 +619,13 @@ export default function PerfilProfissional() {
           {!mobile && <View style={[s.menuLateral, medio && s.menuLateralMedio]}>{menuConta}</View>}
 
           <View style={[s.principal, medio && s.principalMedio, mobile && s.principalMobile]}>
-            <CabecalhoPagina mobile={mobile} onEditar={() => navegar('/editarperfil')} />
+            <CabecalhoPagina mobile={mobile} onEditar={() => navegar('/DadosEmpresa')} />
 
             <View style={[s.bloco, mobile && s.blocoMobile]}>
               <CardPerfil
                 mobile={mobile}
                 empilhado={empilhado}
-                onEditar={() => navegar('/editarperfil')}
+                onEditar={() => navegar('/DadosEmpresa')}
                 onEditarFoto={editarFoto}
               />
               <Estatisticas mobile={mobile} medio={medio} />

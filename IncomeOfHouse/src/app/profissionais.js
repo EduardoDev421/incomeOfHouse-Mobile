@@ -21,6 +21,7 @@ import {
   DOURADO,
   LARGO,
 } from '../components/Comuns.js';
+import { PROFISSIONAIS } from '../constants/profissionais';
 
 const POR_PAGINA = 6;
 const FUNDO = require('../../assets/images/BackGroundPlantasEProfissionais.png');
@@ -89,7 +90,6 @@ const OPCOES_ESTADO = [TODOS, ...ESTADOS.map(([v, l]) => ({ label: l, valor: v }
 const OPCOES_EXPERIENCIA = [TODAS, ...EXPERIENCIAS.map((n) => ({ label: `${n} anos`, valor: String(n) }))];
 const OPCOES_AVALIACAO = [TODAS, ...AVALIACOES.map((n) => ({ label: `${n.toFixed(1)} ou mais`, valor: String(n) }))];
 
-const NOME_PROFISSAO = Object.fromEntries(PROFISSOES);
 const NOME_ESTADO = Object.fromEntries(ESTADOS);
 
 /* ------------------------------------------------------------------ */
@@ -98,17 +98,6 @@ const NOME_ESTADO = Object.fromEntries(ESTADOS);
 /* ter: id, nome, profissao (valor da lista), estado (UF), anos,       */
 /* avaliacao. Opcional: foto (require('...') ou { uri: '...' })        */
 /* ------------------------------------------------------------------ */
-const PROFISSIONAIS = [
-  { id: 1, nome: 'Carlos Mendes', profissao: 'engenheiro-civil', estado: 'AM', anos: 15, avaliacao: 5.0 },
-  { id: 2, nome: 'Ana Beatriz Souza', profissao: 'arquiteto', estado: 'SP', anos: 12, avaliacao: 4.9 },
-  { id: 3, nome: 'Rafael Lima', profissao: 'designer-de-interiores', estado: 'RJ', anos: 10, avaliacao: 4.8 },
-  { id: 4, nome: 'Juliana Castro', profissao: 'paisagista', estado: 'MG', anos: 9, avaliacao: 4.9 },
-  { id: 5, nome: 'Marcos Oliveira', profissao: 'topografo', estado: 'GO', anos: 18, avaliacao: 4.7 },
-  { id: 6, nome: 'Fernanda Alves', profissao: 'especialista-bim', estado: 'DF', anos: 8, avaliacao: 5.0 },
-  { id: 7, nome: 'Paulo Henrique Dias', profissao: 'projetista-estrutural', estado: 'PR', anos: 15, avaliacao: 4.8 },
-  { id: 8, nome: 'Camila Rocha', profissao: 'arquiteto-urbanista', estado: 'BA', anos: 12, avaliacao: 4.7 },
-];
-
 const FILTROS_VAZIOS = { profissao: '', estado: '', experiencia: '', avaliacao: '' };
 
 /* ------------------------------------------------------------------ */
@@ -246,7 +235,7 @@ export default function Profissionais() {
 
                         <View style={[styles.cardCorpo, compacto && styles.corpoCompacto]}>
                           <Text style={styles.cardProfissao} numberOfLines={1}>
-                            {NOME_PROFISSAO[p.profissao]}
+                            {p.profissaoNome}
                           </Text>
                           <Text style={styles.cardNome} numberOfLines={1}>
                             {p.nome}

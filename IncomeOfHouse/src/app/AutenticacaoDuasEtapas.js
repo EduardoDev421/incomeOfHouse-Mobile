@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useLegal } from '../components/LegalProvider';
 
 // Dependencias OPCIONAIS (a tela funciona mesmo sem elas):
 //   npx expo install expo-clipboard react-native-svg
@@ -34,7 +35,7 @@ try {
   QRCode = require('react-native-qrcode-svg').default;
 } catch (e) {}
 
-const LOGO = require('../assets/images/Logo.png');
+const LOGO = require('../../assets/images/Logo.png');
 
 const COLORS = {
   bg: '#0a0a0a',
@@ -51,14 +52,14 @@ const COLORS = {
 
 // Ajuste as rotas conforme os nomes dos arquivos em src/app
 const MENU = [
-  { label: 'Meu Perfil', icon: 'person-circle-outline', route: '/perfilProfissional' },
-  { label: 'Meus Endereços', icon: 'location-outline', route: '/meusEnderecos' },
-  { label: 'Meus Pedidos', icon: 'grid-outline', route: '/meusPedidos' },
-  { label: 'Meus Profissionais Favoritos', icon: 'star-outline', route: '/meusProfissionais' },
-  { label: 'Projetos Salvos', icon: 'bookmark-outline', route: '/projetosSalvos' },
-  { label: 'Agendamentos', icon: 'calendar-outline', route: '/agendamentos' },
-  { label: 'Mensagem', icon: 'chatbox-ellipses-outline', route: '/mensagem' },
-  { label: 'Configurações', icon: 'settings-outline', route: '/configuracoesProfissionais', ativo: true },
+  { label: 'Meu Perfil', icon: 'person-circle-outline', route: '/PerfilProfissional' },
+  { label: 'Meus Endereços', icon: 'location-outline', route: '/MeusenderecosP' },
+  { label: 'Meus Pedidos', icon: 'grid-outline', route: '/Projetos' },
+  { label: 'Meus Profissionais Favoritos', icon: 'star-outline', route: '/Meusprofissionais' },
+  { label: 'Projetos Salvos', icon: 'bookmark-outline', route: '/MeusProjetos' },
+  { label: 'Agendamentos', icon: 'calendar-outline', route: '/AgendamentosP' },
+  { label: 'Mensagem', icon: 'chatbox-ellipses-outline', route: '/MensagensP' },
+  { label: 'Configurações', icon: 'settings-outline', route: '/ConfigProfissionais', ativo: true },
   { label: 'Sair', icon: 'log-out-outline', route: '/login', separador: true },
 ];
 
@@ -66,10 +67,10 @@ const LINKS_TOPO = [
   ['Início', '/'],
   ['Plantas', '/planta'],
   ['Profissionais', '/profissionais'],
-  ['Sobre Nós', '/sobre'],
+  ['Sobre Nós', '/sobreNos'],
 ];
 
-const ROTA_CONFIGURACOES = '/configuracoesProfissionais';
+const ROTA_CONFIGURACOES = '/ConfigProfissionais';
 const EMAIL_USUARIO = 'joao@exemplo.com'; // troque pelo e-mail real do usuário
 const CODIGO_DEMO = '123456'; // TODO: remover e validar o código no backend
 
@@ -119,6 +120,7 @@ function mascararEmail(email) {
 
 export default function AutenticacaoDuasEtapas() {
   const router = useRouter();
+  const { abrirLegal } = useLegal();
   const [menuAberto, setMenuAberto] = useState(false);
 
   // Painel principal
@@ -273,7 +275,7 @@ export default function AutenticacaoDuasEtapas() {
           <TouchableOpacity style={styles.topoBtnPeq} onPress={() => mostrarToast('Sem novas notificações.')}>
             <Ionicons name="notifications-outline" size={20} color={COLORS.gold} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.avatar} onPress={() => ir('/perfilProfissional')}>
+          <TouchableOpacity style={styles.avatar} onPress={() => ir('/PerfilProfissional')}>
             <Ionicons name="person" size={16} color={COLORS.gold} />
           </TouchableOpacity>
         </View>
@@ -545,11 +547,11 @@ export default function AutenticacaoDuasEtapas() {
           <View style={styles.rodape}>
             <Text style={styles.rodapeTxt}>©IncomeOfHouses. Todos os direitos reservados.</Text>
             <View style={styles.rodapeLinks}>
-              <TouchableOpacity onPress={() => ir('/termosUso')}>
+              <TouchableOpacity onPress={() => abrirLegal('termos')}>
                 <Text style={styles.rodapeLink}>Termos de Uso</Text>
               </TouchableOpacity>
               <Text style={styles.rodapeLink}>|</Text>
-              <TouchableOpacity onPress={() => ir('/politicaPrivacidade')}>
+              <TouchableOpacity onPress={() => abrirLegal('privacidade')}>
                 <Text style={styles.rodapeLink}>Política de Privacidade</Text>
               </TouchableOpacity>
             </View>

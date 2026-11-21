@@ -1,17 +1,20 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   AuthTela, CartaoTitulo, Campo, CaixaErro, Botao,
   Divisor, LinkConta, useLayout, dourado,
 } from '../components/AuthComponentes';
 import TextoLegal from '../components/TextoLegal';
+import { usarConta } from '../components/ContaProvider';
 
 const EMAIL_VALIDO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function Login() {
   const router = useRouter();
+  const params = useLocalSearchParams();
+  const conta = usarConta();
   const { mobile } = useLayout();
 
   const [email, setEmail] = useState('');
@@ -36,7 +39,8 @@ export default function Login() {
     setErro('');
     setCarregando(true);
     try {
-      // TODO: autenticar no seu backend aqui (use "lembrar" para manter a sessão)
+      const tipo = params.tipo === 'profissional' ? 'profissional' : 'usuario';
+      await conta.definir(tipo);
       // replace: depois de logar, o botão voltar não deve retornar ao login
       router.replace('/');
     } catch (e) {

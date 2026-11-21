@@ -525,18 +525,18 @@ export default function PerfilUsuario() {
 
             <CabecalhoPagina
               mobile={mobile}
-              onEditar={() => navegar('/editarperfil')}
+              onEditar={() => navegar('/DadosPermissoes')}
             />
 
             <View style={[s.resumo, mobile && s.resumoMobile]}>
-              <CardUsuario mobile={mobile} onEditar={() => navegar('/editarperfil')} />
+              <CardUsuario mobile={mobile} onEditar={() => navegar('/DadosPermissoes')} />
               <Estatisticas mobile={mobile} medio={medio} />
             </View>
 
             <View style={[s.colunas, mobile && s.colunasMobile]}>
               <CardInformacoes
                 mobile={mobile}
-                onAlterarSenha={() => navegar('/alterarsenha')}
+                onAlterarSenha={() => navegar('/AlterarSenha')}
               />
               <CardAtividades mobile={mobile} onVerTodas={verTodasAtividades} />
             </View>

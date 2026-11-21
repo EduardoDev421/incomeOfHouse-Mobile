@@ -22,14 +22,14 @@ const FUNDO = require('../../assets/images/BackgroundFundo.png');
 /* As rotas abaixo precisam existir em src/app/ para funcionar.        */
 /* ------------------------------------------------------------------ */
 const MENU_LATERAL = [
-  { icone: 'person-outline', texto: 'Meu Perfil', rota: '/perfilProfissional' },
-  { icone: 'location-outline', texto: 'Meus Endereços', rota: '/meusEnderecos' },
-  { icone: 'folder-open-outline', texto: 'Meus Pedidos', rota: '/meusPedidos' },
-  { icone: 'star-outline', texto: 'Meus Profissionais Favoritos', rota: '/meusProfissionais' },
-  { icone: 'bookmark-outline', texto: 'Projetos Salvos', rota: '/projetosSalvos' },
-  { icone: 'calendar-outline', texto: 'Agendamentos', rota: '/agendamentos' },
-  { icone: 'chatbubble-outline', texto: 'Mensagem', rota: '/mensagem' },
-  { icone: 'settings-outline', texto: 'Configurações', rota: '/configuracoesProfissionais', ativo: true },
+  { icone: 'person-outline', texto: 'Meu Perfil', rota: '/PerfilProfissional' },
+  { icone: 'location-outline', texto: 'Meus Endereços', rota: '/MeusenderecosP' },
+  { icone: 'folder-open-outline', texto: 'Meus Pedidos', rota: '/Projetos' },
+  { icone: 'star-outline', texto: 'Meus Profissionais Favoritos', rota: '/Meusprofissionais' },
+  { icone: 'bookmark-outline', texto: 'Projetos Salvos', rota: '/MeusProjetos' },
+  { icone: 'calendar-outline', texto: 'Agendamentos', rota: '/AgendamentosP' },
+  { icone: 'chatbubble-outline', texto: 'Mensagem', rota: '/MensagensP' },
+  { icone: 'settings-outline', texto: 'Configurações', rota: '/ConfigProfissionais', ativo: true },
   { icone: 'log-out-outline', texto: 'Sair', rota: '/' },
 ];
 
@@ -196,7 +196,7 @@ export default function PerguntasFrequentes() {
         <View style={[styles.topo, topoLargo ? styles.topoLargo : styles.topoEstreito]}>
           <Pressable onPress={() => navegar('/')}>
             <Image
-              source={require('../assets/images/Logo.png')}
+              source={require('../../assets/images/Logo.png')}
               style={styles.logo}
               resizeMode="contain"
             />
@@ -212,7 +212,7 @@ export default function PerguntasFrequentes() {
             <Pressable style={styles.item} onPress={() => navegar('/profissionais')}>
               <Text style={styles.textoItem}>Profissionais</Text>
             </Pressable>
-            <Pressable style={styles.item} onPress={() => navegar('/sobre')}>
+            <Pressable style={styles.item} onPress={() => navegar('/sobreNos')}>
               <Text style={styles.textoItem}>Sobre Nós</Text>
             </Pressable>
           </View>

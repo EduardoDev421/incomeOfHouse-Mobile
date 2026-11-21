@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { PROFISSIONAIS } from '../constants/profissionais';
 
 const DOURADO = '#c9a45c';
 
@@ -19,21 +20,6 @@ const FUNDO = require('../../assets/images/detalhes-profissional.png');
 /* ------------------------------------------------------------------ */
 /* DADOS DE EXEMPLO (nomes fictícios)                                  */
 
-const DESCRICAO_PADRAO =
-  'Profissional especializado em projetos arquitetônicos modernos e residenciais. Trabalha com soluções personalizadas, buscando unir sofisticação, funcionalidade e qualidade em cada projeto.';
-
-const PROFISSIONAIS = {
-  1: { nome: 'Carlos Mendes', profissao: 'Engenheiro(a) Civil', cidade: 'Manaus - AM', anos: 15, nota: 5.0, avaliacoes: 128 },
-  2: { nome: 'Ana Beatriz Souza', profissao: 'Arquiteto(a)', cidade: 'São Paulo - SP', anos: 12, nota: 4.9, avaliacoes: 96 },
-  3: { nome: 'Rafael Lima', profissao: 'Designer de Interiores', cidade: 'Rio de Janeiro - RJ', anos: 10, nota: 4.8, avaliacoes: 74 },
-  4: { nome: 'Juliana Castro', profissao: 'Paisagista', cidade: 'Belo Horizonte - MG', anos: 9, nota: 4.9, avaliacoes: 61 },
-  5: { nome: 'Marcos Oliveira', profissao: 'Topógrafo(a)', cidade: 'Goiânia - GO', anos: 18, nota: 4.7, avaliacoes: 143 },
-  6: { nome: 'Fernanda Alves', profissao: 'Especialista BIM', cidade: 'Brasília - DF', anos: 8, nota: 5.0, avaliacoes: 52 },
-  7: { nome: 'Paulo Henrique Dias', profissao: 'Projetista Estrutural', cidade: 'Curitiba - PR', anos: 15, nota: 4.8, avaliacoes: 89 },
-  8: { nome: 'Camila Rocha', profissao: 'Arquiteto(a) e Urbanista', cidade: 'Salvador - BA', anos: 12, nota: 4.7, avaliacoes: 67 },
-};
-
-// Usado se o id não for encontrado (igual ao modelo do site)
 const PROFISSIONAL_PADRAO = {
   nome: 'Nome do Profissional',
   profissao: 'Arquiteto',
@@ -82,8 +68,20 @@ export default function DetalhesProfissionais() {
 
   const navegar = (rota) => router.push(rota);
 
-  const p = PROFISSIONAIS[Number(id)] || PROFISSIONAL_PADRAO;
-  const descricao = p.descricao || DESCRICAO_PADRAO;
+  const selecionado = PROFISSIONAIS.find((profissional) => profissional.id === String(id));
+  const p = selecionado
+    ? {
+        nome: selecionado.nome,
+        profissao: selecionado.profissaoNome,
+        cidade: selecionado.cidade,
+        anos: selecionado.anos,
+        nota: selecionado.avaliacao,
+        avaliacoes: selecionado.avaliacoes,
+        descricao: selecionado.descricao,
+        foto: selecionado.foto,
+      }
+    : PROFISSIONAL_PADRAO;
+  const descricao = p.descricao;
 
   // Nome: última palavra em dourado, como no site ("Nome do" + "Profissional")
   const palavras = p.nome.split(' ');
@@ -103,7 +101,7 @@ export default function DetalhesProfissionais() {
         <View style={[styles.topo, largo ? styles.topoLargo : styles.topoEstreito]}>
           <Pressable onPress={() => navegar('/')}>
             <Image
-              source={require('../assets/images/Logo.png')}
+              source={require('../../assets/images/Logo.png')}
               style={styles.logo}
               resizeMode="contain"
             />
@@ -119,7 +117,7 @@ export default function DetalhesProfissionais() {
             <Pressable style={styles.itemAtivo} onPress={() => navegar('/profissionais')}>
               <Text style={styles.textoAtivo}>Profissionais</Text>
             </Pressable>
-            <Pressable style={styles.item} onPress={() => navegar('/sobre')}>
+            <Pressable style={styles.item} onPress={() => navegar('/sobreNos')}>
               <Text style={styles.textoItem}>Sobre Nós</Text>
             </Pressable>
           </View>
