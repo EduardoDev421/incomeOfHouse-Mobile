@@ -12,12 +12,12 @@ import {
   Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usarConta, MENUS } from './ContaProvider';
 import { useLegal } from './LegalProvider';
 
-const gold = '#c9a45c';
+const gold = '#d4a63a';
 const LARGURA_DRAWER = 290;
 
 const ALTURA_AUTO = { flexGrow: 0, flexShrink: 0, flexBasis: 'auto' };
@@ -46,8 +46,15 @@ function ItemMenu({ nome, icone, ativo, mobile, medio, onPress }) {
         pressed && s.pressionado,
       ]}
     >
-      <Ionicons name={icone} size={mobile ? 20 : medio ? 15 : 17} color={gold} />
-      <Text style={[s.textoMenu, medio && s.textoMenuMedio, mobile && s.textoMenuMobile]}>
+      <Ionicons name={icone} size={mobile ? 20 : medio ? 15 : 16} color={gold} />
+      <Text
+        style={[
+          s.textoMenu,
+          medio && s.textoMenuMedio,
+          mobile && s.textoMenuMobile,
+          ativo && s.textoMenuAtivo,
+        ]}
+      >
         {nome}
       </Text>
     </Pressable>
@@ -56,15 +63,17 @@ function ItemMenu({ nome, icone, ativo, mobile, medio, onPress }) {
 
 export function LayoutConta({ titulo, subtitulo, ativo, tipo: tipoDaTela, children }) {
   const router = useRouter();
+  const pathname = usePathname().toLowerCase();
   const insets = useSafeAreaInsets();
   const { abrirLegal } = useLegal();
   const { menu: menuDaConta, limpar } = usarConta();
-  const menu = tipoDaTela ? MENUS[tipoDaTela] : menuDaConta;
+  const menu = (tipoDaTela ? MENUS[tipoDaTela] : menuDaConta) || [];
   const { width, height } = useWindowDimensions();
 
   const mobile = width < 650;
   const medio = !mobile && (width < 1000 || height < 500);
   const paisagem = height < 500;
+  const larguraLateral = medio ? 180 : width >= 1100 ? 250 : 220;
 
   const [menuAberto, setMenuAberto] = useState(false);
   const deslize = useRef(new Animated.Value(-LARGURA_DRAWER)).current;
@@ -89,7 +98,11 @@ export function LayoutConta({ titulo, subtitulo, ativo, tipo: tipoDaTela, childr
     if (!mobile) setMenuAberto(false);
   }, [mobile]);
 
-  const estaAtivo = (item) => item.id === ativo || item.nome === ativo;
+  // Ativo pelo id/nome informado na tela OU pela rota atual
+  const estaAtivo = (item) =>
+    item.id === ativo ||
+    item.nome === ativo ||
+    pathname === String(item.rota).toLowerCase();
 
   const navegar = (rota) => {
     setMenuAberto(false);
@@ -133,56 +146,116 @@ export function LayoutConta({ titulo, subtitulo, ativo, tipo: tipoDaTela, childr
     </>
   );
 
+  const corpoPagina = (
+    <>
+      <Text style={[s.titulo, mobile && s.tituloMobile]} accessibilityRole="header">
+        {titulo}
+      </Text>
+      {!!subtitulo && <Text style={s.subtitulo}>{subtitulo}</Text>}
+
+      <View style={s.divisor} />
+
+      <View style={s.conteudo}>
+        {typeof children === 'function' ? children({ mobile, medio }) : children}
+      </View>
+    </>
+  );
+
+  const rodape = (
+    <View
+      style={[
+        s.rodape,
+        mobile ? s.rodapeMobile : s.rodapeDesk,
+        { paddingBottom: 15 + insets.bottom },
+      ]}
+    >
+      <Text style={s.textoRodape}>©IncomeOfHouses. Todos os direitos reservados.</Text>
+      <View style={s.linksRodape}>
+        <Pressable onPress={() => abrirLegal('termos')} accessibilityRole="button" hitSlop={8}>
+          <Text style={s.termos}>Termos de Uso</Text>
+        </Pressable>
+        <Text style={s.separador}>|</Text>
+        <Pressable onPress={() => abrirLegal('privacidade')} accessibilityRole="button" hitSlop={8}>
+          <Text style={s.termos}>Política de Privacidade</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+
+  /* ---------- Site e tablet: igual à web (cabeçalho e menu lateral fixos) ---------- */
+  if (!mobile) {
+    return (
+      <ImageBackground source={FUNDO} style={s.fundo} resizeMode="cover">
+        <View style={s.sombra} pointerEvents="none" />
+
+        <View style={[s.topoDesk, { paddingTop: insets.top, height: 64 + insets.top }]}>
+          <Pressable
+            onPress={() => navegar('/')}
+            accessibilityRole="button"
+            accessibilityLabel="Ir para o início"
+          >
+            <Image source={LOGO} style={s.logoDesk} resizeMode="contain" />
+          </Pressable>
+
+          <View style={[s.linksCentro, { top: insets.top }]} pointerEvents="box-none">
+            <View style={s.linksDesk}>
+              {LINKS_SITE.map((link) => (
+                <Pressable key={link.nome} onPress={() => navegar(link.rota)}>
+                  <Text style={s.linkDesk}>{link.nome}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        </View>
+
+        <View style={s.corpoDesk}>
+          <View style={[s.lateral, { width: larguraLateral }]}>
+            <ScrollView contentContainerStyle={s.lateralScroll} showsVerticalScrollIndicator={false}>
+              {itensConta}
+            </ScrollView>
+          </View>
+
+          <ScrollView
+            style={s.areaConteudo}
+            contentContainerStyle={s.areaScroll}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={[s.principalDesk, medio && s.principalDeskMedio]}>{corpoPagina}</View>
+            {rodape}
+          </ScrollView>
+        </View>
+      </ImageBackground>
+    );
+  }
+
+  /* ---------- Celular: botão de menu + gaveta lateral ---------- */
   return (
     <ImageBackground source={FUNDO} style={s.fundo} resizeMode="cover">
-      <View style={s.sombra} />
+      <View style={s.sombra} pointerEvents="none" />
 
       <ScrollView contentContainerStyle={s.pagina} showsVerticalScrollIndicator={false}>
-        <View
-          style={[
-            s.topo,
-            medio && s.topoMedio,
-            mobile && s.topoMobile,
-            { paddingTop: insets.top + (mobile ? 8 : 0) },
-          ]}
-        >
-          {mobile && (
-            <Pressable
-              onPress={() => setMenuAberto(true)}
-              style={s.botaoHamburguer}
-              hitSlop={10}
-              accessibilityRole="button"
-              accessibilityLabel="Abrir menu"
-            >
-              <Ionicons name="menu-outline" size={26} color={gold} />
-            </Pressable>
-          )}
+        <View style={[s.topo, { paddingTop: insets.top + 8 }]}>
+          <Pressable
+            onPress={() => setMenuAberto(true)}
+            style={s.botaoHamburguer}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="Abrir menu"
+          >
+            <Ionicons name="menu-outline" size={26} color={gold} />
+          </Pressable>
 
           <Pressable
             onPress={() => navegar('/')}
             accessibilityRole="button"
             accessibilityLabel="Ir para o início"
           >
-            <Image
-              source={LOGO}
-              style={[s.logo, medio && s.logoMedio, mobile && s.logoMobile]}
-              resizeMode="contain"
-            />
+            <Image source={LOGO} style={s.logoMobile} resizeMode="contain" />
           </Pressable>
-
-          {!mobile && (
-            <View style={s.links}>
-              {LINKS_SITE.map((link) => (
-                <Pressable key={link.nome} onPress={() => navegar(link.rota)}>
-                  <Text style={s.link}>{link.nome}</Text>
-                </Pressable>
-              ))}
-            </View>
-          )}
 
           <Pressable
             onPress={() => navegar(rotaPerfil)}
-            style={mobile ? s.botaoPerfilMobile : undefined}
+            style={s.botaoPerfilMobile}
             hitSlop={10}
             accessibilityRole="button"
             accessibilityLabel="Meu perfil"
@@ -191,81 +264,57 @@ export function LayoutConta({ titulo, subtitulo, ativo, tipo: tipoDaTela, childr
           </Pressable>
         </View>
 
-        <View style={[s.painel, medio && s.painelMedio, mobile && s.painelMobile]}>
-          {!mobile && <View style={[s.menu, medio && s.menuMedio]}>{itensConta}</View>}
-
-          <View style={[s.principal, medio && s.principalMedio, mobile && s.principalMobile]}>
-            <Text style={[s.titulo, mobile && s.tituloMobile]}>{titulo}</Text>
-            {!!subtitulo && <Text style={s.subtitulo}>{subtitulo}</Text>}
-
-            <View style={s.divisor} />
-
-            <View style={s.conteudo}>
-              {typeof children === 'function' ? children({ mobile, medio }) : children}
-            </View>
-          </View>
+        <View style={s.painelMobile}>
+          <View style={s.principalMobile}>{corpoPagina}</View>
         </View>
 
-        <View style={[s.rodape, { paddingBottom: 15 + insets.bottom }]}>
-          <Text style={s.textoRodape}>© 2026 IncomeOfHouse. Todos os direitos reservados.</Text>
-          <View style={s.linksRodape}>
-            <Pressable onPress={() => abrirLegal('termos')} accessibilityRole="button" hitSlop={8}>
-              <Text style={s.termos}>Termos de Uso</Text>
-            </Pressable>
-            <Text style={s.separador}>|</Text>
-            <Pressable onPress={() => abrirLegal('privacidade')} accessibilityRole="button" hitSlop={8}>
-              <Text style={s.termos}>Política de Privacidade</Text>
-            </Pressable>
-          </View>
-        </View>
+        {rodape}
       </ScrollView>
 
-      {mobile && (
-        <View style={s.camadaDrawer} pointerEvents={menuAberto ? 'auto' : 'none'}>
-          <Animated.View style={[s.overlay, { opacity: fade }]}>
-            <Pressable style={s.areaFechar} onPress={() => setMenuAberto(false)} />
-          </Animated.View>
+      <View style={s.camadaDrawer} pointerEvents={menuAberto ? 'auto' : 'none'}>
+        <Animated.View style={[s.overlay, { opacity: fade }]}>
+          <Pressable style={s.areaFechar} onPress={() => setMenuAberto(false)} />
+        </Animated.View>
 
-          <Animated.View
-            style={[
-              s.drawer,
-              {
-                paddingTop: (paisagem ? 8 : 16) + insets.top,
-                paddingBottom: insets.bottom,
-                transform: [{ translateX: deslize }],
-              },
-            ]}
-          >
-            <View style={s.drawerTopo}>
-              <Text style={s.drawerTitulo}>Minha Conta</Text>
-              <Pressable
-                onPress={() => setMenuAberto(false)}
-                hitSlop={10}
-                accessibilityRole="button"
-                accessibilityLabel="Fechar menu"
-              >
-                <Ionicons name="close-outline" size={28} color={gold} />
-              </Pressable>
-            </View>
+        <Animated.View
+          style={[
+            s.drawer,
+            {
+              paddingTop: (paisagem ? 8 : 16) + insets.top,
+              paddingBottom: insets.bottom,
+              transform: [{ translateX: deslize }],
+            },
+          ]}
+        >
+          <View style={s.drawerTopo}>
+            <Text style={s.drawerTitulo}>Minha Conta</Text>
+            <Pressable
+              onPress={() => setMenuAberto(false)}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel="Fechar menu"
+            >
+              <Ionicons name="close-outline" size={28} color={gold} />
+            </Pressable>
+          </View>
 
-            <ScrollView contentContainerStyle={s.drawerLista} showsVerticalScrollIndicator={false}>
-              <Text style={s.drawerSecao}>NAVEGAÇÃO</Text>
-              {LINKS_SITE.map((link) => (
-                <ItemMenu
-                  key={link.nome}
-                  nome={link.nome}
-                  icone={link.icone}
-                  mobile
-                  onPress={() => navegar(link.rota)}
-                />
-              ))}
+          <ScrollView contentContainerStyle={s.drawerLista} showsVerticalScrollIndicator={false}>
+            <Text style={s.drawerSecao}>NAVEGAÇÃO</Text>
+            {LINKS_SITE.map((link) => (
+              <ItemMenu
+                key={link.nome}
+                nome={link.nome}
+                icone={link.icone}
+                mobile
+                onPress={() => navegar(link.rota)}
+              />
+            ))}
 
-              <Text style={[s.drawerSecao, s.drawerSecaoSeparada]}>MINHA CONTA</Text>
-              {itensConta}
-            </ScrollView>
-          </Animated.View>
-        </View>
-      )}
+            <Text style={[s.drawerSecao, s.drawerSecaoSeparada]}>MINHA CONTA</Text>
+            {itensConta}
+          </ScrollView>
+        </Animated.View>
+      </View>
     </ImageBackground>
   );
 }
@@ -507,7 +556,7 @@ export default function TelaConta({
 }
 
 const s = StyleSheet.create({
-  fundo: { flex: 1, backgroundColor: '#090909' },
+  fundo: { flex: 1, backgroundColor: '#080a0b' },
   sombra: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.65)',
@@ -515,22 +564,52 @@ const s = StyleSheet.create({
   pagina: { flexGrow: 1 },
   pressionado: { opacity: 0.75 },
 
-  topo: {
-    minHeight: 76,
+  /* ---------- Cabeçalho do site e tablet (fixo, igual à web) ---------- */
+  topoDesk: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-around',
-    paddingHorizontal: 20,
+    justifyContent: 'space-between',
+    paddingHorizontal: '3%',
     borderBottomWidth: 1,
-    borderColor: '#51432c',
-    backgroundColor: 'rgba(9, 9, 9, 0.96)',
+    borderColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: 'rgba(8,8,8,0.95)',
+    zIndex: 20,
   },
-  topoMedio: { minHeight: 56, paddingHorizontal: 16 },
-  topoMobile: {
-    minHeight: 0,
+  logoDesk: { width: 58, height: 50 },
+  linksCentro: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  linksDesk: { flexDirection: 'row', alignItems: 'center', gap: 32 },
+  linkDesk: { color: '#eeeeee', fontSize: 14, fontWeight: '500' },
+
+  /* ---------- Corpo do site e tablet ---------- */
+  corpoDesk: { flex: 1, flexDirection: 'row' },
+  lateral: {
+    backgroundColor: '#0d0d0e',
+    borderRightWidth: 1,
+    borderColor: '#252729',
+  },
+  lateralScroll: { paddingVertical: 16, paddingHorizontal: 12, gap: 5 },
+  areaConteudo: { flex: 1, backgroundColor: 'rgba(17,17,17,0.88)' },
+  areaScroll: { flexGrow: 1 },
+  principalDesk: { flexGrow: 1, paddingTop: 26, paddingHorizontal: 32, paddingBottom: 32 },
+  principalDeskMedio: { paddingTop: 20, paddingHorizontal: 16, paddingBottom: 24 },
+
+  /* ---------- Cabeçalho do celular ---------- */
+  topo: {
+    flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 14,
     paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: 'rgba(8,8,8,0.95)',
   },
   botaoHamburguer: {
     width: 42,
@@ -538,9 +617,9 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#6e572b',
+    borderColor: '#59431f',
     borderRadius: 10,
-    backgroundColor: '#1d1d1f',
+    backgroundColor: '#1a1a1c',
   },
   botaoPerfilMobile: {
     width: 42,
@@ -550,51 +629,22 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: gold,
     borderRadius: 21,
-    backgroundColor: '#1d1d1f',
+    backgroundColor: '#1a1a1c',
   },
-  logo: { width: 110, height: 60 },
-  logoMedio: { width: 80, height: 44 },
-  logoMobile: { width: 90, height: 48 },
-  links: { flexDirection: 'row', flexWrap: 'wrap', gap: 22 },
-  link: { color: '#fff', fontSize: 12 },
+  logoMobile: { width: 58, height: 50 },
 
-  painel: {
-    width: '96%',
-    maxWidth: 1250,
-    alignSelf: 'center',
-    flexDirection: 'row',
-    marginTop: 22,
-    marginBottom: 80,
-    backgroundColor: 'rgba(15,15,15,0.97)',
-    borderWidth: 1,
-    borderColor: '#292929',
-    borderRadius: 10,
-    overflow: 'hidden',
-  },
-  painelMedio: { marginTop: 12, marginBottom: 30 },
   painelMobile: {
     ...ALTURA_AUTO,
     width: '100%',
-    flexDirection: 'column',
-    marginTop: 0,
     marginBottom: 24,
-    backgroundColor: 'transparent',
-    borderWidth: 0,
-    borderRadius: 0,
+    backgroundColor: 'rgba(17,17,17,0.88)',
   },
+  principalMobile: { ...ALTURA_AUTO, padding: 16 },
 
-  menu: {
-    width: 205,
-    padding: 10,
-    gap: 5,
-    backgroundColor: '#090a0b',
-    borderRightWidth: 1,
-    borderColor: '#292929',
-  },
-  menuMedio: { width: 160, padding: 8 },
+  /* ---------- Itens do menu (lateral e gaveta) ---------- */
   itemMenu: {
-    minHeight: 37,
-    paddingHorizontal: 10,
+    minHeight: 38,
+    paddingHorizontal: 12,
     paddingVertical: 8,
     flexDirection: 'row',
     alignItems: 'center',
@@ -602,16 +652,18 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'transparent',
     borderRadius: 6,
-    backgroundColor: '#191a1c',
+    backgroundColor: '#1a1a1c',
   },
-  itemMenuMedio: { minHeight: 30, paddingVertical: 6, paddingHorizontal: 8, gap: 8 },
+  itemMenuMedio: { minHeight: 32, paddingVertical: 6, paddingHorizontal: 8, gap: 8 },
   itemMenuMobile: { minHeight: 48, paddingHorizontal: 14, gap: 14, borderRadius: 10 },
-  ativo: { borderColor: gold, backgroundColor: '#252117' },
-  textoMenu: { color: '#eee', fontSize: 11, flexShrink: 1 },
+  ativo: { borderColor: '#59431f', backgroundColor: '#29231a' },
+  textoMenu: { color: '#eeeeee', fontSize: 12, fontWeight: '500', flexShrink: 1 },
   textoMenuMedio: { fontSize: 10 },
   textoMenuMobile: { fontSize: 15 },
-  divisorMenu: { height: 1, backgroundColor: '#333', marginVertical: 6 },
+  textoMenuAtivo: { color: gold },
+  divisorMenu: { height: 1, backgroundColor: '#292929', marginTop: 3, marginBottom: 3 },
 
+  /* ---------- Gaveta (celular) ---------- */
   camadaDrawer: { ...StyleSheet.absoluteFillObject, zIndex: 100 },
   overlay: {
     ...StyleSheet.absoluteFillObject,
@@ -624,9 +676,9 @@ const s = StyleSheet.create({
     bottom: 0,
     left: 0,
     width: LARGURA_DRAWER,
-    backgroundColor: '#101010',
+    backgroundColor: '#0d0d0e',
     borderRightWidth: 1,
-    borderColor: '#333',
+    borderColor: '#252729',
   },
   drawerTopo: {
     flexDirection: 'row',
@@ -648,15 +700,14 @@ const s = StyleSheet.create({
   },
   drawerSecaoSeparada: { marginTop: 14 },
 
-  principal: { flex: 1, minWidth: 0, padding: 20 },
-  principalMedio: { padding: 14 },
-  principalMobile: { ...ALTURA_AUTO, padding: 16 },
-  titulo: { color: '#fff', fontSize: 25, fontWeight: 'bold' },
-  tituloMobile: { fontSize: 24 },
-  subtitulo: { color: '#aeb7c0', fontSize: 13, marginTop: 5 },
-  divisor: { height: 1, backgroundColor: '#8e7138', marginVertical: 16 },
+  /* ---------- Título e conteúdo ---------- */
+  titulo: { color: '#fff', fontSize: 24, fontWeight: '600' },
+  tituloMobile: { fontSize: 22 },
+  subtitulo: { color: '#a8abad', fontSize: 13, marginTop: 6 },
+  divisor: { height: 1, backgroundColor: gold, marginTop: 14, marginBottom: 20 },
   conteudo: { gap: 16 },
 
+  /* ---------- Componentes das telas simples (CorpoConta) ---------- */
   campo: {
     minHeight: 42,
     borderWidth: 1,
@@ -686,10 +737,10 @@ const s = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 12,
     padding: 14,
-    backgroundColor: '#111315',
+    backgroundColor: '#141414',
     borderWidth: 1,
-    borderColor: '#303235',
-    borderRadius: 11,
+    borderColor: '#292929',
+    borderRadius: 8,
   },
   iconeCard: {
     width: 52,
@@ -697,12 +748,12 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#594823',
+    borderColor: '#59431f',
     borderRadius: 10,
   },
   info: { flex: 1, minWidth: 130, gap: 4 },
   nome: { color: '#fff', fontSize: 14, fontWeight: 'bold' },
-  descricao: { color: '#aab4bf', fontSize: 12, marginTop: 3 },
+  descricao: { color: '#8f9497', fontSize: 12, marginTop: 3 },
   status: { color: gold, fontSize: 12, marginTop: 4 },
   acoes: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   botaoPequeno: { borderWidth: 1, borderColor: gold, borderRadius: 7, padding: 9 },
@@ -733,21 +784,29 @@ const s = StyleSheet.create({
   linha: { width: '100%', paddingVertical: 12, borderBottomWidth: 1, borderColor: '#333' },
   nota: { color: gold, fontSize: 24, marginTop: 12 },
 
+  /* ---------- Rodapé ---------- */
   rodape: {
-    minHeight: 48,
+    minHeight: 55,
+    paddingTop: 15,
+    backgroundColor: '#080a0b',
+    borderTopWidth: 1,
+    borderColor: '#8a8a8a',
+  },
+  rodapeDesk: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: 10,
-    paddingTop: 15,
-    paddingHorizontal: 20,
-    backgroundColor: '#090909',
-    borderTopWidth: 1,
-    borderColor: gold,
+    paddingHorizontal: 32,
   },
-  textoRodape: { color: '#aaa', fontSize: 11 },
-  linksRodape: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  termos: { color: gold, fontSize: 11 },
-  separador: { color: '#555', fontSize: 11 },
+  rodapeMobile: {
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+  },
+  textoRodape: { color: '#7e8385', fontSize: 12 },
+  linksRodape: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  termos: { color: '#7e8385', fontSize: 12 },
+  separador: { color: '#7e8385', fontSize: 12 },
 });

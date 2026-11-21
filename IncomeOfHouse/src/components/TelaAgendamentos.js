@@ -596,10 +596,12 @@ export default function TelaAgendamentos({ tipo: tipoConta }) {
                       accessibilityState={{ expanded: tipoAberto }}
                       accessibilityLabel="Selecionar tipo de visita"
                     >
-                      <Text style={s.tipoSelecionadoTxt}>{TIPOS[tipo].rotulo}</Text>
+                      <Text style={s.tipoSelecionadoTxt} numberOfLines={1}>
+                        {TIPOS[tipo].rotulo}
+                      </Text>
                       <Ionicons
                         name={tipoAberto ? 'chevron-up' : 'chevron-down'}
-                        size={18}
+                        size={14}
                         color="#fff"
                       />
                     </Pressable>
@@ -902,7 +904,7 @@ const s = StyleSheet.create({
 
   label: { marginTop: 14, marginBottom: 6, color: '#a5a5a5', fontSize: 13 },
   input: {
-    height: 46,
+    height: 42,
     paddingHorizontal: 12,
     color: '#eee',
     fontSize: 16,
@@ -912,76 +914,63 @@ const s = StyleSheet.create({
     borderRadius: 8,
     ...Platform.select({ web: { outlineStyle: 'none' } }),
   },
-  tipos: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginTop: 6,
-    marginBottom: 8,
-  },
-  tipoChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    backgroundColor: '#0d0d0e',
-    borderWidth: 1,
-    borderColor: '#292929',
-    borderRadius: 8,
-  },
-  tipoChipAtivo: { backgroundColor: '#29231a', borderColor: DOURADO },
-  tipoChipTxt: { color: '#fff', fontSize: 15 },
-  tipoChipTxtAtivo: { color: DOURADO, fontWeight: '600' },
+
+  /* campos Tipo + Profissional */
   camposExtras: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 10,
     marginTop: 0,
+    position: 'relative',
+    zIndex: 50, // fica acima do botão "Agendar" e da mensagem
   },
   campoTipo: { flex: 1, zIndex: 20 },
   campoProfissional: { flex: 1 },
   tipoDropdown: { position: 'relative', zIndex: 30 },
   tipoSelecionado: {
-    height: 46,
+    height: 42,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    backgroundColor: '#0d0d0e',
+    gap: 6,
+    paddingHorizontal: 10,
+    backgroundColor: '#000',
     borderWidth: 1,
-    borderColor: '#292929',
+    borderColor: DOURADO,
     borderRadius: 8,
   },
-  tipoSelecionadoTxt: { flex: 1, color: '#eee', fontSize: 15 },
+  tipoSelecionadoTxt: { flex: 1, color: '#fff', fontSize: 13, fontWeight: '700' },
   tipoLista: {
     position: 'absolute',
-    top: 50,
+    top: 46, // pequeno espaço entre o campo e a lista, como na referência
     left: 0,
     right: 0,
+    minWidth: 150, // evita quebrar "Entrega de projeto"
     zIndex: 100,
-    backgroundColor: '#111217',
+    backgroundColor: '#000',
     borderWidth: 1,
-    borderColor: '#343940',
-    borderRadius: 8,
+    borderColor: '#4a4a4a',
+    borderRadius: 4,
+    paddingVertical: 2,
+    overflow: 'hidden',
     elevation: 12,
     shadowColor: '#000',
-    shadowOpacity: 0.45,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
   },
   tipoOpcao: {
-    minHeight: 46,
+    minHeight: 32,
     justifyContent: 'center',
-    paddingHorizontal: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#292929',
+    paddingHorizontal: 8,
+    marginHorizontal: 2,
+    borderRadius: 2,
   },
-  tipoOpcaoAtiva: { backgroundColor: '#29231a' },
-  tipoOpcaoTxt: { color: '#eee', fontSize: 15 },
-  tipoOpcaoTxtAtiva: { color: DOURADO, fontWeight: '700' },
+  tipoOpcaoAtiva: { backgroundColor: '#99c8ff' },
+  tipoOpcaoTxt: { color: '#fff', fontSize: 14 },
+  tipoOpcaoTxtAtiva: { color: '#000', fontWeight: '600' },
   inputProfissional: {
-    height: 46,
+    height: 42,
     paddingHorizontal: 12,
     color: '#eee',
     fontSize: 16,
@@ -991,7 +980,7 @@ const s = StyleSheet.create({
     borderRadius: 8,
     ...Platform.select({ web: { outlineStyle: 'none' } }),
   },
-  profissionalContainer: { flex: 1 },
+
   msg: { marginTop: 14, fontSize: 13, fontWeight: '600' },
   btnAgendar: {
     minHeight: 46,

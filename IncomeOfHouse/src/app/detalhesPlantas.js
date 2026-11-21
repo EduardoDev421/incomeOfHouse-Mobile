@@ -3,19 +3,18 @@ import {
   View,
   Text,
   Image,
-  ScrollView,
   StyleSheet,
   Pressable,
-  StatusBar,
   useWindowDimensions,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import Pagina from '../components/Paginas';
 
 const DOURADO = '#c9a45c';
 
-// Fundo da página. Troque o nome se a sua imagem de fundo for outra.
-const FUNDO = require('../../assets/images/BackgroundFundo.png');
+// Fundo da página (folhas escuras com curvas douradas)
+const FUNDO = require('../../assets/images/BackGroundPlantasEProfissionais.png');
 const IMAGEM_PADRAO = require('../../assets/images/casa.png');
 
 /* ------------------------------------------------------------------ */
@@ -99,64 +98,19 @@ export default function DetalhesPlantas() {
 
   const larguraCard = largo ? '31%' : medio ? '48%' : '100%';
 
-  const cabecalho = (
-    <View style={[styles.topo, largo ? styles.topoLargo : styles.topoEstreito]}>
-      <Pressable onPress={() => navegar('/')}>
-        <Image
-          source={require('../../assets/images/Logo.png')}
-          style={styles.logo}
-          resizeMode="contain"
-        />
-      </Pressable>
-
-      <View style={[styles.menu, !largo && styles.menuEstreito]}>
-        <Pressable style={styles.item} onPress={() => navegar('/')}>
-          <Text style={styles.textoItem}>Início</Text>
-        </Pressable>
-        <Pressable style={styles.itemAtivo} onPress={() => navegar('/planta')}>
-          <Text style={styles.textoAtivo}>Plantas</Text>
-        </Pressable>
-        <Pressable style={styles.item} onPress={() => navegar('/profissionais')}>
-          <Text style={styles.textoItem}>Profissionais</Text>
-        </Pressable>
-        <Pressable style={styles.item} onPress={() => navegar('/sobreNos')}>
-          <Text style={styles.textoItem}>Sobre Nós</Text>
-        </Pressable>
-      </View>
-
-      <Pressable
-        style={[styles.perfil, !largo && styles.perfilEstreito]}
-        onPress={() => navegar('/login')}
-      >
-        <Ionicons name="person-circle-outline" size={42} color={DOURADO} />
-      </Pressable>
-    </View>
-  );
-
-  const rodape = (
-    <View style={[styles.rodape, largo && styles.rodapeLargo]}>
-      <Text style={styles.textoRodape}>©IncomeOfHouses. Todos os direitos reservados.</Text>
-    </View>
-  );
-
   // Planta não encontrada
   if (!p) {
     return (
-      <View style={styles.raiz}>
-        <StatusBar barStyle="light-content" />
-        <Image source={FUNDO} style={styles.fundoImagem} resizeMode="cover" />
-        <View style={styles.fundoOverlay} />
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.conteudo}>
-          {cabecalho}
-          <View style={[styles.pagina, styles.vazio]}>
-            <Text style={styles.vazioTitulo}>Planta não encontrada</Text>
-            <Pressable style={styles.btnSecundario} onPress={() => navegar('/planta')}>
-              <Text style={styles.btnSecundarioTexto}>Voltar para plantas</Text>
-            </Pressable>
+      <Pagina fundo={FUNDO} escurecer={0.2} translucido menuAtivo="/planta">
+        <View style={styles.paginaVazia}>
+          <View style={styles.cartaoVazio}>
+            <Text style={styles.vazioTitulo}>Planta não encontrada.</Text>
+            <Text style={styles.vazioTexto}>
+              Volte para a lista de plantas e tente novamente.
+            </Text>
           </View>
-          {rodape}
-        </ScrollView>
-      </View>
+        </View>
+      </Pagina>
     );
   }
 
@@ -185,249 +139,191 @@ export default function DetalhesPlantas() {
   ];
 
   return (
-    <View style={styles.raiz}>
-      <StatusBar barStyle="light-content" />
+    <Pagina fundo={FUNDO} escurecer={0.45} translucido menuAtivo="/planta">
+      <View style={styles.pagina}>
+        <Pressable style={styles.voltar} onPress={() => navegar('/planta')}>
+          <Ionicons name="arrow-back" size={16} color={DOURADO} />
+          <Text style={styles.voltarTexto}>Voltar para plantas</Text>
+        </Pressable>
 
-      {/* Fundo da página inteira */}
-      <Image source={FUNDO} style={styles.fundoImagem} resizeMode="cover" />
-      <View style={styles.fundoOverlay} />
-
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.conteudo}>
-        {cabecalho}
-
-        <View style={styles.pagina}>
-          <Pressable style={styles.voltar} onPress={() => navegar('/planta')}>
-            <Ionicons name="arrow-back" size={16} color={DOURADO} />
-            <Text style={styles.voltarTexto}>Voltar para plantas</Text>
-          </Pressable>
-
-          {/* Início: imagem + painel */}
-          <View style={[styles.inicio, largo && styles.inicioLargo]}>
-            <View style={[styles.imagemArea, largo && styles.imagemAreaLarga]}>
-              <Image
-                source={p.imagem || IMAGEM_PADRAO}
-                style={styles.imagem}
-                resizeMode="cover"
-              />
-            </View>
-
-            <View style={styles.painel}>
-              <View style={styles.pill}>
-                <Ionicons name="home-outline" size={14} color={DOURADO} />
-                <Text style={styles.pillTexto}>{p.categoria}</Text>
-              </View>
-
-              <Text style={[styles.titulo, largo && styles.tituloLargo]}>{p.nome}</Text>
-              <Text style={styles.resumo}>{resumo}</Text>
-              <Text style={styles.preco}>A partir de {formatarPreco(p.preco)}</Text>
-
-              <View style={styles.cards}>
-                {infos.map((i) => (
-                  <View key={i.titulo} style={[styles.infoCard, { width: larguraCard }]}>
-                    <View style={styles.infoIcone}>
-                      <Ionicons name={i.icone} size={18} color={DOURADO} />
-                    </View>
-                    <Text style={styles.infoTitulo}>{i.titulo}</Text>
-                    <Text style={styles.infoValor}>{i.valor}</Text>
-                  </View>
-                ))}
-              </View>
-
-              <View style={styles.botoes}>
-                <Pressable
-                  style={styles.btnPrincipal}
-                  onPress={() => {
-                    // TODO: enviar a solicitação do projeto para o seu backend
-                  }}
-                >
-                  <Ionicons name="calendar-outline" size={17} color="#1a1a1a" />
-                  <Text style={styles.btnPrincipalTexto}>Solicitar Projeto</Text>
-                </Pressable>
-
-                <Pressable
-                  style={[styles.btnSecundario, favorito && styles.btnFavoritoAtivo]}
-                  onPress={() => setFavorito((f) => !f)}
-                >
-                  <Ionicons
-                    name={favorito ? 'heart' : 'heart-outline'}
-                    size={17}
-                    color={DOURADO}
-                  />
-                  <Text style={styles.btnSecundarioTexto}>
-                    {favorito ? 'Remover dos favoritos' : 'Salvar nos favoritos'}
-                  </Text>
-                </Pressable>
-              </View>
-            </View>
+        {/* Início: imagem + painel */}
+        <View style={[styles.inicio, largo && styles.inicioLargo]}>
+          <View style={[styles.imagemArea, largo && styles.imagemAreaLarga]}>
+            <Image
+              source={p.imagem || IMAGEM_PADRAO}
+              style={styles.imagem}
+              resizeMode="cover"
+            />
           </View>
 
-          {/* Parte inferior */}
-          <View style={[styles.inferior, largo && styles.inferiorLargo]}>
-            {/* Sobre o projeto */}
-            <View style={[styles.bloco, largo && styles.blocoSobre]}>
-              <View style={styles.blocoTituloLinha}>
-                <Ionicons name="home-outline" size={19} color={DOURADO} />
-                <Text style={styles.blocoTitulo}>Sobre o Projeto</Text>
-              </View>
-              <Text style={styles.texto}>{descricao}</Text>
-
-              <View style={styles.distribuicao}>
-                <Ionicons name="clipboard-outline" size={22} color={DOURADO} />
-                <View style={styles.distribuicaoTextos}>
-                  <Text style={styles.distribuicaoTitulo}>Distribuição dos ambientes</Text>
-                  <Text style={styles.distribuicaoTexto}>{distribuicao}</Text>
-                </View>
-              </View>
+          <View style={styles.painel}>
+            <View style={styles.pill}>
+              <Ionicons name="home-outline" size={14} color={DOURADO} />
+              <Text style={styles.pillTexto}>{p.categoria}</Text>
             </View>
 
-            {/* Destaques */}
-            <View style={[styles.bloco, largo && styles.blocoDestaque]}>
-              <View style={styles.blocoTituloLinha}>
-                <Ionicons name="star" size={19} color={DOURADO} />
-                <Text style={styles.blocoTitulo}>Destaques do projeto</Text>
-              </View>
+            <Text style={[styles.titulo, largo && styles.tituloLargo]}>{p.nome}</Text>
+            <Text style={styles.resumo}>{resumo}</Text>
+            <Text style={styles.preco}>A partir de {formatarPreco(p.preco)}</Text>
 
-              <View style={styles.destaques}>
-                {destaques.map((d) => (
-                  <View key={d} style={styles.destaqueItem}>
-                    <Ionicons name="checkmark-circle" size={17} color={DOURADO} />
-                    <Text style={styles.destaqueTexto}>{d}</Text>
+            <View style={styles.cards}>
+              {infos.map((i) => (
+                <View key={i.titulo} style={[styles.infoCard, { width: larguraCard }]}>
+                  <View style={styles.infoIcone}>
+                    <Ionicons name={i.icone} size={18} color={DOURADO} />
                   </View>
-                ))}
-              </View>
+                  <Text style={styles.infoTitulo}>{i.titulo}</Text>
+                  <Text style={styles.infoValor}>{i.valor}</Text>
+                </View>
+              ))}
+            </View>
 
-              <View style={styles.nota}>
-                <Ionicons name="leaf-outline" size={20} color={DOURADO} />
-                <Text style={styles.notaTexto}>
-                  Um projeto pensado para o seu bem-estar, com qualidade, beleza e
-                  sustentabilidade.
+            <View style={styles.botoes}>
+              <Pressable
+                style={styles.btnPrincipal}
+                onPress={() => {
+                  // TODO: enviar a solicitação do projeto para o seu backend
+                }}
+              >
+                <Ionicons name="calendar-outline" size={17} color="#1a1a1a" />
+                <Text style={styles.btnPrincipalTexto}>Solicitar Projeto</Text>
+              </Pressable>
+
+              <Pressable
+                style={[styles.btnSecundario, favorito && styles.btnFavoritoAtivo]}
+                onPress={() => setFavorito((f) => !f)}
+              >
+                <Ionicons
+                  name={favorito ? 'heart' : 'heart-outline'}
+                  size={17}
+                  color={DOURADO}
+                />
+                <Text style={styles.btnSecundarioTexto}>
+                  {favorito ? 'Remover dos favoritos' : 'Salvar nos favoritos'}
                 </Text>
-              </View>
-            </View>
-
-            {/* Profissional responsável + avaliações */}
-            <View style={[styles.bloco, largo && styles.blocoProfissional]}>
-              <View style={styles.blocoTituloLinha}>
-                <Ionicons name="person-outline" size={19} color={DOURADO} />
-                <Text style={styles.blocoTitulo}>Profissional responsável</Text>
-              </View>
-
-              {prof ? (
-                <Pressable
-                  style={styles.profInfo}
-                  onPress={() =>
-                    router.push({
-                      pathname: '/detalhesProfissionais',
-                      params: { id: String(p.profissional) },
-                    })
-                  }
-                >
-                  <View style={styles.profFoto}>
-                    <Ionicons name="person" size={28} color="#555" />
-                  </View>
-                  <View style={styles.profTextos}>
-                    <Text style={styles.profNome}>{prof.nome}</Text>
-                    <Text style={styles.profProfissao}>{prof.profissao}</Text>
-                    <View style={styles.profNotaLinha}>
-                      <Ionicons name="star" size={14} color={DOURADO} />
-                      <Text style={styles.profNota}>{formatarNota(prof.nota)}</Text>
-                      <Text style={styles.profQtd}>({prof.avaliacoes} avaliações)</Text>
-                    </View>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color="#777" />
-                </Pressable>
-              ) : (
-                <Text style={styles.texto}>Profissional ainda não definido.</Text>
-              )}
-
-              <View style={styles.avaliacao}>
-                <View style={styles.avaliacaoTopo}>
-                  <View style={styles.avaliacaoTitulo}>
-                    <Ionicons name="chatbubble-outline" size={16} color={DOURADO} />
-                    <Text style={styles.avaliacaoTituloTexto}>Avaliações do cliente</Text>
-                  </View>
-                  <Pressable
-                    onPress={() => {
-                      // TODO: abrir a tela de avaliações quando ela existir
-                    }}
-                  >
-                    <Text style={styles.verMais}>Ver mais avaliações →</Text>
-                  </Pressable>
-                </View>
-
-                <View style={styles.cardAvaliacao}>
-                  <View style={styles.cliente}>
-                    <View style={styles.clienteFoto}>
-                      <Ionicons name="person" size={18} color="#555" />
-                    </View>
-                    <View>
-                      <Text style={styles.clienteNome}>{AVALIACAO.cliente}</Text>
-                      <Text style={styles.clienteQuando}>{AVALIACAO.quando}</Text>
-                    </View>
-                  </View>
-                  <View style={styles.avaliacaoEstrelas}>
-                    <Estrelas nota={AVALIACAO.nota} tamanho={14} />
-                  </View>
-                  <Text style={styles.avaliacaoTexto}>{AVALIACAO.texto}</Text>
-                </View>
-              </View>
+              </Pressable>
             </View>
           </View>
         </View>
 
-        {rodape}
-      </ScrollView>
-    </View>
+        {/* Parte inferior */}
+        <View style={[styles.inferior, largo && styles.inferiorLargo]}>
+          {/* Sobre o projeto */}
+          <View style={[styles.bloco, largo && styles.blocoSobre]}>
+            <View style={styles.blocoTituloLinha}>
+              <Ionicons name="home-outline" size={19} color={DOURADO} />
+              <Text style={styles.blocoTitulo}>Sobre o Projeto</Text>
+            </View>
+            <Text style={styles.texto}>{descricao}</Text>
+
+            <View style={styles.distribuicao}>
+              <Ionicons name="clipboard-outline" size={22} color={DOURADO} />
+              <View style={styles.distribuicaoTextos}>
+                <Text style={styles.distribuicaoTitulo}>Distribuição dos ambientes</Text>
+                <Text style={styles.distribuicaoTexto}>{distribuicao}</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Destaques */}
+          <View style={[styles.bloco, largo && styles.blocoDestaque]}>
+            <View style={styles.blocoTituloLinha}>
+              <Ionicons name="star" size={19} color={DOURADO} />
+              <Text style={styles.blocoTitulo}>Destaques do projeto</Text>
+            </View>
+
+            <View style={styles.destaques}>
+              {destaques.map((d) => (
+                <View key={d} style={styles.destaqueItem}>
+                  <Ionicons name="checkmark-circle" size={17} color={DOURADO} />
+                  <Text style={styles.destaqueTexto}>{d}</Text>
+                </View>
+              ))}
+            </View>
+
+            <View style={styles.nota}>
+              <Ionicons name="leaf-outline" size={20} color={DOURADO} />
+              <Text style={styles.notaTexto}>
+                Um projeto pensado para o seu bem-estar, com qualidade, beleza e
+                sustentabilidade.
+              </Text>
+            </View>
+          </View>
+
+          {/* Profissional responsável + avaliações */}
+          <View style={[styles.bloco, largo && styles.blocoProfissional]}>
+            <View style={styles.blocoTituloLinha}>
+              <Ionicons name="person-outline" size={19} color={DOURADO} />
+              <Text style={styles.blocoTitulo}>Profissional responsável</Text>
+            </View>
+
+            {prof ? (
+              <Pressable
+                style={styles.profInfo}
+                onPress={() =>
+                  router.push({
+                    pathname: '/detalhesProfissionais',
+                    params: { id: String(p.profissional) },
+                  })
+                }
+              >
+                <View style={styles.profFoto}>
+                  <Ionicons name="person" size={28} color="#555" />
+                </View>
+                <View style={styles.profTextos}>
+                  <Text style={styles.profNome}>{prof.nome}</Text>
+                  <Text style={styles.profProfissao}>{prof.profissao}</Text>
+                  <View style={styles.profNotaLinha}>
+                    <Ionicons name="star" size={14} color={DOURADO} />
+                    <Text style={styles.profNota}>{formatarNota(prof.nota)}</Text>
+                    <Text style={styles.profQtd}>({prof.avaliacoes} avaliações)</Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color="#777" />
+              </Pressable>
+            ) : (
+              <Text style={styles.texto}>Profissional ainda não definido.</Text>
+            )}
+
+            <View style={styles.avaliacao}>
+              <View style={styles.avaliacaoTopo}>
+                <View style={styles.avaliacaoTitulo}>
+                  <Ionicons name="chatbubble-outline" size={16} color={DOURADO} />
+                  <Text style={styles.avaliacaoTituloTexto}>Avaliações do cliente</Text>
+                </View>
+                <Pressable
+                  onPress={() => {
+                    // TODO: abrir a tela de avaliações quando ela existir
+                  }}
+                >
+                  <Text style={styles.verMais}>Ver mais avaliações →</Text>
+                </Pressable>
+              </View>
+
+              <View style={styles.cardAvaliacao}>
+                <View style={styles.cliente}>
+                  <View style={styles.clienteFoto}>
+                    <Ionicons name="person" size={18} color="#555" />
+                  </View>
+                  <View>
+                    <Text style={styles.clienteNome}>{AVALIACAO.cliente}</Text>
+                    <Text style={styles.clienteQuando}>{AVALIACAO.quando}</Text>
+                  </View>
+                </View>
+                <View style={styles.avaliacaoEstrelas}>
+                  <Estrelas nota={AVALIACAO.nota} tamanho={14} />
+                </View>
+                <Text style={styles.avaliacaoTexto}>{AVALIACAO.texto}</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      </View>
+    </Pagina>
   );
 }
 
 const styles = StyleSheet.create({
-  raiz: { flex: 1, backgroundColor: '#0a0a0a' },
-
-  fundoImagem: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
-  fundoOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0, 0, 0, 0.55)' },
-
-  scroll: { flex: 1, backgroundColor: 'transparent' },
-  conteudo: { flexGrow: 1 },
-
-  // Cabeçalho
-  topo: {
-    backgroundColor: 'rgba(10, 10, 10, 0.55)',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
-    paddingHorizontal: 24,
-  },
-  topoLargo: {
-    height: 78,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 140,
-  },
-  topoEstreito: { alignItems: 'center', paddingTop: 40, paddingBottom: 16 },
-  logo: { width: 110, height: 60 },
-  menu: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  menuEstreito: { flexWrap: 'wrap', justifyContent: 'center', marginTop: 10 },
-  item: {
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  itemAtivo: {
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#6b5a36',
-    backgroundColor: 'rgba(28, 26, 20, 0.9)',
-  },
-  textoItem: { color: '#ffffff', fontSize: 14 },
-  textoAtivo: { color: DOURADO, fontSize: 14 },
-  perfil: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  perfilEstreito: { position: 'absolute', right: 20, top: 40 },
-
   // Conteúdo
   pagina: {
     width: '100%',
@@ -441,8 +337,32 @@ const styles = StyleSheet.create({
   voltar: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start' },
   voltarTexto: { color: DOURADO, fontSize: 14 },
 
-  vazio: { alignItems: 'center', paddingVertical: 100, gap: 20 },
-  vazioTitulo: { color: '#ffffff', fontSize: 24, fontWeight: 'bold' },
+  // Planta não encontrada (card central)
+  paginaVazia: {
+    width: '100%',
+    maxWidth: 1250,
+    alignSelf: 'center',
+    paddingHorizontal: 24,
+    paddingTop: 30,
+    paddingBottom: 60,
+  },
+  cartaoVazio: {
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 42,
+    paddingHorizontal: 24,
+    backgroundColor: 'rgba(14, 14, 14, 0.96)',
+    borderWidth: 1,
+    borderColor: '#3a3a3a',
+    borderRadius: 14,
+  },
+  vazioTitulo: {
+    color: '#d9a93f',
+    fontSize: 28,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  vazioTexto: { color: '#d0d0d0', fontSize: 14, textAlign: 'center' },
 
   // Início
   inicio: { gap: 24 },
@@ -629,15 +549,4 @@ const styles = StyleSheet.create({
   avaliacaoEstrelas: { marginTop: 12 },
   estrelas: { flexDirection: 'row', gap: 3 },
   avaliacaoTexto: { color: '#d0d0d0', fontSize: 13, lineHeight: 21, marginTop: 10 },
-
-  // Rodapé
-  rodape: {
-    backgroundColor: 'rgba(10, 10, 10, 0.92)',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(201, 164, 92, 0.5)',
-    paddingVertical: 24,
-    paddingHorizontal: 24,
-  },
-  rodapeLargo: { paddingHorizontal: 115 },
-  textoRodape: { color: '#9a9a9a', fontSize: 12 },
 });

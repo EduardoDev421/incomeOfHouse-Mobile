@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
+  Image,
   TextInput,
   Pressable,
   ScrollView,
@@ -15,7 +16,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
 /* =========================================================
-   ROTASnpx expo start --clear
+   LOGO
+   Coloque aqui o caminho da imagem do logo (a mesma Logo.png do site).
+   Exemplo: const LOGO = require('../../assets/images/Logo.png');
+   Enquanto estiver null, a tela mostra o texto "Income of Houses".
+========================================================= */
+
+const LOGO = require('../assets/images/Logo.png');
+
+/* =========================================================
+   ROTAS
    O expo-router só abre rotas cujo ARQUIVO existe dentro da pasta "app".
    Rotas ainda não criadas ficam como null (o toque não faz nada).
 ========================================================= */
@@ -30,13 +40,13 @@ const ROTAS = {
 };
 
 const MENU_LATERAL = [
-  { texto: 'Meu Perfil', icone: 'person-outline', rota: null },
+  { texto: 'Meu Perfil', icone: 'person-circle-outline', rota: null },
   { texto: 'Meus Endereços', icone: 'location-outline', rota: null },
-  { texto: 'Meus Pedidos', icone: 'cube-outline', rota: null },
+  { texto: 'Meus Pedidos', icone: 'grid-outline', rota: null },
   { texto: 'Meus Profissionais Favoritos', icone: 'star-outline', rota: null },
-  { texto: 'Projetos Salvos', icone: 'bookmark-outline', rota: null },
+  { texto: 'Meus Projetos Favoritos', icone: 'bookmark-outline', rota: null },
   { texto: 'Agendamentos', icone: 'calendar-outline', rota: null },
-  { texto: 'Mensagem', icone: 'chatbubble-outline', rota: null },
+  { texto: 'Mensagem', icone: 'chatbox-ellipses-outline', rota: null },
   { texto: 'Configurações', icone: 'settings-outline', rota: null, ativo: true },
   { texto: 'Sair', icone: 'log-out-outline', rota: '/', sair: true },
 ];
@@ -53,12 +63,15 @@ const COR = {
   painel: '#141414',
   campo: '#1a1a1c',
   borda: '#292929',
+  bordaTopo: 'rgba(255,255,255,0.12)',
+  bordaTitulo: '#cfcfcf',
   bordaLateral: '#252729',
   ouro: '#d4a63a',
   ouroClaro: '#efd04f',
   ouroEscuro: '#c89e26',
   ouroFundo: '#29231a',
   ouroBorda: '#59431f',
+  iconeCampo: '#a8832e',
   texto: '#eeeeee',
   suave: '#a8abad',
   mudo: '#8f9497',
@@ -107,6 +120,8 @@ function ItemMenuTopo({ texto, onPress }) {
 }
 
 function ItemLateral({ item, onPress }) {
+  const corIcone = COR.ouro;
+
   return (
     <Pressable
       onPress={onPress}
@@ -115,10 +130,9 @@ function ItemLateral({ item, onPress }) {
         styles.itemLateral,
         (hovered || pressed) && styles.itemLateralHover,
         item.ativo && styles.itemLateralAtivo,
-        item.sair && styles.itemSair,
       ]}
     >
-      <Ionicons name={item.icone} size={17} color={item.ativo ? COR.ouro : COR.texto} />
+      <Ionicons name={item.icone} size={16} color={corIcone} />
       <Text style={[styles.itemLateralTexto, item.ativo && { color: COR.ouro }]} numberOfLines={2}>
         {item.texto}
       </Text>
@@ -144,7 +158,7 @@ const CampoSenha = React.forwardRef(function CampoSenha(
           estado === 'ok' && styles.inputWrapOk,
         ]}
       >
-        <Ionicons name="lock-closed-outline" size={17} color={foco ? COR.ouro : COR.mudo} />
+        <Ionicons name="lock-closed-outline" size={16} color={foco ? COR.ouro : COR.iconeCampo} />
         <TextInput
           ref={ref}
           style={[styles.input, Platform.OS === 'web' && styles.semOutline]}
@@ -169,7 +183,7 @@ const CampoSenha = React.forwardRef(function CampoSenha(
           accessibilityRole="button"
           accessibilityLabel={mostrar ? 'Ocultar senha' : 'Mostrar senha'}
         >
-          <Ionicons name={mostrar ? 'eye-off-outline' : 'eye-outline'} size={18} color={COR.suave} />
+          <Ionicons name={mostrar ? 'eye-off-outline' : 'eye-outline'} size={15} color={COR.iconeCampo} />
         </Pressable>
       </View>
       {children}
@@ -270,7 +284,11 @@ export default function AlterarSenha() {
       {/* ---------- .topo (fixo) ---------- */}
       <View style={styles.topo}>
         <Pressable onPress={() => ir(ROTAS.inicio)} accessibilityRole="link" accessibilityLabel="Income of Houses">
-          <Text style={styles.logoTexto}>Income of Houses</Text>
+          {LOGO ? (
+            <Image source={LOGO} style={styles.logoImg} resizeMode="contain" />
+          ) : (
+            <Text style={styles.logoTexto}>Income of Houses</Text>
+          )}
         </Pressable>
 
         {largo ? (
@@ -298,7 +316,10 @@ export default function AlterarSenha() {
           {/* ---------- .menu-lateral ---------- */}
           <View style={[styles.menuLateral, largo && styles.menuLateralLado]}>
             {MENU_LATERAL.map((item) => (
-              <ItemLateral key={item.texto} item={item} onPress={() => ir(item.rota)} />
+              <React.Fragment key={item.texto}>
+                {item.sair && <View style={styles.separadorMenu} />}
+                <ItemLateral item={item} onPress={() => ir(item.rota)} />
+              </React.Fragment>
             ))}
           </View>
 
@@ -409,8 +430,8 @@ export default function AlterarSenha() {
 
               <View style={styles.dica}>
                 <Text style={styles.dicaTexto}>
-                  <Text style={styles.dicaNegrito}>Dica:</Text> use uma senha que você não utiliza em nenhum outro
-                  site ou aplicativo.
+                  <Text style={styles.dicaNegrito}>Dica:</Text> Use pelo menos 8 caracteres, incluindo letras
+                  maiúsculas, minúsculas, números e símbolos.
                 </Text>
               </View>
             </View>
@@ -453,10 +474,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: '3%',
     backgroundColor: COR.topo,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(212,166,58,0.25)',
+    borderBottomColor: COR.bordaTopo,
     zIndex: 20,
   },
   logoTexto: { color: COR.ouro, fontSize: 16, fontWeight: 'bold' },
+  logoImg: { width: 58, height: 50 },
   menuTopo: { flexDirection: 'row', alignItems: 'center', gap: 32 },
   menuTopoCentro: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
   menuTopoScroll: { flex: 1, marginLeft: 16 },
@@ -469,7 +491,9 @@ const styles = StyleSheet.create({
 
   /* .menu-lateral */
   menuLateral: {
-    padding: 12,
+    paddingTop: 16,
+    paddingHorizontal: 12,
+    paddingBottom: 12,
     gap: 5,
     backgroundColor: COR.lateral,
     borderBottomWidth: 1,
@@ -495,11 +519,11 @@ const styles = StyleSheet.create({
   },
   itemLateralHover: { backgroundColor: '#302718', borderColor: COR.ouroBorda },
   itemLateralAtivo: { backgroundColor: COR.ouroFundo, borderColor: COR.ouroBorda },
-  itemSair: { marginTop: 6 },
-  itemLateralTexto: { flex: 1, color: COR.texto, fontSize: 12 },
+  itemLateralTexto: { flex: 1, color: COR.texto, fontSize: 12, fontWeight: '500' },
+  separadorMenu: { height: 1, marginVertical: 5, backgroundColor: COR.borda },
 
   /* .conteudo */
-  conteudo: { flex: 1, paddingTop: 26, paddingHorizontal: 32, paddingBottom: 32 },
+  conteudo: { flex: 1, paddingTop: 22, paddingHorizontal: 32, paddingBottom: 32 },
   conteudoCompacto: { paddingHorizontal: 16, paddingTop: 20 },
   titulo: { color: '#fff', fontSize: 24, fontWeight: '600', marginBottom: 6 },
   subtitulo: {
@@ -507,7 +531,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     paddingBottom: 14,
     borderBottomWidth: 1,
-    borderBottomColor: COR.ouro,
+    borderBottomColor: COR.bordaTitulo,
   },
 
   /* .panel */
@@ -547,7 +571,7 @@ const styles = StyleSheet.create({
   infoTexto: { color: COR.mudo, fontSize: 13, lineHeight: 21 },
 
   /* .field / .input-wrap */
-  field: { marginBottom: 20 },
+  field: { marginBottom: 18 },
   rotulo: { color: COR.suave, fontSize: 13, fontWeight: '600', marginBottom: 8 },
   inputWrap: {
     height: 44,
@@ -590,16 +614,18 @@ const styles = StyleSheet.create({
   msgOk: { backgroundColor: 'rgba(76,175,80,0.08)', borderColor: 'rgba(76,175,80,0.4)' },
   msgTexto: { flex: 1, fontSize: 13 },
 
-  /* .btn-submit */
+  /* .btn-submit (degradê no navegador; cor lisa no celular) */
   botao: {
     width: '100%',
     height: 44,
     marginTop: 4,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COR.ouroEscuro,
     borderRadius: 6,
-    // degradê do CSS: troque por <LinearGradient> do expo-linear-gradient se quiser idêntico
+    ...Platform.select({
+      web: { backgroundImage: `linear-gradient(135deg, ${COR.ouroEscuro}, ${COR.ouroClaro})` },
+      default: { backgroundColor: COR.ouroEscuro },
+    }),
   },
   botaoTexto: { color: '#111', fontSize: 14, fontWeight: 'bold' },
 

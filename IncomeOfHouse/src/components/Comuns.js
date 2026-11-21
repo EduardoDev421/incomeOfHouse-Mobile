@@ -49,13 +49,17 @@ function ItemMenu({ rotulo, ativo, largo, onPress }) {
   );
 }
 
-export function Cabecalho({ translucido = false }) {
+// "ativo" (opcional): rota do item a destacar, útil em telas internas
+// como detalhes (ex.: ativo="/planta"). Sem ela, usa a rota atual.
+export function Cabecalho({ translucido = false, ativo }) {
   const router = useRouter();
   const rotaAtual = usePathname();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const largo = width >= LARGO;
   const [aberto, setAberto] = useState(false);
+
+  const rotaDestacada = ativo ?? rotaAtual;
 
   const ir = (rota) => {
     setAberto(false);
@@ -66,7 +70,7 @@ export function Cabecalho({ translucido = false }) {
     <ItemMenu
       key={m.rota}
       rotulo={m.rotulo}
-      ativo={rotaAtual === m.rota}
+      ativo={rotaDestacada === m.rota}
       largo={largo}
       onPress={() => ir(m.rota)}
     />
@@ -97,9 +101,9 @@ export function Cabecalho({ translucido = false }) {
             accessibilityRole="button"
             accessibilityLabel="Entrar na conta"
             hitSlop={8}
-            style={({ pressed }) => pressed && estilos.pressionado}
+            style={({ pressed }) => [estilos.botaoPerfil, pressed && estilos.pressionado]}
           >
-            <Ionicons name="person-circle-outline" size={largo ? 42 : 36} color={DOURADO} />
+            <Ionicons name="person-circle-outline" size={22} color={DOURADO} />
           </Pressable>
 
           {!largo && (
@@ -360,7 +364,7 @@ export function Rodape() {
       ]}
     >
       <Text style={estilos.textoRodape}>
-        © 2026 IncomeOfHouse. Todos os direitos reservados.
+        ©IncomeOfHouses. Todos os direitos reservados.
       </Text>
       <View style={estilos.linksRodape}>
         <Pressable
@@ -404,6 +408,15 @@ const estilos = StyleSheet.create({
   barraLarga: { height: 78, paddingHorizontal: 140 },
   logo: { width: 90, height: 48 },
   acoesTopo: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  botaoPerfil: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: DOURADO,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   botaoMenu: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   menuLargo: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   menuMobile: { paddingHorizontal: 20, paddingBottom: 16, gap: 6 },
@@ -572,7 +585,7 @@ const estilos = StyleSheet.create({
   rodapeLargo: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: 140,
+    paddingHorizontal: 115,
   },
   textoRodape: { color: '#888888', fontSize: 13, textAlign: 'center' },
   linksRodape: { flexDirection: 'row', alignItems: 'center', gap: 10 },

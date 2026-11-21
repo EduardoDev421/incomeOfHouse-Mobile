@@ -16,6 +16,7 @@ export default function Pagina({
   comCabecalho = true,
   translucido = false, // cabeçalho semitransparente sobre o fundo
   comRodape = true,
+  menuAtivo,           // rota do item do menu a destacar (ex.: '/planta'); padrão = rota atual
   estiloMiolo,         // estilo extra do bloco de conteúdo
 }) {
   return (
@@ -34,7 +35,7 @@ export default function Pagina({
         contentContainerStyle={s.conteudo}
         showsVerticalScrollIndicator={false}
       >
-        {comCabecalho && <Cabecalho translucido={translucido} />}
+        {comCabecalho && <Cabecalho translucido={translucido} ativo={menuAtivo} />}
 
         {/* flexGrow: 1 faz o miolo ocupar o espaço que sobra */}
         <View style={[s.miolo, estiloMiolo]}>{children}</View>

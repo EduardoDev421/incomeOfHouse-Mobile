@@ -1,40 +1,60 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import {
-  View, Text, Image, ImageBackground, ScrollView, Pressable, TextInput,
-  Switch, Modal, Alert, KeyboardAvoidingView, Platform, StyleSheet,
-  useWindowDimensions, Animated,
+  View,
+  Text,
+  Image,
+  ScrollView,
+  TouchableOpacity,
+  Switch,
+  Modal,
+  Pressable,
+  Platform,
+  StyleSheet,
+  StatusBar,
+  SafeAreaView,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useLegal } from '../components/LegalProvider';
 
-// >>> Ajuste os caminhos conforme a pasta deste arquivo
+// >>> Ajuste o caminho conforme a pasta deste arquivo
 const LOGO = require('../../assets/images/Logo.png');
-const FUNDO = require('../../assets/images/BackgroundFundo.png');
 
 const COLORS = {
-  bg: '#090909',
-  card: '#111315',
-  cardAlt: '#191a1c',
-  border: '#303235',
-  gold: '#c9a45c',
-  goldDim: 'rgba(201,164,92,0.45)',
+  bg: '#080a0b',
+  topo: '#080808',
+  lateral: '#0d0d0e',
+  conteudo: '#111111',
+  card: '#141414',
+  campo: '#1a1a1c',
+  border: '#292929',
+  borderLinha: '#242424',
+  borderLateral: '#252729',
+  borderTopo: 'rgba(255,255,255,0.12)',
+  borderTitulo: '#cfcfcf',
+  gold: '#d4a63a',
+  goldClaro: '#f0ca4c',
+  goldBorda: '#59431f',
+  goldFundo: '#29231a',
   text: '#ffffff',
-  muted: '#8a8a8a',
-  mutedBlue: '#aab4bf',
+  textSuave: '#e7e7e7',
+  suave: '#a8abad',
+  muted: '#8f9497',
+  seta: '#92979a',
+  rodape: '#7e8385',
 };
-
-const LARGURA_DRAWER = 270;
 
 // Ajuste as rotas conforme os nomes dos arquivos em src/app
 const MENU = [
-  { label: 'Meu Perfil', icon: 'person-outline', route: '/PerfilProfissional' },
+  { label: 'Meu Perfil', icon: 'person-circle-outline', route: '/PerfilProfissional' },
   { label: 'Meus Endereços', icon: 'location-outline', route: '/MeusenderecosP' },
-  { label: 'Meus Pedidos', icon: 'grid-outline', route: '/MeusPedidos' },
-  { label: 'Meus Profissionais Favoritos', icon: 'star-outline', route: '/Meusprofissionais' },
-  { label: 'Projetos Salvos', icon: 'bookmark-outline', route: '/MeusProjetos' },
+  { label: 'Meu Portfolio', icon: 'folder-outline', route: '/Meuportfolio' },
+  { label: 'Publicar Plantas', icon: 'cloud-upload-outline', route: '/publicarPlanta' },
+  { label: 'Projetos', icon: 'grid-outline', route: '/Projetos' },
+  { label: 'Avaliações', icon: 'star-outline', route: '/Avaliacoes' },
   { label: 'Agendamentos', icon: 'calendar-outline', route: '/AgendamentosP' },
-  { label: 'Mensagens', icon: 'chatbox-outline', route: '/MensagensP' },
+  { label: 'Mensagem', icon: 'chatbox-ellipses-outline', route: '/MensagensP' },
   { label: 'Configurações', icon: 'settings-outline', route: '/ConfigProfissionais', ativo: true },
   { label: 'Sair', icon: 'log-out-outline', route: '/login', separador: true },
 ];
@@ -43,227 +63,111 @@ const LINKS_TOPO = [
   ['Início', '/'],
   ['Plantas', '/planta'],
   ['Profissionais', '/profissionais'],
-  ['Sobre', '/sobreNos'],
+  ['Sobre Nós', '/sobreNos'],
 ];
 
-/* ---------- Opções dos seletores ---------- */
+/* ---------- Seções (rota null = página ainda não criada: mostra "Em breve.") ---------- */
 
-const TODAS = 'Todas as regiões';
-
-const OPCOES = {
-  tipos: [
-    'Arquitetos',
-    'Engenheiros',
-    'Designers de Interiores',
-    'Paisagistas',
-    'Empreiteiros',
-    'Eletricistas',
-    'Encanadores',
-    'Pintores',
-  ],
-  regioes: [TODAS, 'Norte', 'Nordeste', 'Centro-Oeste', 'Sudeste', 'Sul'],
-  contato: ['E-mail', 'WhatsApp', 'Telefone', 'SMS'],
-};
-
-const TITULOS = {
-  tipos: 'Tipos de profissionais',
-  regioes: 'Região de atuação',
-  contato: 'Forma de contato preferida',
-};
-
-/* ---------- Switches ---------- */
+const SEGURANCA = [
+  { icone: 'lock-closed-outline', titulo: 'Alterar Senha', desc: 'Atualize sua senha de acesso', rota: '/AlterarSenha' },
+  { icone: 'shield-outline', titulo: 'Autenticação em duas etapas', desc: 'Aumente a segurança da sua conta', rota: '/AutenticacaoDuasEtapas' },
+  { icone: 'desktop-outline', titulo: 'Dispositivos conectados', desc: 'Gerencie dispositivos e sessões ativas', rota: '/DispositivosConectados' },
+];
 
 const NOTIFICACOES = [
-  {
-    key: 'recomendados',
-    icon: 'sparkles-outline',
-    titulo: 'Novos profissionais recomendados',
-    desc: 'Receber sugestões de profissionais com base no seu perfil.',
-  },
-  {
-    key: 'mensagens',
-    icon: 'chatbox-ellipses-outline',
-    titulo: 'Mensagens de profissionais',
-    desc: 'Receber novas mensagens de profissionais interessados.',
-  },
-  {
-    key: 'projetos',
-    icon: 'albums-outline',
-    titulo: 'Atualizações de projetos',
-    desc: 'Notificações sobre o andamento dos seus projetos.',
-  },
-  {
-    key: 'promocoes',
-    icon: 'pricetag-outline',
-    titulo: 'Promoções e novidades',
-    desc: 'Receber ofertas especiais e novidades da plataforma.',
-  },
+  { chave: 'projetos', icone: 'layers-outline', titulo: 'Novos projetos e solicitações', desc: 'Receber notificações de novos projetos' },
+  { chave: 'mensagens', icone: 'chatbox-ellipses-outline', titulo: 'Mensagens', desc: 'Receber notificações de novas mensagens' },
+  { chave: 'pedidos', icone: 'reader-outline', titulo: 'Atualizações de pedidos', desc: 'Receber atualizações sobre pedidos' },
+  { chave: 'emails', icone: 'mail-outline', titulo: 'E-mails promocionais', desc: 'Receber ofertas e novidades por e-mail' },
 ];
 
-const AVALIACAO = [
-  {
-    key: 'exigir',
-    icon: 'star-outline',
-    titulo: 'Exigir avaliações',
-    desc: 'Avalie o profissional após cada serviço.',
-  },
-  {
-    key: 'publicas',
-    icon: 'eye-outline',
-    titulo: 'Mostrar avaliações públicas',
-    desc: 'Permita que suas avaliações sejam visíveis para outros usuários.',
-  },
-  {
-    key: 'notificar',
-    icon: 'notifications-outline',
-    titulo: 'Notificar sobre novas avaliações',
-    desc: 'Receba alertas sobre novas avaliações dos seus profissionais.',
-  },
+const CONFIG_PROFISSIONAIS = [
+  { icone: 'construct-outline', titulo: 'Áreas de atuação', desc: 'Gerenciar suas especialidades', rota: null },
+  { icone: 'list-outline', titulo: 'Serviços oferecidos', desc: 'Adicione e edite seus serviços', rota: null },
+  { icone: 'location-outline', titulo: 'Região de atendimento', desc: 'Defina onde você atende', rota: null },
+  { icone: 'time-outline', titulo: 'Disponibilidade', desc: 'Configure seus horários de atendimentos', rota: null },
+  { icone: 'cash-outline', titulo: 'Valor mínimo de projeto', desc: 'Defina o valor mínimo para orçamentos', rota: null },
 ];
 
-const DOCUMENTOS = [
-  {
-    key: 'documentacao',
-    icon: 'document-text-outline',
-    titulo: 'Verificar documentação',
-    desc: 'Exigir comprovação de documentos dos profissionais.',
-  },
-  {
-    key: 'portfolio',
-    icon: 'images-outline',
-    titulo: 'Verificar portfólio',
-    desc: 'Solicitar portfólio de projetos anteriores.',
-  },
-  {
-    key: 'certificacoes',
-    icon: 'ribbon-outline',
-    titulo: 'Verificar certificações',
-    desc: 'Confirmar certificações e especializações.',
-  },
+const PERFIL = [
+  { icone: 'business-outline', titulo: 'Dados da empresa', desc: 'Gerencie as informações da sua empresa', rota: '/DadosEmpresa' },
+  { icone: 'id-card-outline', titulo: 'Registro profissional', desc: 'Adicione seu registro e certificações', rota: '/registroProfissional' },
+  { icone: 'folder-outline', titulo: 'Portfólio', desc: 'Gerencie seus projetos e trabalhos', rota: '/Meuportfolio' },
+  { icone: 'create-outline', titulo: 'Descrição profissional', desc: 'Conte mais sobre você e sua experiência', rota: null },
 ];
 
-const SWITCHES_INICIAIS = {
-  recomendados: true,
-  mensagens: true,
-  projetos: true,
-  promocoes: true,
-  exigir: true,
-  publicas: true,
-  notificar: true,
-  documentacao: true,
-  portfolio: true,
-  certificacoes: true,
-};
+const FINANCEIRO = [
+  { icone: 'document-text-outline', titulo: 'Dados para recebimento', desc: 'Configure suas informações bancárias', rota: '/DadosRecebimento' },
+  { icone: 'card-outline', titulo: 'Histórico de pagamentos', desc: 'Acompanhe seus recebimentos', rota: '/HistoricoPagamentos' },
+  { icone: 'receipt-outline', titulo: 'Configurações de cobrança', desc: 'Gerencie suas preferências de cobrança', rota: null },
+  { icone: 'reader-outline', titulo: 'Notas fiscais', desc: 'Emita e gerencie suas notas fiscais', rota: null },
+];
 
-/* ---------- Utilitários ---------- */
+const PRIVACIDADE = [
+  { icone: 'eye-outline', titulo: 'Visibilidade do perfil', desc: 'Controle quem pode ver seu perfil', rota: null },
+  { icone: 'id-card-outline', titulo: 'Dados pessoais', desc: 'Gerencie seus dados pessoais', rota: '/DadosPermissoes' },
+  { icone: 'trash-outline', titulo: 'Excluir conta', desc: 'Exclua sua conta permanentemente', rota: null },
+];
 
-const formatarNumero = (valor) => String(valor).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-const somenteDigitos = (texto) => texto.replace(/\D/g, '');
+const AJUDA = [
+  { icone: 'chatbubble-ellipses-outline', titulo: 'Perguntas frequentes', desc: 'Encontre respostas para dúvidas comuns', rota: '/perguntasFrequentes' },
+  { icone: 'headset-outline', titulo: 'Fale conosco', desc: 'Entre em contato com nosso suporte', rota: '/faleConosco' },
+  { icone: 'document-text-outline', titulo: 'Tutoriais', desc: 'Aprenda a usar a plataforma', rota: '/Tutoriais' },
+];
 
-// mobile = celular em pé | medio = celular deitado/tablet | largo = site
-function useLayout() {
-  const { width, height } = useWindowDimensions();
-  const mobile = width < 650;
-  const medio = !mobile && (width < 1000 || height < 500);
-  return { mobile, medio, largo: !mobile && !medio, height };
-}
+/* ---------- Componentes ---------- */
 
-/* ---------- Componentes auxiliares ---------- */
-
-function Painel({ icon, titulo, descricao, estilo, children }) {
+function Cartao({ icone, titulo, children, estilo }) {
   return (
     <View style={[s.card, estilo]}>
-      <View style={s.cardTitulo}>
-        <View style={s.iconeCard}>
-          <Ionicons name={icon} size={18} color={COLORS.gold} />
-        </View>
-        <View style={s.flex}>
-          <Text style={s.cardTituloTxt}>{titulo}</Text>
-          <Text style={s.cardDescTxt}>{descricao}</Text>
-        </View>
+      <View style={s.cartaoTitulo}>
+        <Ionicons name={icone} size={20} color={COLORS.gold} />
+        <Text style={s.cartaoTituloTxt}>{titulo}</Text>
       </View>
       {children}
     </View>
   );
 }
 
-function OpcaoSeletor({ icon, titulo, descricao, valor, onPress, ultima }) {
-  const { mobile } = useLayout();
-
-  const botao = (
-    <Pressable style={[s.seletor, !mobile && s.seletorInline]} onPress={onPress}>
-      <Text style={s.seletorTxt} numberOfLines={1}>
-        {valor}
-      </Text>
-      <Ionicons name="chevron-forward" size={16} color={COLORS.gold} />
-    </Pressable>
-  );
-
-  // Tela maior: botão fica à direita do texto (igual ao web)
-  if (!mobile) {
-    return (
-      <View style={[s.opcao, s.opcaoLinha, ultima && s.opcaoUltima]}>
-        <View style={s.opcaoIcone}>
-          <Ionicons name={icon} size={18} color={COLORS.gold} />
-        </View>
-        <View style={s.flex}>
-          <Text style={s.opcaoTitulo}>{titulo}</Text>
-          <Text style={s.opcaoDesc}>{descricao}</Text>
-        </View>
-        {botao}
-      </View>
-    );
-  }
-
-  // Celular em pé: botão desce para uma linha própria
+function LinhaNav({ item, onPress, ultima, estilo }) {
   return (
-    <View style={[s.opcao, ultima && s.opcaoUltima]}>
-      <View style={s.opcaoTopo}>
-        <View style={s.opcaoIcone}>
-          <Ionicons name={icon} size={18} color={COLORS.gold} />
-        </View>
-        <View style={s.flex}>
-          <Text style={s.opcaoTitulo}>{titulo}</Text>
-          <Text style={s.opcaoDesc}>{descricao}</Text>
-        </View>
+    <TouchableOpacity
+      style={[s.linha, ultima && s.linhaUltima, estilo]}
+      onPress={onPress}
+      activeOpacity={0.7}
+      accessibilityRole="button"
+    >
+      <View style={s.linhaIcone}>
+        <Ionicons name={item.icone} size={18} color={COLORS.gold} />
       </View>
-      {botao}
-    </View>
+      <View style={s.flex}>
+        <Text style={s.linhaTitulo}>{item.titulo}</Text>
+        <Text style={s.linhaDesc}>{item.desc}</Text>
+      </View>
+      <Ionicons name="chevron-forward" size={16} color={COLORS.seta} />
+    </TouchableOpacity>
   );
 }
 
-function OpcaoSwitch({ icon, titulo, descricao, valor, onChange, ultima }) {
+function LinhaSwitch({ item, valor, onChange, ultima }) {
   return (
-    <View style={[s.opcao, s.opcaoLinha, ultima && s.opcaoUltima]}>
-      <View style={s.opcaoIcone}>
-        <Ionicons name={icon} size={18} color={COLORS.gold} />
+    <View style={[s.linha, ultima && s.linhaUltima]}>
+      <View style={s.linhaIcone}>
+        <Ionicons name={item.icone} size={18} color={COLORS.gold} />
       </View>
       <View style={s.flex}>
-        <Text style={s.opcaoTitulo}>{titulo}</Text>
-        <Text style={s.opcaoDesc}>{descricao}</Text>
+        <Text style={s.linhaTitulo}>{item.titulo}</Text>
+        <Text style={s.linhaDesc}>{item.desc}</Text>
       </View>
       <Switch
         value={valor}
         onValueChange={onChange}
-        trackColor={{ false: '#2a2a2a', true: COLORS.gold }}
-        thumbColor="#fff"
+        trackColor={{ false: '#34383a', true: COLORS.gold }}
+        thumbColor="#eeeeee"
+        activeThumbColor="#eeeeee"
       />
     </View>
   );
-}
-
-function GrupoSwitches({ itens, estado, onChange }) {
-  return itens.map((item, i) => (
-    <OpcaoSwitch
-      key={item.key}
-      icon={item.icon}
-      titulo={item.titulo}
-      descricao={item.desc}
-      valor={estado[item.key]}
-      onChange={(v) => onChange(item.key, v)}
-      ultima={i === itens.length - 1}
-    />
-  ));
 }
 
 /* ---------- Tela ---------- */
@@ -271,48 +175,13 @@ function GrupoSwitches({ itens, estado, onChange }) {
 export default function ConfigProfissionais() {
   const router = useRouter();
   const { abrirLegal } = useLegal();
-  const { mobile, medio, largo, height } = useLayout();
-  const paisagem = height < 500;
-
-  /* ----- Drawer (celular em pé) ----- */
+  const { width } = useWindowDimensions();
+  const largo = width >= 900; // layout igual ao da web: menu lateral fixo + cabeçalho completo
   const [menuAberto, setMenuAberto] = useState(false);
-  const deslize = useRef(new Animated.Value(-LARGURA_DRAWER)).current;
-  const fade = useRef(new Animated.Value(0)).current;
 
-  useEffect(() => {
-    Animated.parallel([
-      Animated.timing(deslize, {
-        toValue: menuAberto ? 0 : -LARGURA_DRAWER,
-        duration: 250,
-        useNativeDriver: true,
-      }),
-      Animated.timing(fade, {
-        toValue: menuAberto ? 1 : 0,
-        duration: 250,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [menuAberto]);
+  const [notif, setNotif] = useState({ projetos: true, mensagens: true, pedidos: true, emails: true });
 
-  useEffect(() => {
-    if (!mobile) setMenuAberto(false);
-  }, [mobile]);
-
-  /* ----- Preferências ----- */
-  const [selecoes, setSelecoes] = useState({
-    tipos: ['Arquitetos', 'Engenheiros', 'Designers de Interiores', 'Paisagistas'],
-    regioes: [TODAS],
-    contato: ['E-mail', 'WhatsApp'],
-  });
-  const [faixa, setFaixa] = useState({ min: '5000', max: '50000' });
-  const [switches, setSwitches] = useState(SWITCHES_INICIAIS);
-
-  /* ----- Modal de seleção ----- */
-  const [modal, setModal] = useState(null); // 'tipos' | 'regioes' | 'contato' | 'faixa' | null
-  const [rascunho, setRascunho] = useState([]);
-  const [faixaRascunho, setFaixaRascunho] = useState({ min: '', max: '' });
-
-  /* ----- Toast ----- */
+  // Toast
   const [toast, setToast] = useState('');
   const toastTimer = useRef(null);
 
@@ -324,635 +193,384 @@ export default function ConfigProfissionais() {
     toastTimer.current = setTimeout(() => setToast(''), 2000);
   };
 
-  const ir = (route) => {
+  const ir = (rota) => {
     setMenuAberto(false);
-    router.push(route);
+    if (!rota) {
+      mostrarToast('Em breve.');
+      return;
+    }
+    router.push(rota);
   };
 
-  const alterarSwitch = (chave, valor) => {
-    setSwitches((prev) => ({ ...prev, [chave]: valor }));
+  const alterarNotif = (chave, valor) => {
+    setNotif((prev) => ({ ...prev, [chave]: valor }));
     mostrarToast('Preferência atualizada.');
   };
 
-  /* ----- Resumos exibidos nos botões ----- */
-  const resumo = (chave) => {
-    const lista = selecoes[chave];
-    if (chave === 'regioes') {
-      if (lista.includes(TODAS)) return TODAS;
-      return lista.length === 1 ? lista[0] : `${lista.length} regiões`;
-    }
-    if (chave === 'contato') {
-      return lista.length === 2
-        ? lista.join(' e ')
-        : lista.length === 1
-        ? lista[0]
-        : `${lista.length} selecionados`;
-    }
-    return `${lista.length} selecionado${lista.length === 1 ? '' : 's'}`;
-  };
-
-  const resumoFaixa = `R$ ${formatarNumero(faixa.min)} — R$ ${formatarNumero(faixa.max)}`;
-
-  /* ----- Modal ----- */
-  const abrirMulti = (chave) => {
-    setRascunho(selecoes[chave]);
-    setModal(chave);
-  };
-
-  const abrirFaixa = () => {
-    setFaixaRascunho({ min: faixa.min, max: faixa.max });
-    setModal('faixa');
-  };
-
-  const alternarItem = (item) => {
-    setRascunho((prev) => {
-      if (modal === 'regioes') {
-        if (item === TODAS) return [TODAS];
-        const semTodas = prev.filter((i) => i !== TODAS);
-        return semTodas.includes(item)
-          ? semTodas.filter((i) => i !== item)
-          : [...semTodas, item];
-      }
-      return prev.includes(item) ? prev.filter((i) => i !== item) : [...prev, item];
-    });
-  };
-
-  const confirmarMulti = () => {
-    if (rascunho.length === 0) {
-      Alert.alert('Seleção vazia', 'Selecione pelo menos uma opção.');
-      return;
-    }
-    setSelecoes((prev) => ({ ...prev, [modal]: rascunho }));
-    setModal(null);
-    mostrarToast('Preferência atualizada.');
-  };
-
-  const confirmarFaixa = () => {
-    const min = Number(faixaRascunho.min);
-    const max = Number(faixaRascunho.max);
-    if (!min || !max) {
-      Alert.alert('Valores inválidos', 'Informe o valor mínimo e o máximo.');
-      return;
-    }
-    if (min > max) {
-      Alert.alert('Faixa inválida', 'O valor mínimo não pode ser maior que o máximo.');
-      return;
-    }
-    setFaixa({ min: String(min), max: String(max) });
-    setModal(null);
-    mostrarToast('Preferência atualizada.');
-  };
-
-  /* ----- Itens do menu (aside e drawer) ----- */
-  const renderItensMenu = () =>
-    MENU.map((item) => (
-      <View key={item.label}>
-        {item.separador && <View style={s.divisorMenu} />}
-        <Pressable
-          style={[s.itemMenu, medio && s.itemMenuMedio, item.ativo && s.itemAtivo]}
-          onPress={() => {
-            setMenuAberto(false);
-            if (!item.ativo) router.push(item.route);
-          }}
-        >
-          <Ionicons
-            name={item.icon}
-            size={mobile ? 18 : medio ? 14 : 16}
-            color={COLORS.gold}
-          />
-          <Text
-            style={[
-              s.itemMenuTxt,
-              medio && s.itemMenuTxtMedio,
-              mobile && s.itemMenuTxtMobile,
-            ]}
-          >
-            {item.label}
-          </Text>
-        </Pressable>
-      </View>
+  const linhasNav = (itens) =>
+    itens.map((item, i) => (
+      <LinhaNav key={item.titulo} item={item} onPress={() => ir(item.rota)} ultima={i === itens.length - 1} />
     ));
 
-  const renderLinksTopo = () => (
-    <View style={[s.linksTopo, mobile && s.linksTopoMobile]}>
-      {LINKS_TOPO.map(([label, route]) => (
-        <Pressable key={label} onPress={() => ir(route)}>
-          <Text style={s.linkTopo}>{label}</Text>
-        </Pressable>
-      ))}
+  // Dois cartões lado a lado no site, um embaixo do outro no celular
+  const par = (a, b) => <View style={[s.par, largo && s.parLinha]}>{[a, b]}</View>;
+
+  const itensMenu = MENU.map((item) => (
+    <View key={item.label}>
+      {item.separador && <View style={s.menuSep} />}
+      <TouchableOpacity
+        style={[s.menuItem, item.ativo && s.menuItemAtivo]}
+        onPress={() => {
+          setMenuAberto(false);
+          if (!item.ativo) router.push(item.route);
+        }}
+        activeOpacity={0.8}
+      >
+        <Ionicons name={item.icon} size={16} color={COLORS.gold} />
+        <Text style={[s.menuItemTxt, item.ativo && { color: COLORS.gold }]}>{item.label}</Text>
+      </TouchableOpacity>
+    </View>
+  ));
+
+  const conteudo = (
+    <>
+      <Text style={[s.h1, !largo && { fontSize: 20 }]} accessibilityRole="header">
+        Configurações
+      </Text>
+      <Text style={s.sub}>Gerencie as configurações da sua conta profissional.</Text>
+      <View style={s.divisor} />
+
+      {par(
+        <Cartao key="seg" icone="shield-checkmark-outline" titulo="Segurança da Conta" estilo={s.flex}>
+          {linhasNav(SEGURANCA)}
+        </Cartao>,
+        <Cartao key="not" icone="notifications-outline" titulo="Notificações" estilo={s.flex}>
+          {NOTIFICACOES.map((item, i) => (
+            <LinhaSwitch
+              key={item.chave}
+              item={item}
+              valor={notif[item.chave]}
+              onChange={(v) => alterarNotif(item.chave, v)}
+              ultima={i === NOTIFICACOES.length - 1}
+            />
+          ))}
+        </Cartao>
+      )}
+
+      {par(
+        <Cartao key="cfg" icone="briefcase-outline" titulo="Configurações Profissionais" estilo={s.flex}>
+          {linhasNav(CONFIG_PROFISSIONAIS)}
+        </Cartao>,
+        <Cartao key="per" icone="person-outline" titulo="Perfil Profissional" estilo={s.flex}>
+          {linhasNav(PERFIL)}
+        </Cartao>
+      )}
+
+      {par(
+        <Cartao key="fin" icone="cash-outline" titulo="Financeiro" estilo={s.flex}>
+          {linhasNav(FINANCEIRO)}
+        </Cartao>,
+        <Cartao key="pri" icone="lock-closed-outline" titulo="Privacidade" estilo={s.flex}>
+          {linhasNav(PRIVACIDADE)}
+        </Cartao>
+      )}
+
+      <Cartao icone="help-circle-outline" titulo="Central de Ajuda">
+        <View style={largo && s.ajudaLinha}>
+          {AJUDA.map((item, i) => {
+            const ultimo = i === AJUDA.length - 1;
+            return (
+              <LinhaNav
+                key={item.titulo}
+                item={item}
+                onPress={() => ir(item.rota)}
+                ultima={ultimo}
+                estilo={largo ? [s.flex, !ultimo && s.ajudaDivisor, { borderBottomWidth: 0 }] : undefined}
+              />
+            );
+          })}
+        </View>
+      </Cartao>
+    </>
+  );
+
+  const rodape = (
+    <View style={[s.rodape, largo ? s.rodapeLargo : s.rodapeEstreito]}>
+      <Text style={s.rodapeTxt}>©IncomeOfHouses. Todos os direitos reservados.</Text>
+      <View style={s.rodapeLinks}>
+        <TouchableOpacity onPress={() => abrirLegal('termos')}>
+          <Text style={s.rodapeTxt}>Termos de Uso</Text>
+        </TouchableOpacity>
+        <Text style={s.rodapeTxt}>|</Text>
+        <TouchableOpacity onPress={() => abrirLegal('privacidade')}>
+          <Text style={s.rodapeTxt}>Política de Privacidade</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
   return (
-    <ImageBackground source={FUNDO} style={s.fundo} resizeMode="cover">
-      <View style={s.sombra} />
+    <SafeAreaView style={s.safe}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.topo} />
 
-      <ScrollView contentContainerStyle={s.pagina} showsVerticalScrollIndicator={false}>
-        {/* ---------- TOPO ---------- */}
-        <View style={[s.topo, medio && s.topoMedio, mobile && s.topoMobile]}>
-          {mobile && (
-            <Pressable onPress={() => setMenuAberto(true)} style={s.botaoHamburguer} hitSlop={10}>
-              <Ionicons name="menu-outline" size={28} color={COLORS.gold} />
-            </Pressable>
-          )}
+      {largo ? (
+        <>
+          {/* Topo (igual ao da web): logo à esquerda e menu centralizado */}
+          <View style={s.topo}>
+            <TouchableOpacity onPress={() => ir('/')}>
+              <Image source={LOGO} style={s.logo} resizeMode="contain" />
+            </TouchableOpacity>
 
-          <Pressable onPress={() => ir('/')}>
-            <Image
-              source={LOGO}
-              style={[s.logo, medio && s.logoMedio, mobile && s.logoMobile]}
-              resizeMode="contain"
-            />
-          </Pressable>
-
-          {!mobile && renderLinksTopo()}
-
-          <Pressable onPress={() => ir('/PerfilProfissional')} style={s.botaoPerfil} hitSlop={10}>
-            <Ionicons name="person-outline" size={22} color={COLORS.gold} />
-          </Pressable>
-
-          {mobile && renderLinksTopo()}
-        </View>
-
-        {/* ---------- PAINEL ---------- */}
-        <View style={[s.painel, medio && s.painelMedio, mobile && s.painelMobile]}>
-          {/* Aside: tela média e site */}
-          {!mobile && (
-            <View style={[s.menuLateral, medio && s.menuLateralMedio]}>
-              {renderItensMenu()}
-            </View>
-          )}
-
-          <View style={[s.principal, (medio || mobile) && s.principalCompacto]}>
-            {/* Cabeçalho */}
-            <View style={s.cabecalho}>
-              <View style={s.iconeTitulo}>
-                <Ionicons name="settings-outline" size={22} color={COLORS.gold} />
-              </View>
-              <View style={s.flex}>
-                <Text style={[s.h1, mobile && s.h1Mobile]}>Configuração de Profissionais</Text>
-                <Text style={s.sub}>
-                  Gerencie as configurações relacionadas aos profissionais da sua conta.
-                </Text>
+            <View style={s.menuTopoCentro} pointerEvents="box-none">
+              <View style={s.menuTopoLinha}>
+                {LINKS_TOPO.map(([label, rota]) => (
+                  <TouchableOpacity key={label} onPress={() => ir(rota)}>
+                    <Text style={s.menuTopoTxtLargo}>{label}</Text>
+                  </TouchableOpacity>
+                ))}
               </View>
             </View>
-            <View style={s.divisor} />
+          </View>
 
-            {/* Grade de painéis: 2 colunas no site, 1 coluna nos demais */}
-            <View style={s.grade}>
-              <Painel
-                estilo={largo ? s.painelMetade : s.painelCheio}
-                icon="person-outline"
-                titulo="Preferências de Contratação"
-                descricao="Defina como você deseja encontrar e contratar profissionais."
-              >
-                <OpcaoSeletor
-                  icon="people-outline"
-                  titulo="Tipos de profissionais"
-                  descricao="Selecione quais áreas deseja receber indicações."
-                  valor={resumo('tipos')}
-                  onPress={() => abrirMulti('tipos')}
-                />
-                <OpcaoSeletor
-                  icon="cash-outline"
-                  titulo="Faixa de preço"
-                  descricao="Defina o valor que está disposto a investir nos projetos."
-                  valor={resumoFaixa}
-                  onPress={abrirFaixa}
-                />
-                <OpcaoSeletor
-                  icon="location-outline"
-                  titulo="Região de atuação"
-                  descricao="Escolha as regiões onde deseja encontrar profissionais."
-                  valor={resumo('regioes')}
-                  onPress={() => abrirMulti('regioes')}
-                />
-                <OpcaoSeletor
-                  icon="chatbubbles-outline"
-                  titulo="Forma de contato preferida"
-                  descricao="Defina como prefere ser contatado pelos profissionais."
-                  valor={resumo('contato')}
-                  onPress={() => abrirMulti('contato')}
-                  ultima
-                />
-              </Painel>
-
-              <Painel
-                estilo={largo ? s.painelMetade : s.painelCheio}
-                icon="notifications-outline"
-                titulo="Notificações de Profissionais"
-                descricao="Escolha quais notificações deseja receber."
-              >
-                <GrupoSwitches itens={NOTIFICACOES} estado={switches} onChange={alterarSwitch} />
-              </Painel>
-
-              <Painel
-                estilo={largo ? s.painelMetade : s.painelCheio}
-                icon="star-outline"
-                titulo="Avaliação e Feedback"
-                descricao="Configure como deseja avaliar os profissionais."
-              >
-                <GrupoSwitches itens={AVALIACAO} estado={switches} onChange={alterarSwitch} />
-              </Painel>
-
-              <Painel
-                estilo={largo ? s.painelMetade : s.painelCheio}
-                icon="shield-checkmark-outline"
-                titulo="Documentos e Verificações"
-                descricao="Gerencie as verificações dos profissionais."
-              >
-                <GrupoSwitches itens={DOCUMENTOS} estado={switches} onChange={alterarSwitch} />
-              </Painel>
+          <View style={s.corpoLargo}>
+            {/* Menu lateral fixo */}
+            <View style={s.lateral}>
+              <ScrollView contentContainerStyle={s.lateralScroll} showsVerticalScrollIndicator={false}>
+                {itensMenu}
+              </ScrollView>
             </View>
 
-            {/* Dica */}
-            <View style={s.aviso}>
-              <Ionicons name="information-circle-outline" size={22} color={COLORS.gold} />
-              <Text style={s.avisoTxt}>
-                <Text style={s.avisoNegrito}>Dica: </Text>
-                Manter suas preferências atualizadas ajuda a encontrar os profissionais ideais para o
-                seu projeto, com mais agilidade e segurança.
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* ---------- RODAPÉ ---------- */}
-        <View style={s.rodape}>
-          <Text style={s.rodapeTxt}>©IncomeOfHouses. Todos os direitos reservados.</Text>
-          <View style={s.rodapeLinks}>
-            <Pressable onPress={() => abrirLegal('termos')}>
-              <Text style={s.rodapeLink}>Termos de Uso</Text>
-            </Pressable>
-            <Text style={s.rodapeSep}>|</Text>
-            <Pressable onPress={() => abrirLegal('privacidade')}>
-              <Text style={s.rodapeLink}>Política de Privacidade</Text>
-            </Pressable>
-          </View>
-        </View>
-      </ScrollView>
-
-      {/* ---------- TOAST ---------- */}
-      {!!toast && (
-        <View style={s.toastWrap} pointerEvents="none">
-          <View style={s.toast}>
-            <Ionicons name="checkmark-circle" size={16} color={COLORS.gold} />
-            <Text style={s.toastTxt}>{toast}</Text>
-          </View>
-        </View>
-      )}
-
-      {/* ---------- DRAWER (celular em pé) ---------- */}
-      {mobile && (
-        <View style={s.camadaDrawer} pointerEvents={menuAberto ? 'auto' : 'none'}>
-          <Animated.View style={[s.overlay, { opacity: fade }]}>
-            <Pressable style={s.flex} onPress={() => setMenuAberto(false)} />
-          </Animated.View>
-
-          <Animated.View
-            style={[
-              s.drawer,
-              { paddingTop: paisagem ? 16 : 40 },
-              { transform: [{ translateX: deslize }] },
-            ]}
-          >
-            <View style={s.drawerTopo}>
-              <Text style={s.drawerTitulo}>Minha Conta</Text>
-              <Pressable onPress={() => setMenuAberto(false)} hitSlop={10}>
-                <Ionicons name="close-outline" size={26} color={COLORS.gold} />
-              </Pressable>
-            </View>
-
-            <ScrollView contentContainerStyle={s.drawerLista}>{renderItensMenu()}</ScrollView>
-          </Animated.View>
-        </View>
-      )}
-
-      {/* ---------- MODAL: seleção múltipla ---------- */}
-      <Modal
-        visible={modal !== null && modal !== 'faixa'}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setModal(null)}
-      >
-        <Pressable style={s.sheetOverlay} onPress={() => setModal(null)}>
-          <Pressable style={s.sheet} onPress={() => {}}>
-            <View style={s.sheetHandle} />
-            <Text style={s.sheetTitulo}>
-              {modal && modal !== 'faixa' ? TITULOS[modal] : ''}
-            </Text>
-
-            <ScrollView style={{ maxHeight: Math.min(340, height * 0.5) }}>
-              {modal &&
-                modal !== 'faixa' &&
-                OPCOES[modal].map((op) => {
-                  const marcado = rascunho.includes(op);
-                  return (
-                    <Pressable
-                      key={op}
-                      style={[s.sheetItem, marcado && s.sheetItemAtivo]}
-                      onPress={() => alternarItem(op)}
-                    >
-                      <Ionicons
-                        name={marcado ? 'checkbox' : 'square-outline'}
-                        size={22}
-                        color={marcado ? COLORS.gold : COLORS.muted}
-                      />
-                      <Text style={[s.sheetItemTxt, marcado && { color: COLORS.gold }]}>{op}</Text>
-                    </Pressable>
-                  );
-                })}
+            <ScrollView
+              style={s.areaConteudo}
+              contentContainerStyle={s.scrollLargo}
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={s.conteudoLargo}>{conteudo}</View>
+              {rodape}
             </ScrollView>
+          </View>
+        </>
+      ) : (
+        <>
+          {/* Topo (celular) */}
+          <View style={s.topo}>
+            <TouchableOpacity onPress={() => setMenuAberto(true)} style={s.topoBtn}>
+              <Ionicons name="menu" size={26} color={COLORS.gold} />
+            </TouchableOpacity>
 
-            <View style={s.sheetAcoes}>
-              <Pressable style={[s.btn, s.flex]} onPress={() => setModal(null)}>
-                <Text style={s.btnTxt}>Cancelar</Text>
-              </Pressable>
-              <Pressable style={[s.btnPrincipal, s.flex]} onPress={confirmarMulti}>
-                <Text style={s.btnPrincipalTxt}>Confirmar</Text>
-              </Pressable>
+            <TouchableOpacity onPress={() => ir('/')}>
+              <Image source={LOGO} style={s.logo} resizeMode="contain" />
+            </TouchableOpacity>
+
+            <View style={s.topoBtn} />
+          </View>
+
+          <View style={s.menuTopo}>
+            {LINKS_TOPO.map(([label, rota]) => (
+              <TouchableOpacity key={label} onPress={() => ir(rota)}>
+                <Text style={s.menuTopoTxt}>{label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <ScrollView style={s.areaConteudo} contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+            <View style={s.conteudoEstreito}>{conteudo}</View>
+            {rodape}
+          </ScrollView>
+        </>
+      )}
+
+      {/* Toast */}
+      {!!toast && (
+        <View style={s.toast} pointerEvents="none">
+          <Ionicons name="checkmark-circle" size={16} color={COLORS.gold} />
+          <Text style={s.toastTxt}>{toast}</Text>
+        </View>
+      )}
+
+      {/* Menu lateral (celular) */}
+      <Modal visible={menuAberto} transparent animationType="fade" onRequestClose={() => setMenuAberto(false)}>
+        <View style={s.modalRoot}>
+          <SafeAreaView style={s.drawer}>
+            <View style={s.drawerHeader}>
+              <Image source={LOGO} style={s.logo} resizeMode="contain" />
+              <TouchableOpacity onPress={() => setMenuAberto(false)}>
+                <Ionicons name="close" size={24} color={COLORS.gold} />
+              </TouchableOpacity>
             </View>
-          </Pressable>
-        </Pressable>
+
+            <ScrollView>{itensMenu}</ScrollView>
+          </SafeAreaView>
+          <Pressable style={s.overlay} onPress={() => setMenuAberto(false)} />
+        </View>
       </Modal>
-
-      {/* ---------- MODAL: faixa de preço ---------- */}
-      <Modal
-        visible={modal === 'faixa'}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setModal(null)}
-      >
-        <KeyboardAvoidingView
-          style={s.flex}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
-          <Pressable style={s.sheetOverlay} onPress={() => setModal(null)}>
-            <Pressable style={s.sheet} onPress={() => {}}>
-              <View style={s.sheetHandle} />
-              <Text style={s.sheetTitulo}>Faixa de preço</Text>
-
-              <View style={s.faixaRow}>
-                <View style={s.flex}>
-                  <Text style={s.faixaLabel}>Valor mínimo</Text>
-                  <View style={s.faixaInputBox}>
-                    <Text style={s.faixaPrefixo}>R$</Text>
-                    <TextInput
-                      style={s.faixaInput}
-                      value={faixaRascunho.min}
-                      onChangeText={(t) =>
-                        setFaixaRascunho((p) => ({ ...p, min: somenteDigitos(t) }))
-                      }
-                      keyboardType="number-pad"
-                    />
-                  </View>
-                </View>
-                <View style={s.flex}>
-                  <Text style={s.faixaLabel}>Valor máximo</Text>
-                  <View style={s.faixaInputBox}>
-                    <Text style={s.faixaPrefixo}>R$</Text>
-                    <TextInput
-                      style={s.faixaInput}
-                      value={faixaRascunho.max}
-                      onChangeText={(t) =>
-                        setFaixaRascunho((p) => ({ ...p, max: somenteDigitos(t) }))
-                      }
-                      keyboardType="number-pad"
-                    />
-                  </View>
-                </View>
-              </View>
-
-              <View style={s.sheetAcoes}>
-                <Pressable style={[s.btn, s.flex]} onPress={() => setModal(null)}>
-                  <Text style={s.btnTxt}>Cancelar</Text>
-                </Pressable>
-                <Pressable style={[s.btnPrincipal, s.flex]} onPress={confirmarFaixa}>
-                  <Text style={s.btnPrincipalTxt}>Confirmar</Text>
-                </Pressable>
-              </View>
-            </Pressable>
-          </Pressable>
-        </KeyboardAvoidingView>
-      </Modal>
-    </ImageBackground>
+    </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
-  fundo: { flex: 1, backgroundColor: COLORS.bg },
-  sombra: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.65)',
-  },
-  pagina: { flexGrow: 1 },
+  safe: { flex: 1, backgroundColor: COLORS.bg },
   flex: { flex: 1, minWidth: 0 },
 
-  // ----- Topo -----
+  /* ---------- Topo ---------- */
   topo: {
-    minHeight: 76, flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'space-around', paddingHorizontal: 25,
-    borderBottomWidth: 1, borderColor: '#51432c',
+    height: 64,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: '3%',
+    backgroundColor: COLORS.topo,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.borderTopo,
+    zIndex: 20,
   },
-  topoMedio: { minHeight: 56, paddingHorizontal: 16 },
-  topoMobile: {
-    flexWrap: 'wrap', justifyContent: 'space-between',
-    paddingHorizontal: 14, paddingVertical: 8, gap: 6,
-  },
-  botaoHamburguer: {
-    width: 40, height: 40, alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: '#6e572b', borderRadius: 8,
-    backgroundColor: '#1d1d1f',
-  },
-  botaoPerfil: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  logo: { width: 110, height: 62 },
-  logoMedio: { width: 80, height: 44 },
-  logoMobile: { width: 90, height: 50 },
-  linksTopo: { flexDirection: 'row', flexWrap: 'wrap', gap: 30 },
-  linksTopoMobile: { width: '100%', justifyContent: 'center', gap: 18, paddingTop: 4 },
-  linkTopo: { color: '#fff', fontSize: 13 },
+  topoBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  logo: { width: 58, height: 50 },
+  menuTopoCentro: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  menuTopoLinha: { flexDirection: 'row', alignItems: 'center', gap: 32 },
+  menuTopoTxtLargo: { color: '#eeeeee', fontSize: 14, fontWeight: '500' },
 
-  // ----- Painel -----
-  painel: {
-    width: '96%', maxWidth: 1250, alignSelf: 'center',
-    flexDirection: 'row', marginTop: 22, marginBottom: 60,
-    backgroundColor: 'rgba(15,15,15,0.97)',
-    borderWidth: 1, borderColor: '#292929', borderRadius: 10,
+  menuTopo: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+    backgroundColor: COLORS.topo,
+  },
+  menuTopoTxt: { color: COLORS.text, fontSize: 12, fontWeight: '600' },
+
+  /* ---------- Estrutura ---------- */
+  corpoLargo: { flex: 1, flexDirection: 'row' },
+  lateral: {
+    width: 250,
+    backgroundColor: COLORS.lateral,
+    borderRightWidth: 1,
+    borderRightColor: COLORS.borderLateral,
+  },
+  lateralScroll: { paddingVertical: 16, paddingHorizontal: 12 },
+  areaConteudo: { backgroundColor: COLORS.conteudo },
+  scrollLargo: { flexGrow: 1 },
+  scroll: { flexGrow: 1 },
+  conteudoLargo: { flexGrow: 1, paddingTop: 26, paddingHorizontal: 32, paddingBottom: 32 },
+  conteudoEstreito: { flexGrow: 1, padding: 16 },
+
+  /* ---------- Título ---------- */
+  h1: { color: COLORS.text, fontSize: 24, fontWeight: '600' },
+  sub: { color: COLORS.suave, fontSize: 13, marginTop: 6 },
+  divisor: { height: 1, backgroundColor: COLORS.borderTitulo, marginTop: 14, marginBottom: 20 },
+
+  /* ---------- Grade ---------- */
+  par: { gap: 16, marginBottom: 16 },
+  parLinha: { flexDirection: 'row', alignItems: 'stretch' },
+
+  /* ---------- Cartão ---------- */
+  card: {
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 8,
     overflow: 'hidden',
   },
-  painelMedio: { marginTop: 12, marginBottom: 30 },
-  painelMobile: { flexDirection: 'column', marginTop: 12, marginBottom: 30 },
+  cartaoTitulo: {
+    minHeight: 46,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  cartaoTituloTxt: { color: COLORS.text, fontSize: 14, fontWeight: '700' },
 
-  // ----- Aside -----
-  menuLateral: {
-    width: 205, padding: 10, backgroundColor: '#090a0b',
-    borderRightWidth: 1, borderColor: '#292929',
+  linha: {
+    minHeight: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.borderLinha,
   },
-  menuLateralMedio: { width: 160, padding: 8 },
-  itemMenu: {
-    minHeight: 37, paddingHorizontal: 10, paddingVertical: 8, marginBottom: 5,
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    borderRadius: 6, backgroundColor: '#191a1c',
-    borderWidth: 1, borderColor: 'transparent',
-  },
-  itemMenuMedio: { minHeight: 30, paddingVertical: 6, paddingHorizontal: 8, gap: 8 },
-  itemAtivo: { borderColor: COLORS.gold, backgroundColor: '#252117' },
-  itemMenuTxt: { color: '#eee', fontSize: 11, flexShrink: 1 },
-  itemMenuTxtMedio: { fontSize: 10 },
-  itemMenuTxtMobile: { fontSize: 14 },
-  divisorMenu: { height: 1, backgroundColor: '#333', marginTop: 4, marginBottom: 10 },
+  linhaUltima: { borderBottomWidth: 0 },
+  linhaIcone: { width: 20, alignItems: 'center' },
+  linhaTitulo: { color: COLORS.textSuave, fontSize: 13, fontWeight: '700' },
+  linhaDesc: { color: COLORS.muted, fontSize: 11, marginTop: 4, lineHeight: 15 },
 
-  // ----- Drawer -----
-  camadaDrawer: { ...StyleSheet.absoluteFillObject, zIndex: 100 },
-  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.7)' },
-  drawer: {
-    position: 'absolute', top: 0, bottom: 0, left: 0,
-    width: LARGURA_DRAWER, backgroundColor: '#101010',
-    borderRightWidth: 1, borderColor: '#333',
-  },
-  drawerTopo: {
-    flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'center', paddingHorizontal: 16, paddingBottom: 14,
-    borderBottomWidth: 1, borderColor: COLORS.gold,
-  },
-  drawerTitulo: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
-  drawerLista: { padding: 12 },
+  ajudaLinha: { flexDirection: 'row' },
+  ajudaDivisor: { borderRightWidth: 1, borderRightColor: COLORS.borderLinha },
 
-  // ----- Conteúdo -----
-  principal: { flexGrow: 1, flexShrink: 1, flexBasis: 'auto', minWidth: 0, padding: 20 },
-  principalCompacto: { padding: 14 },
-
-  cabecalho: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  iconeTitulo: {
-    width: 44, height: 44, borderRadius: 22, borderWidth: 1,
-    borderColor: COLORS.goldDim, alignItems: 'center', justifyContent: 'center',
-  },
-  h1: { color: COLORS.text, fontSize: 23, fontWeight: '700' },
-  h1Mobile: { fontSize: 19 },
-  sub: { color: COLORS.mutedBlue, fontSize: 12, marginTop: 2, lineHeight: 16 },
-  divisor: { height: 1, backgroundColor: '#8e7138', marginVertical: 16 },
-
-  // ----- Grade de painéis -----
-  grade: { flexDirection: 'row', flexWrap: 'wrap', gap: 14 },
-  painelMetade: { flexGrow: 1, flexShrink: 1, flexBasis: '48%', minWidth: 0 },
-  painelCheio: { width: '100%' },
-
-  // ----- Card -----
-  card: {
-    backgroundColor: COLORS.card, borderWidth: 1,
-    borderColor: COLORS.border, borderRadius: 11, padding: 14,
-  },
-  cardTitulo: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    marginBottom: 4, paddingBottom: 12,
-    borderBottomWidth: 1, borderBottomColor: COLORS.border,
-  },
-  iconeCard: {
-    width: 36, height: 36, borderRadius: 18, borderWidth: 1,
-    borderColor: COLORS.goldDim, alignItems: 'center', justifyContent: 'center',
-  },
-  cardTituloTxt: { color: COLORS.text, fontSize: 14, fontWeight: '700' },
-  cardDescTxt: { color: COLORS.mutedBlue, fontSize: 11, marginTop: 2, lineHeight: 15 },
-
-  // ----- Opções -----
-  opcao: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  opcaoLinha: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  opcaoUltima: { borderBottomWidth: 0, paddingBottom: 4 },
-  opcaoTopo: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  opcaoIcone: {
-    width: 36, height: 36, borderRadius: 6, borderWidth: 1,
-    borderColor: COLORS.border, backgroundColor: '#0d0e0f',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  opcaoTitulo: { color: COLORS.text, fontSize: 13, fontWeight: '700' },
-  opcaoDesc: { color: COLORS.mutedBlue, fontSize: 10, marginTop: 2, lineHeight: 14 },
-
-  seletor: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    gap: 8, marginTop: 10, marginLeft: 48, height: 40, paddingHorizontal: 12,
-    backgroundColor: COLORS.cardAlt, borderWidth: 1,
-    borderColor: COLORS.border, borderRadius: 7,
-  },
-  seletorInline: { marginTop: 0, marginLeft: 0, width: 150, flexShrink: 0 },
-  seletorTxt: { color: COLORS.text, fontSize: 12, fontWeight: '600', flex: 1 },
-
-  // ----- Aviso -----
-  aviso: {
-    flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 16,
-    backgroundColor: 'rgba(201,164,92,0.06)', borderWidth: 1,
-    borderColor: COLORS.goldDim, borderRadius: 10, padding: 14,
-  },
-  avisoTxt: { flex: 1, color: COLORS.mutedBlue, fontSize: 12, lineHeight: 17 },
-  avisoNegrito: { color: COLORS.gold, fontWeight: '700' },
-
-  // ----- Rodapé -----
+  /* ---------- Rodapé ---------- */
   rodape: {
-    minHeight: 48, flexDirection: 'row', flexWrap: 'wrap',
-    justifyContent: 'space-between', alignItems: 'center',
-    gap: 10, paddingHorizontal: 25, paddingVertical: 15,
-    backgroundColor: '#090909', borderTopWidth: 1, borderColor: COLORS.gold,
+    backgroundColor: COLORS.bg,
+    borderTopWidth: 1,
+    borderTopColor: '#8a8a8a',
   },
-  rodapeTxt: { color: '#aaa', fontSize: 10 },
-  rodapeLinks: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  rodapeLink: { color: COLORS.gold, fontSize: 10 },
-  rodapeSep: { color: '#666', fontSize: 10 },
+  rodapeLargo: {
+    minHeight: 55,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 15,
+    paddingHorizontal: 32,
+  },
+  rodapeEstreito: { paddingVertical: 16, alignItems: 'center', gap: 8 },
+  rodapeTxt: { color: COLORS.rodape, fontSize: 12 },
+  rodapeLinks: { flexDirection: 'row', alignItems: 'center', gap: 9 },
 
-  // ----- Toast -----
-  toastWrap: {
-    position: 'absolute', left: 0, right: 0, bottom: 24,
-    alignItems: 'center', paddingHorizontal: 16,
+  /* ---------- Menu (barra lateral e menu do celular) ---------- */
+  menuItem: {
+    minHeight: 38,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: COLORS.campo,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    borderRadius: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginBottom: 5,
   },
+  menuItemAtivo: { borderColor: COLORS.goldBorda, backgroundColor: COLORS.goldFundo },
+  menuItemTxt: { color: '#eeeeee', fontSize: 12, fontWeight: '500', flex: 1 },
+  menuSep: { height: 1, backgroundColor: COLORS.border, marginTop: 3, marginBottom: 8 },
+
+  /* ---------- Menu do celular ---------- */
+  modalRoot: { flex: 1, flexDirection: 'row' },
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
+  drawer: {
+    width: 260,
+    backgroundColor: COLORS.lateral,
+    borderRightWidth: 1,
+    borderRightColor: COLORS.borderLateral,
+    paddingHorizontal: 12,
+  },
+  drawerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    marginBottom: 6,
+  },
+
+  /* ---------- Toast ---------- */
   toast: {
-    width: '100%', maxWidth: 420, flexDirection: 'row', alignItems: 'center',
-    gap: 8, backgroundColor: '#1c1c1c', borderWidth: 1,
-    borderColor: COLORS.goldDim, borderRadius: 8,
-    paddingVertical: 12, paddingHorizontal: 14,
+    position: 'absolute',
+    right: 24,
+    left: 24,
+    bottom: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: COLORS.goldFundo,
+    borderWidth: 1,
+    borderColor: COLORS.goldBorda,
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
   },
-  toastTxt: { color: COLORS.text, fontSize: 12, flex: 1 },
-
-  // ----- Bottom sheet -----
-  sheetOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'flex-end' },
-  sheet: {
-    width: '100%', maxWidth: 520, alignSelf: 'center',
-    backgroundColor: COLORS.card, borderTopWidth: 1, borderColor: COLORS.goldDim,
-    borderTopLeftRadius: 16, borderTopRightRadius: 16,
-    padding: 16, paddingBottom: 28,
-  },
-  sheetHandle: {
-    alignSelf: 'center', width: 40, height: 4, borderRadius: 2,
-    backgroundColor: COLORS.border, marginBottom: 14,
-  },
-  sheetTitulo: { color: COLORS.text, fontSize: 15, fontWeight: '700', marginBottom: 10 },
-  sheetItem: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingVertical: 12, paddingHorizontal: 10, borderRadius: 6, marginBottom: 4,
-  },
-  sheetItemAtivo: { backgroundColor: 'rgba(201,164,92,0.08)' },
-  sheetItemTxt: { color: COLORS.text, fontSize: 13 },
-  sheetAcoes: { flexDirection: 'row', gap: 10, marginTop: 14 },
-
-  // ----- Faixa de preço -----
-  faixaRow: { flexDirection: 'row', gap: 10, marginTop: 4 },
-  faixaLabel: { color: COLORS.text, fontSize: 11, marginBottom: 6 },
-  faixaInputBox: {
-    flexDirection: 'row', alignItems: 'center', gap: 8, height: 44,
-    paddingHorizontal: 12, backgroundColor: COLORS.cardAlt, borderWidth: 1,
-    borderColor: COLORS.border, borderRadius: 6,
-  },
-  faixaPrefixo: { color: COLORS.gold, fontSize: 13, fontWeight: '700' },
-  faixaInput: {
-    flex: 1, minWidth: 0, color: COLORS.text, fontSize: 14, padding: 0,
-    ...Platform.select({ web: { outlineStyle: 'none' } }),
-  },
-
-  // ----- Botões -----
-  btn: {
-    alignItems: 'center', justifyContent: 'center', borderWidth: 1,
-    borderColor: COLORS.gold, borderRadius: 6, paddingVertical: 12,
-  },
-  btnTxt: { color: COLORS.gold, fontSize: 13, fontWeight: '600' },
-  btnPrincipal: {
-    alignItems: 'center', justifyContent: 'center',
-    backgroundColor: COLORS.gold, borderRadius: 6, paddingVertical: 12,
-  },
-  btnPrincipalTxt: { color: '#0a0a0a', fontSize: 13, fontWeight: '700' },
+  toastTxt: { color: COLORS.goldClaro, fontSize: 12, flex: 1 },
 });

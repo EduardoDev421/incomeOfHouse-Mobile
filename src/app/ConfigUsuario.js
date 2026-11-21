@@ -4,7 +4,6 @@ import {
   Text,
   Pressable,
   ScrollView,
-  Switch,
   Modal,
   StyleSheet,
   useWindowDimensions,
@@ -19,7 +18,6 @@ import { useDeclararConta } from '../components/ContaProvider';
 /* ------------------------------------------------------------------ */
 
 const DOURADO = '#d4a63a';
-const PERIGO = '#ff7777';
 
 /* ------------------------------------------------------------------ */
 /* Dados das seções                                                    */
@@ -28,15 +26,15 @@ const PERIGO = '#ff7777';
 /* ------------------------------------------------------------------ */
 
 const SEGURANCA = [
-  { icone: 'key-outline', titulo: 'Alterar Senha', texto: 'Atualize sua senha de acesso', rota: '/AlterarSenha' },
-  { icone: 'finger-print-outline', titulo: 'Autenticação em duas etapas', texto: 'Aumente a segurança da sua conta', rota: '/AutenticacaoDuasEtapas' },
-  { icone: 'laptop-outline', titulo: 'Dispositivos conectados', texto: 'Gerencie dispositivos e sessões ativas', rota: '/DispositivosConectados' },
+  { icone: 'lock-closed-outline', titulo: 'Alterar Senha', texto: 'Atualize sua senha de acesso', rota: '/AlterarSenha' },
+  { icone: 'shield-outline', titulo: 'Autenticação em duas etapas', texto: 'Aumente a segurança da sua conta', rota: '/AutenticacaoDuasEtapas' },
+  { icone: 'desktop-outline', titulo: 'Dispositivos conectados', texto: 'Gerencie dispositivos e sessões ativas', rota: '/DispositivosConectados' },
 ];
 
 const NOTIFICACOES = [
   { chave: 'email', icone: 'mail-outline', titulo: 'Notificações por E-mail', texto: 'Receber notificações por E-mail' },
-  { chave: 'push', icone: 'phone-portrait-outline', titulo: 'Notificações Push', texto: 'Receber notificações no aparelho' },
-  { chave: 'novidades', icone: 'sparkles-outline', titulo: 'Novidades e Atualizações', texto: 'Receber novidades da plataforma' },
+  { chave: 'push', icone: 'notifications-outline', titulo: 'Notificações Push', texto: 'Receber notificações no navegador' },
+  { chave: 'novidades', icone: 'megaphone-outline', titulo: 'Novidades e Atualizações', texto: 'Receber novidades da plataforma' },
 ];
 
 const TEMAS = [
@@ -65,22 +63,28 @@ const MOEDAS = [
   { valor: 'AUD', rotulo: 'AUD - A$' },
 ];
 
+const VISIBILIDADES = [
+  { valor: 'publico', rotulo: 'Público', texto: 'Seu perfil é público' },
+  { valor: 'contatos', rotulo: 'Somente contatos', texto: 'Seu perfil é visível só para contatos' },
+  { valor: 'privado', rotulo: 'Privado', texto: 'Seu perfil é privado' },
+];
+
 const PERSONALIZACAO = [
-  { chave: 'tema', icone: 'color-palette-outline', titulo: 'Tema da plataforma', texto: 'Escolha entre temas claro ou escuro', opcoes: TEMAS },
-  { chave: 'idioma', icone: 'language-outline', titulo: 'Idioma', texto: 'Selecione o idioma da plataforma', opcoes: IDIOMAS },
+  { chave: 'tema', icone: 'sunny-outline', titulo: 'Tema da plataforma', texto: 'Escolha entre temas claro ou escuro', opcoes: TEMAS },
+  { chave: 'idioma', icone: 'globe-outline', titulo: 'Idioma', texto: 'Selecione o idioma da plataforma', opcoes: IDIOMAS },
   { chave: 'moeda', icone: 'cash-outline', titulo: 'Moeda', texto: 'Escolha a moeda para visualização', opcoes: MOEDAS },
 ];
 
-const PRIVACIDADE = [
-  { icone: 'eye-outline', titulo: 'Quem pode ver seu perfil', texto: 'Gerenciar a visibilidade do seu perfil', rota: '/DadosPermissoes' },
-  { icone: 'shield-half-outline', titulo: 'Dados e permissões', texto: 'Gerencie seus dados e permissões', rota: '/DadosPermissoes' },
-  { icone: 'trash-outline', titulo: 'Excluir conta', texto: 'Excluir sua conta permanentemente', rota: null, perigo: true },
+// Lista usada pela janela de opções (tema, idioma, moeda e visibilidade do perfil)
+const SELETORES = [
+  ...PERSONALIZACAO,
+  { chave: 'visibilidade', titulo: 'Quem pode ver seu perfil', opcoes: VISIBILIDADES },
 ];
 
 const AJUDA = [
-  { icone: 'help-circle-outline', titulo: 'Perguntas frequentes', texto: 'Encontre respostas para dúvidas comuns', rota: '/perguntasFrequentes' },
+  { icone: 'chatbubble-ellipses-outline', titulo: 'Perguntas frequentes', texto: 'Encontre respostas para dúvidas comuns', rota: '/perguntasFrequentes' },
   { icone: 'headset-outline', titulo: 'Fale conosco', texto: 'Entre em contato com nosso suporte', rota: '/faleConosco' },
-  { icone: 'school-outline', titulo: 'Tutoriais', texto: 'Aprenda a usar a plataforma', rota: '/Tutoriais' },
+  { icone: 'document-text-outline', titulo: 'Tutoriais', texto: 'Aprenda a usar a plataforma', rota: '/Tutoriais' },
 ];
 
 /* ------------------------------------------------------------------ */
@@ -91,7 +95,7 @@ function Cartao({ icone, titulo, children, coluna }) {
   return (
     <View style={[s.card, coluna && s.cardColuna]}>
       <View style={s.cardTopo}>
-        <Ionicons name={icone} size={18} color={DOURADO} />
+        <Ionicons name={icone} size={20} color={DOURADO} />
         <Text style={s.cardTitulo}>{titulo}</Text>
       </View>
       {children}
@@ -99,15 +103,15 @@ function Cartao({ icone, titulo, children, coluna }) {
   );
 }
 
-function Linha({ icone, titulo, texto, perigo, onPress, separador, children }) {
+function Linha({ icone, titulo, texto, onPress, separador, children }) {
   const conteudo = (
     <>
-      <View style={[s.icone, perigo && s.iconePerigo]}>
-        <Ionicons name={icone} size={18} color={perigo ? PERIGO : DOURADO} />
+      <View style={s.icone}>
+        <Ionicons name={icone} size={18} color={DOURADO} />
       </View>
 
       <View style={s.textos}>
-        <Text style={[s.titulo, perigo && s.tituloPerigo]}>{titulo}</Text>
+        <Text style={s.titulo}>{titulo}</Text>
         <Text style={s.texto}>{texto}</Text>
       </View>
 
@@ -131,8 +135,23 @@ function Linha({ icone, titulo, texto, perigo, onPress, separador, children }) {
   );
 }
 
-function Seta({ perigo }) {
-  return <Ionicons name="chevron-forward" size={18} color={perigo ? PERIGO : '#6b6f75'} />;
+function Seta() {
+  return <Ionicons name="chevron-forward" size={16} color="#92979a" />;
+}
+
+// Toggle próprio: dourado com bolinha branca (o Switch do RN Web usa verde-água)
+function Alternador({ valor, onChange, rotulo }) {
+  return (
+    <Pressable
+      onPress={() => onChange(!valor)}
+      accessibilityRole="switch"
+      accessibilityState={{ checked: valor }}
+      accessibilityLabel={rotulo}
+      style={[s.trilho, valor ? s.trilhoLigado : s.trilhoDesligado]}
+    >
+      <View style={s.bolinha} />
+    </Pressable>
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -145,8 +164,13 @@ export default function ConfiguracoesUsuario() {
   const { width } = useWindowDimensions();
 
   const [notificacoes, setNotificacoes] = useState({ email: true, push: true, novidades: true });
-  const [preferencias, setPreferencias] = useState({ tema: 'escuro', idioma: 'pt-br', moeda: 'BRL' });
-  const [seletorAberto, setSeletorAberto] = useState(null); // chave de PERSONALIZACAO ou null
+  const [preferencias, setPreferencias] = useState({
+    tema: 'escuro',
+    idioma: 'pt-br',
+    moeda: 'BRL',
+    visibilidade: 'publico',
+  });
+  const [seletorAberto, setSeletorAberto] = useState(null); // chave de SELETORES ou null
 
   // Só navega se a rota estiver definida (evita "This screen doesn't exist")
   const ir = (rota) => {
@@ -164,28 +188,14 @@ export default function ConfiguracoesUsuario() {
     // TODO: salvar a preferência (e aplicar tema/idioma/moeda) aqui
   };
 
-  const itemSeletor = PERSONALIZACAO.find((p) => p.chave === seletorAberto) || null;
-
-  // Lista de links de uma seção (borda no topo a partir do 2º item)
-  const links = (lista) =>
-    lista.map((item, i) => (
-      <Linha
-        key={item.titulo}
-        icone={item.icone}
-        titulo={item.titulo}
-        texto={item.texto}
-        perigo={item.perigo}
-        separador={i > 0 && s.separadorTopo}
-        onPress={() => ir(item.rota)}
-      >
-        <Seta perigo={item.perigo} />
-      </Linha>
-    ));
+  const itemSeletor = SELETORES.find((p) => p.chave === seletorAberto) || null;
+  const visibilidadeAtual = VISIBILIDADES.find((v) => v.valor === preferencias.visibilidade);
 
   /* ---------- render ---------- */
 
   return (
     <LayoutConta
+      tipo="usuario"
       ativo="configuracoes"
       titulo="Configurações"
       subtitulo="Gerencie as configurações da sua conta e preferências."
@@ -195,7 +205,18 @@ export default function ConfiguracoesUsuario() {
 
         const seguranca = (
           <Cartao key="seguranca" icone="shield-checkmark-outline" titulo="Segurança da Conta" coluna={duasColunas}>
-            {links(SEGURANCA)}
+            {SEGURANCA.map((item, i) => (
+              <Linha
+                key={item.titulo}
+                icone={item.icone}
+                titulo={item.titulo}
+                texto={item.texto}
+                separador={i > 0 && s.separadorTopo}
+                onPress={() => ir(item.rota)}
+              >
+                <Seta />
+              </Linha>
+            ))}
           </Cartao>
         );
 
@@ -209,12 +230,10 @@ export default function ConfiguracoesUsuario() {
                 texto={n.texto}
                 separador={i > 0 && s.separadorTopo}
               >
-                <Switch
-                  value={notificacoes[n.chave]}
-                  onValueChange={(v) => alternar(n.chave, v)}
-                  trackColor={{ false: '#2b2b2e', true: 'rgba(212,166,58,0.55)' }}
-                  thumbColor={notificacoes[n.chave] ? DOURADO : '#9a9a9a'}
-                  accessibilityLabel={n.titulo}
+                <Alternador
+                  valor={notificacoes[n.chave]}
+                  onChange={(v) => alternar(n.chave, v)}
+                  rotulo={n.titulo}
                 />
               </Linha>
             ))}
@@ -222,7 +241,7 @@ export default function ConfiguracoesUsuario() {
         );
 
         const personalizacao = (
-          <Cartao key="personalizacao" icone="options-outline" titulo="Personalização" coluna={duasColunas}>
+          <Cartao key="personalizacao" icone="color-palette-outline" titulo="Personalização" coluna={duasColunas}>
             {PERSONALIZACAO.map((p, i) => {
               const atual = p.opcoes.find((o) => o.valor === preferencias[p.chave]);
               return (
@@ -242,7 +261,7 @@ export default function ConfiguracoesUsuario() {
                     <Text style={s.seletorTxt} numberOfLines={1}>
                       {atual ? atual.rotulo : ''}
                     </Text>
-                    <Ionicons name="chevron-down" size={14} color="#8f9497" />
+                    <Ionicons name="chevron-down" size={14} color="#dddddd" />
                   </Pressable>
                 </Linha>
               );
@@ -252,12 +271,37 @@ export default function ConfiguracoesUsuario() {
 
         const privacidade = (
           <Cartao key="privacidade" icone="lock-closed-outline" titulo="Privacidade" coluna={duasColunas}>
-            {links(PRIVACIDADE)}
+            <Linha
+              icone="person-outline"
+              titulo="Quem pode ver seu perfil"
+              texto={visibilidadeAtual ? visibilidadeAtual.texto : ''}
+              onPress={() => setSeletorAberto('visibilidade')}
+            >
+              <Seta />
+            </Linha>
+            <Linha
+              icone="id-card-outline"
+              titulo="Dados pessoais"
+              texto="Gerencie seus dados pessoais"
+              separador={s.separadorTopo}
+              onPress={() => ir('/DadosPermissoes')}
+            >
+              <Seta />
+            </Linha>
+            <Linha
+              icone="trash-outline"
+              titulo="Excluir conta"
+              texto="Excluir sua conta permanentemente"
+              separador={s.separadorTopo}
+              onPress={() => ir(null)}
+            >
+              <Seta />
+            </Linha>
           </Cartao>
         );
 
         const ajuda = (
-          <Cartao key="ajuda" icone="help-buoy-outline" titulo="Central de Ajuda">
+          <Cartao key="ajuda" icone="help-circle-outline" titulo="Central de Ajuda">
             <View style={duasColunas && s.ajudaLinha}>
               {AJUDA.map((item, i) => (
                 <View key={item.titulo} style={duasColunas && s.ajudaItem}>
@@ -363,57 +407,64 @@ const s = StyleSheet.create({
   pressionado: { opacity: 0.75 },
 
   pagina: { gap: 16 },
-  linhaCards: { flexDirection: 'row', alignItems: 'flex-start', gap: 16 },
+  linhaCards: { flexDirection: 'row', alignItems: 'stretch', gap: 16 },
 
   /* card */
   card: {
-    backgroundColor: '#171717',
+    backgroundColor: '#141414',
     borderWidth: 1,
     borderColor: '#292929',
-    borderRadius: 12,
+    borderRadius: 8,
     overflow: 'hidden',
   },
   cardColuna: { flex: 1, minWidth: 0 },
   cardTopo: {
-    minHeight: 50,
+    minHeight: 46,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#292929',
   },
-  cardTitulo: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  cardTitulo: { color: '#fff', fontSize: 14, fontWeight: '700' },
 
   /* linha */
   linha: {
-    minHeight: 68,
+    minHeight: 56,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 10,
   },
-  separadorTopo: { borderTopWidth: 1, borderTopColor: '#252729' },
-  separadorEsquerda: { borderLeftWidth: 1, borderLeftColor: '#252729' },
+  separadorTopo: { borderTopWidth: 1, borderTopColor: '#242424' },
+  separadorEsquerda: { borderLeftWidth: 1, borderLeftColor: '#242424' },
 
-  icone: {
+  icone: { width: 20, alignItems: 'center', justifyContent: 'center' },
+
+  textos: { flex: 1, minWidth: 0 },
+  titulo: { color: '#e7e7e7', fontSize: 13, fontWeight: '700' },
+  texto: { color: '#8f9497', fontSize: 11, marginTop: 4, lineHeight: 15 },
+
+  /* toggle */
+  trilho: {
     width: 38,
-    height: 38,
+    height: 22,
+    borderRadius: 11,
+    paddingHorizontal: 2,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#0d0d0e',
-    borderWidth: 1,
-    borderColor: '#252729',
-    borderRadius: 10,
   },
-  iconePerigo: { backgroundColor: '#2a1717', borderColor: '#6b2b2b' },
-
-  textos: { flex: 1, minWidth: 0, gap: 3 },
-  titulo: { color: '#fff', fontSize: 14, fontWeight: '600' },
-  tituloPerigo: { color: '#ff9a9a' },
-  texto: { color: '#a5a5a5', fontSize: 12, lineHeight: 17 },
+  trilhoLigado: { backgroundColor: DOURADO, justifyContent: 'flex-end' },
+  trilhoDesligado: { backgroundColor: '#34383a', justifyContent: 'flex-start' },
+  bolinha: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#ffffff',
+  },
 
   /* ajuda (3 colunas no site) */
   ajudaLinha: { flexDirection: 'row' },
@@ -421,20 +472,20 @@ const s = StyleSheet.create({
 
   /* seletor */
   seletor: {
-    minWidth: 112,
+    minWidth: 96,
     maxWidth: 150,
-    minHeight: 38,
+    height: 32,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 8,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     backgroundColor: '#0d0d0e',
     borderWidth: 1,
-    borderColor: '#3c4148',
-    borderRadius: 8,
+    borderColor: '#292929',
+    borderRadius: 6,
   },
-  seletorTxt: { flexShrink: 1, color: '#d3d4d8', fontSize: 12.5, fontWeight: '600' },
+  seletorTxt: { flexShrink: 1, color: '#dddddd', fontSize: 12 },
 
   /* modal de opções */
   modalFundo: {
@@ -449,7 +500,7 @@ const s = StyleSheet.create({
     maxWidth: 420,
     alignSelf: 'center',
     paddingVertical: 8,
-    backgroundColor: '#171717',
+    backgroundColor: '#141414',
     borderWidth: 1,
     borderColor: '#59431f',
     borderRadius: 14,
