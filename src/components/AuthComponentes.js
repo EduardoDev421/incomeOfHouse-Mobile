@@ -9,8 +9,21 @@ import { Cabecalho, Rodape } from './Comuns';
 
 export const dourado = '#c9a45c';
 
-// >>> AJUSTE AQUI o caminho da imagem (relativo a ESTE arquivo)
-const FUNDO = require('../../assets/images/BackgroundFundo.png');
+// Tons usados na versão web desta tela
+const DOURADO_TITULO = '#cfa835';
+const DOURADO_BOTAO = '#d4af6a';
+const DOURADO_BORDA = '#cda432';
+
+// >>> Copie a foto para assets/images/ (caminho relativo a ESTE arquivo)
+const FUNDO = require('../../assets/images/BackGroundCadastroELogin.png');
+
+// Áreas exibidas abaixo do parágrafo: [nome, ícone Ionicons]
+const ITENS_MINI = [
+  ['Arquitetura', 'home-outline'],
+  ['Engenharia', 'construct-outline'],
+  ['Design', 'color-palette-outline'],
+  ['Paisagismo', 'leaf-outline'],
+];
 
 /* ------------------------------------------------------------------ */
 /* Responsividade                                                      */
@@ -91,20 +104,15 @@ export const validarData = (t) => {
 };
 
 /* ------------------------------------------------------------------ */
-/* Cards "Arquitetura / Engenharia / Design / Paisagismo"              */
+/* "Arquitetura / Engenharia / Design / Paisagismo"                    */
+/* Caixas com ícone dourado e o nome embaixo                           */
 /* ------------------------------------------------------------------ */
 function MiniCards() {
   const { mobile } = useLayout();
-  const itens = [
-    ['Arquitetura', 'home-outline'],
-    ['Engenharia', 'construct-outline'],
-    ['Design', 'color-palette-outline'],
-    ['Paisagismo', 'leaf-outline'],
-  ];
 
   return (
     <View style={[a.miniCards, mobile && a.miniCardsMobile]}>
-      {itens.map(([nome, icone]) => (
+      {ITENS_MINI.map(([nome, icone]) => (
         <View key={nome} style={a.miniCard}>
           <View style={a.imgCard}>
             <Ionicons name={icone} size={mobile ? 20 : 24} color={dourado} />
@@ -125,7 +133,7 @@ export function AuthTela({ titulo, destaque, texto, miniCards = false, children 
 
   return (
     <ImageBackground source={FUNDO} style={a.fundo} resizeMode="cover">
-      <View style={a.sombra} />
+      <View style={a.sombra} pointerEvents="none" />
 
       <KeyboardAvoidingView
         style={a.flex}
@@ -146,16 +154,14 @@ export function AuthTela({ titulo, destaque, texto, miniCards = false, children 
             ]}
           >
             {/* Lado esquerdo: apresentação */}
-            <View style={[a.intro, mobile && a.introMobile]}>
-              <Text style={[a.marca, mobile && a.marcaMobile]}>INCOME OF HOUSES</Text>
-
+            <View style={[a.intro, medio && a.introMedio, mobile && a.introMobile]}>
               <Text style={[a.h1, medio && a.h1Medio, mobile && a.h1Mobile]}>
                 {titulo}
                 <Text style={a.destaque}>{destaque}</Text>
               </Text>
 
               {/* No celular o formulário vem primeiro, sem o parágrafo no meio */}
-              {!mobile && <Text style={a.paragrafo}>{texto}</Text>}
+              {!mobile && <Text style={[a.paragrafo, medio && a.paragrafoMedio]}>{texto}</Text>}
 
               {miniCards && <MiniCards />}
             </View>
@@ -183,11 +189,11 @@ export function AuthTela({ titulo, destaque, texto, miniCards = false, children 
 /* Peças do formulário                                                 */
 /* ------------------------------------------------------------------ */
 export function CartaoTitulo({ titulo, subtitulo }) {
+  const { mobile } = useLayout();
   return (
-    <View>
-      <Text style={a.cartaoTitulo}>{titulo}</Text>
-      <Text style={a.cartaoSubtitulo}>{subtitulo}</Text>
-      <View style={a.divisorDourado} />
+    <View style={a.cartaoCabecalho}>
+      <Text style={[a.cartaoTitulo, mobile && a.cartaoTituloMobile]}>{titulo}</Text>
+      <Text style={[a.cartaoSubtitulo, mobile && a.cartaoSubtituloMobile]}>{subtitulo}</Text>
     </View>
   );
 }
@@ -204,6 +210,7 @@ export function Linha({ children }) {
   );
 }
 
+// "icone" é opcional: sem ele o campo fica sem ícone (como na web)
 export function Campo({
   icone, rotulo, valor, aoMudar, placeholder,
   senha = false, mascara, ...resto
@@ -214,16 +221,16 @@ export function Campo({
 
   return (
     <View style={a.grupo}>
-      <Text style={a.rotulo}>{rotulo}</Text>
+      <Text style={[a.rotulo, mobile && a.rotuloMobile]}>{rotulo}</Text>
       <View style={[a.campo, foco && a.campoFoco]}>
-        <Ionicons name={icone} size={18} color={dourado} />
+        {!!icone && <Ionicons name={icone} size={18} color={DOURADO_BOTAO} />}
         <TextInput
           // 16px no celular evita o zoom automático ao tocar no campo (iOS)
           style={[a.input, mobile && a.inputMobile]}
           value={valor}
           onChangeText={(t) => aoMudar(mascara ? mascara(t) : t)}
           placeholder={placeholder}
-          placeholderTextColor="#777"
+          placeholderTextColor="#737373"
           secureTextEntry={senha && !ver}
           onFocus={() => setFoco(true)}
           onBlur={() => setFoco(false)}
@@ -252,6 +259,7 @@ export function Campo({
 // Campo de seleção (abre uma folha na parte de baixo).
 // opcoes = [[valor, rótulo], ...]
 export function Seletor({ icone, rotulo, valor, aoMudar, opcoes, placeholder }) {
+  const { mobile } = useLayout();
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const [aberto, setAberto] = useState(false);
@@ -259,7 +267,7 @@ export function Seletor({ icone, rotulo, valor, aoMudar, opcoes, placeholder }) 
 
   return (
     <View style={a.grupo}>
-      <Text style={a.rotulo}>{rotulo}</Text>
+      <Text style={[a.rotulo, mobile && a.rotuloMobile]}>{rotulo}</Text>
 
       <Pressable
         style={[a.campo, aberto && a.campoFoco]}
@@ -267,9 +275,9 @@ export function Seletor({ icone, rotulo, valor, aoMudar, opcoes, placeholder }) 
         accessibilityRole="button"
         accessibilityLabel={`${rotulo}: ${escolhido ? escolhido[1] : placeholder}`}
       >
-        <Ionicons name={icone} size={18} color={dourado} />
+        {!!icone && <Ionicons name={icone} size={18} color={DOURADO_BOTAO} />}
         <Text
-          style={[a.input, a.textoSelecao, !escolhido && { color: '#777' }]}
+          style={[a.input, a.textoSelecao, !escolhido && { color: '#737373' }]}
           numberOfLines={1}
         >
           {escolhido ? escolhido[1] : placeholder}
@@ -366,7 +374,7 @@ export function Divisor({ texto }) {
   );
 }
 
-// "Já possui uma conta? Entrar"
+// "Lembrou sua senha? Entrar"
 export function LinkConta({ pergunta, acao, aoPressionar }) {
   return (
     <Pressable onPress={aoPressionar} hitSlop={8} accessibilityRole="link">
@@ -396,35 +404,44 @@ export function LinkContorno({ texto, aoPressionar }) {
 const a = StyleSheet.create({
   flex: { flex: 1 },
   fundo: { flex: 1, backgroundColor: '#090909' },
+  // escurecimento leve para a foto aparecer como na web
   sombra: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.65)',
+    backgroundColor: 'rgba(0,0,0,0.35)',
   },
   pagina: { flexGrow: 1 },
 
   // ----- Área principal -----
   principal: {
-    flexGrow: 1, flexShrink: 0, flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'center', gap: 50,
-    paddingHorizontal: 40, paddingVertical: 40,
+    flexGrow: 1, flexShrink: 0, flexDirection: 'row', alignItems: 'flex-start',
+    justifyContent: 'space-between', gap: 60,
+    paddingHorizontal: '8%', paddingTop: 60, paddingBottom: 60,
   },
-  principalMedio: { gap: 24, paddingHorizontal: 20, paddingVertical: 20 },
+  principalMedio: { gap: 24, paddingHorizontal: 20, paddingTop: 30, paddingBottom: 24 },
   principalMobile: {
     flexDirection: 'column', alignItems: 'stretch',
-    justifyContent: 'flex-start', gap: 18,
-    paddingHorizontal: 16, paddingTop: 20, paddingBottom: 28,
+    justifyContent: 'flex-start', gap: 22,
+    paddingHorizontal: 16, paddingTop: 24, paddingBottom: 32,
   },
 
   // ----- Apresentação (lado esquerdo) -----
-  intro: { flex: 1, maxWidth: 480, minWidth: 0 },
-  introMobile: { flexGrow: 0, flexShrink: 0, flexBasis: 'auto', width: '100%', maxWidth: '100%' },
-  marca: { color: dourado, fontSize: 13, fontWeight: 'bold', letterSpacing: 2 },
-  marcaMobile: { fontSize: 11 },
-  h1: { color: '#fff', fontSize: 42, fontWeight: 'bold', marginTop: 10, lineHeight: 50 },
-  h1Medio: { fontSize: 27, lineHeight: 33, marginTop: 6 },
-  h1Mobile: { fontSize: 28, lineHeight: 34, marginTop: 6 },
-  destaque: { color: dourado },
-  paragrafo: { color: '#d6d6d6', fontSize: 14, lineHeight: 21, marginTop: 14 },
+  intro: { flex: 1, minWidth: 0, paddingLeft: 20, paddingRight: 40 },
+  introMedio: { paddingLeft: 0, paddingRight: 0 },
+  introMobile: {
+    flexGrow: 0, flexShrink: 0, flexBasis: 'auto',
+    width: '100%', maxWidth: '100%', padding: 0,
+  },
+  h1: { color: '#f5f5f5', fontSize: 50, fontWeight: 'bold', lineHeight: 60 },
+  h1Medio: { fontSize: 32, lineHeight: 38 },
+  h1Mobile: { fontSize: 30, lineHeight: 36 },
+  destaque: { color: DOURADO_TITULO },
+  paragrafo: {
+    maxWidth: 380, marginTop: 12, color: '#f0f0f0', fontSize: 17,
+    fontWeight: '500', lineHeight: 25,
+    textShadowColor: 'rgba(0,0,0,0.75)', textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 8,
+  },
+  paragrafoMedio: { fontSize: 14, lineHeight: 21 },
 
   // ----- Mini cards -----
   miniCards: { flexDirection: 'row', gap: 10, marginTop: 22 },
@@ -442,15 +459,19 @@ const a = StyleSheet.create({
 
   // ----- Cartão (lado direito) -----
   cartao: {
-    width: '100%', maxWidth: 560, padding: 26,
-    backgroundColor: 'rgba(17,17,17,0.97)', borderWidth: 1,
-    borderColor: '#333', borderRadius: 12,
+    width: 500, maxWidth: '100%', paddingVertical: 40, paddingHorizontal: 45,
+    backgroundColor: '#0a0a0a', borderWidth: 2, borderColor: DOURADO_BORDA,
+    borderRadius: 20,
   },
-  cartaoMedio: { flex: 1.3, maxWidth: undefined, width: undefined, padding: 18 },
-  cartaoMobile: { padding: 20, flexShrink: 0 },
-  cartaoTitulo: { color: '#fff', fontSize: 25, fontWeight: 'bold' },
-  cartaoSubtitulo: { color: '#aeb7c0', fontSize: 13, marginTop: 5 },
-  divisorDourado: { height: 1, backgroundColor: dourado, marginVertical: 16 },
+  cartaoMedio: { flex: 1, width: undefined, paddingVertical: 24, paddingHorizontal: 24 },
+  cartaoMobile: { width: '100%', paddingVertical: 28, paddingHorizontal: 22, flexShrink: 0 },
+  cartaoCabecalho: { alignItems: 'center', marginBottom: 24 },
+  cartaoTitulo: { color: '#f5f5f5', fontSize: 30, fontWeight: 'bold', textAlign: 'center' },
+  cartaoTituloMobile: { fontSize: 24 },
+  cartaoSubtitulo: {
+    marginTop: 10, color: '#a3a3a3', fontSize: 18, textAlign: 'center',
+  },
+  cartaoSubtituloMobile: { fontSize: 15 },
 
   // ----- Grade -----
   linha: { flexDirection: 'column' },
@@ -458,16 +479,17 @@ const a = StyleSheet.create({
   coluna: { flex: 1, minWidth: 0 },
 
   // ----- Campos -----
-  grupo: { marginBottom: 14 },
-  rotulo: { color: '#b5b5b5', fontSize: 12, marginBottom: 6 },
+  grupo: { marginBottom: 20 },
+  rotulo: { color: '#e5e5e5', fontSize: 15, fontWeight: '600', marginBottom: 6 },
+  rotuloMobile: { fontSize: 14 },
   campo: {
-    minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 10,
-    paddingHorizontal: 12, borderWidth: 1, borderColor: '#383838',
-    borderRadius: 8, backgroundColor: '#101112',
+    minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingHorizontal: 14, borderWidth: 1, borderColor: '#363636',
+    borderRadius: 6, backgroundColor: '#0d0d0d',
   },
-  campoFoco: { borderColor: dourado },
+  campoFoco: { borderColor: DOURADO_BORDA },
   input: {
-    flex: 1, minWidth: 0, color: '#fff', fontSize: 14, paddingVertical: 10,
+    flex: 1, minWidth: 0, color: '#e5e5e5', fontSize: 15, paddingVertical: 10,
     ...Platform.select({ web: { outlineStyle: 'none' } }),
   },
   inputMobile: { fontSize: 16 },
@@ -481,16 +503,17 @@ const a = StyleSheet.create({
 
   // ----- Botões, divisor e links -----
   botao: {
-    minHeight: 48, alignItems: 'center', justifyContent: 'center',
-    marginTop: 4, padding: 11, backgroundColor: dourado, borderRadius: 8,
+    minHeight: 52, alignItems: 'center', justifyContent: 'center',
+    paddingVertical: 17, paddingHorizontal: 20,
+    backgroundColor: DOURADO_BOTAO, borderRadius: 10,
   },
   botaoApagado: { opacity: 0.7 },
-  textoBotao: { color: '#171512', fontSize: 14, fontWeight: 'bold' },
-  divisor: { flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 16 },
-  divisorLinha: { flex: 1, height: 1, backgroundColor: '#383838' },
-  divisorTexto: { color: '#aaa', fontSize: 12 },
-  linkConta: { color: '#ccc', textAlign: 'center', fontSize: 13 },
-  linkContaAcao: { color: dourado, fontWeight: 'bold' },
+  textoBotao: { color: '#111', fontSize: 15, fontWeight: 'bold' },
+  divisor: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 30, marginBottom: 24 },
+  divisorLinha: { flex: 1, height: 1, backgroundColor: '#333' },
+  divisorTexto: { color: '#777', fontSize: 12 },
+  linkConta: { color: '#e5e5e5', textAlign: 'center', fontSize: 15, fontWeight: 'bold' },
+  linkContaAcao: { color: DOURADO_BOTAO, fontWeight: 'bold' },
   linkContorno: {
     minHeight: 44, alignItems: 'center', justifyContent: 'center',
     marginTop: 12, padding: 9, borderWidth: 1, borderColor: dourado,

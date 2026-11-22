@@ -191,17 +191,20 @@ export function LayoutConta({ titulo, subtitulo, ativo, tipo: tipoDaTela, childr
           </Pressable>
         </View>
 
-        <View style={[s.painel, medio && s.painelMedio, mobile && s.painelMobile]}>
-          {!mobile && <View style={[s.menu, medio && s.menuMedio]}>{itensConta}</View>}
+        {/* miolo cresce e empurra o rodapé para o final da página */}
+        <View style={s.miolo}>
+          <View style={[s.painel, medio && s.painelMedio, mobile && s.painelMobile]}>
+            {!mobile && <View style={[s.menu, medio && s.menuMedio]}>{itensConta}</View>}
 
-          <View style={[s.principal, medio && s.principalMedio, mobile && s.principalMobile]}>
-            <Text style={[s.titulo, mobile && s.tituloMobile]}>{titulo}</Text>
-            {!!subtitulo && <Text style={s.subtitulo}>{subtitulo}</Text>}
+            <View style={[s.principal, medio && s.principalMedio, mobile && s.principalMobile]}>
+              <Text style={[s.titulo, mobile && s.tituloMobile]}>{titulo}</Text>
+              {!!subtitulo && <Text style={s.subtitulo}>{subtitulo}</Text>}
 
-            <View style={s.divisor} />
+              <View style={s.divisor} />
 
-            <View style={s.conteudo}>
-              {typeof children === 'function' ? children({ mobile, medio }) : children}
+              <View style={s.conteudo}>
+                {typeof children === 'function' ? children({ mobile, medio }) : children}
+              </View>
             </View>
           </View>
         </View>
@@ -513,6 +516,7 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.65)',
   },
   pagina: { flexGrow: 1 },
+  miolo: { flexGrow: 1 },
   pressionado: { opacity: 0.75 },
 
   topo: {

@@ -11,6 +11,7 @@ import {
   StyleSheet,
   StatusBar,
   SafeAreaView,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -31,6 +32,9 @@ const COLORS = {
   green: '#0e5a3a',
   greenText: '#e8fff3',
   inactive: '#2a2a2a',
+  rodapeBg: '#080a0b',
+  rodapeBorda: '#8a8a8a',
+  rodapeTxt: '#7e8385',
 };
 
 // Ajuste as rotas conforme os nomes dos arquivos em src/app
@@ -63,6 +67,8 @@ const DEVICES_INICIAIS = [
 export default function DispositivosConectados() {
   const router = useRouter();
   const { abrirLegal } = useLegal();
+  const { width } = useWindowDimensions();
+  const largo = width >= 650; // rodapé em uma linha (texto à esquerda, links à direita)
   const [menuAberto, setMenuAberto] = useState(false);
   const [devices, setDevices] = useState(DEVICES_INICIAIS);
 
@@ -234,16 +240,16 @@ export default function DispositivosConectados() {
           </TouchableOpacity>
         </View>
 
-        {/* Rodapé */}
-        <View style={styles.rodape}>
+        {/* Rodapé (igual ao das outras telas: texto à esquerda e links à direita) */}
+        <View style={[styles.rodape, largo ? styles.rodapeLargo : styles.rodapeEstreito]}>
           <Text style={styles.rodapeTxt}>©IncomeOfHouses. Todos os direitos reservados.</Text>
           <View style={styles.rodapeLinks}>
             <TouchableOpacity onPress={() => abrirLegal('termos')}>
-              <Text style={styles.rodapeLink}>Termos de Uso</Text>
+              <Text style={styles.rodapeTxt}>Termos de Uso</Text>
             </TouchableOpacity>
-            <Text style={styles.rodapeSep}>|</Text>
+            <Text style={styles.rodapeTxt}>|</Text>
             <TouchableOpacity onPress={() => abrirLegal('privacidade')}>
-              <Text style={styles.rodapeLink}>Política de Privacidade</Text>
+              <Text style={styles.rodapeTxt}>Política de Privacidade</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -407,18 +413,26 @@ const styles = StyleSheet.create({
   },
   btnDangerTxt: { color: COLORS.gold, fontSize: 12, fontWeight: '600' },
 
+  /* Rodapé (igual ao das outras telas da conta) */
   rodape: {
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    paddingVertical: 16,
-    alignItems: 'center',
-    gap: 8,
+    minHeight: 55,
     marginHorizontal: -16,
+    paddingVertical: 15,
+    backgroundColor: COLORS.rodapeBg,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.rodapeBorda,
   },
-  rodapeTxt: { color: COLORS.muted, fontSize: 10 },
-  rodapeLinks: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  rodapeLink: { color: COLORS.mutedBlue, fontSize: 10 },
-  rodapeSep: { color: COLORS.mutedBlue, fontSize: 10 },
+  rodapeLargo: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    paddingHorizontal: 32,
+  },
+  rodapeEstreito: { alignItems: 'center', gap: 8, paddingHorizontal: 16 },
+  rodapeTxt: { color: COLORS.rodapeTxt, fontSize: 12 },
+  rodapeLinks: { flexDirection: 'row', alignItems: 'center', gap: 9 },
 
   modalRoot: { flex: 1, flexDirection: 'row' },
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },

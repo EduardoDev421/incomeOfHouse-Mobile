@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import {
   AuthTela, CartaoTitulo, Campo, CaixaErro, Botao, Divisor,
-  LinkConta, LinkContorno, validarEmail, dourado,
+  LinkConta, validarEmail, dourado,
 } from '../components/AuthComponentes';
 
 const ESPERA_REENVIO = 30; // segundos
@@ -59,7 +59,7 @@ export default function EsqueceuSenha() {
       miniCards
     >
       <CartaoTitulo
-        titulo={enviado ? 'Verifique seu e-mail' : 'Recuperar senha'}
+        titulo={enviado ? 'Verifique seu e-mail' : 'Esqueceu sua senha?'}
         subtitulo={
           enviado
             ? 'Se existir uma conta com esse e-mail, enviamos as instruções para redefinir sua senha.'
@@ -70,7 +70,6 @@ export default function EsqueceuSenha() {
       {!enviado ? (
         <>
           <Campo
-            icone="mail-outline"
             rotulo="E-mail"
             valor={email}
             aoMudar={(t) => {
@@ -90,7 +89,7 @@ export default function EsqueceuSenha() {
           <CaixaErro texto={erro} />
 
           <Botao
-            texto={enviando ? 'Enviando...' : 'Enviar instruções'}
+            texto={enviando ? 'Enviando...' : 'Enviar'}
             aoPressionar={enviar}
             desativado={enviando}
           />
@@ -133,11 +132,6 @@ export default function EsqueceuSenha() {
         pergunta="Lembrou sua senha?"
         acao="Entrar"
         aoPressionar={() => router.replace('/login')}
-      />
-
-      <LinkContorno
-        texto="Criar uma conta"
-        aoPressionar={() => router.push('/cadastro')}
       />
     </AuthTela>
   );

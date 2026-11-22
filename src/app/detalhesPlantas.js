@@ -11,10 +11,18 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useLegal } from '../components/LegalProvider';
 
 const DOURADO = '#c9a45c';
+const OURO_MENU = '#d4af6a'; // dourado do cabeçalho e do rodapé (igual à web)
 
-// Fundo da página. Troque o nome se a sua imagem de fundo for outra.
+// Fundo da página (o mesmo BackGroundPlantasEProfissionais.png da web).
+// 1) Copie a imagem do site para src/assets/images/BackGroundPlantasEProfissionais.png
+// 2) Troque a linha abaixo por:
+//    const FUNDO_PLANTAS = require('../../assets/images/BackGroundPlantasEProfissionais.png');
+// Enquanto estiver null, a tela usa o fundo antigo (BackgroundFundo.png).
+const FUNDO_PLANTAS = require('../../assets/images/BackGroundPlantasEProfissionais.png');
+
 const FUNDO = require('../../assets/images/BackgroundFundo.png');
 const IMAGEM_PADRAO = require('../../assets/images/casa.png');
 
@@ -85,6 +93,7 @@ function Estrelas({ nota, tamanho = 15 }) {
 
 export default function DetalhesPlantas() {
   const router = useRouter();
+  const { abrirLegal } = useLegal();
   const { id } = useLocalSearchParams();
   const { width } = useWindowDimensions();
   const largo = width >= 900;
@@ -99,43 +108,77 @@ export default function DetalhesPlantas() {
 
   const larguraCard = largo ? '31%' : medio ? '48%' : '100%';
 
-  const cabecalho = (
-    <View style={[styles.topo, largo ? styles.topoLargo : styles.topoEstreito]}>
-      <Pressable onPress={() => navegar('/')}>
-        <Image
-          source={require('../../assets/images/Logo.png')}
-          style={styles.logo}
-          resizeMode="contain"
-        />
+  // Fundo da página inteira (a imagem da web não tem véu escuro por cima)
+  const fundo = (
+    <>
+      <Image source={FUNDO_PLANTAS || FUNDO} style={styles.fundoImagem} resizeMode="cover" />
+      {!FUNDO_PLANTAS && <View style={styles.fundoOverlay} />}
+    </>
+  );
+
+  const menuTopo = (
+    <View style={[styles.menu, !largo && styles.menuEstreito]}>
+      <Pressable style={styles.item} onPress={() => navegar('/')}>
+        <Text style={styles.textoItem}>Início</Text>
       </Pressable>
-
-      <View style={[styles.menu, !largo && styles.menuEstreito]}>
-        <Pressable style={styles.item} onPress={() => navegar('/')}>
-          <Text style={styles.textoItem}>Início</Text>
-        </Pressable>
-        <Pressable style={styles.itemAtivo} onPress={() => navegar('/planta')}>
-          <Text style={styles.textoAtivo}>Plantas</Text>
-        </Pressable>
-        <Pressable style={styles.item} onPress={() => navegar('/profissionais')}>
-          <Text style={styles.textoItem}>Profissionais</Text>
-        </Pressable>
-        <Pressable style={styles.item} onPress={() => navegar('/sobreNos')}>
-          <Text style={styles.textoItem}>Sobre Nós</Text>
-        </Pressable>
-      </View>
-
-      <Pressable
-        style={[styles.perfil, !largo && styles.perfilEstreito]}
-        onPress={() => navegar('/login')}
-      >
-        <Ionicons name="person-circle-outline" size={42} color={DOURADO} />
+      <Pressable style={styles.itemAtivo} onPress={() => navegar('/planta')}>
+        <Text style={styles.textoAtivo}>Plantas</Text>
+      </Pressable>
+      <Pressable style={styles.item} onPress={() => navegar('/profissionais')}>
+        <Text style={styles.textoItem}>Profissionais</Text>
+      </Pressable>
+      <Pressable style={styles.item} onPress={() => navegar('/sobreNos')}>
+        <Text style={styles.textoItem}>Sobre Nós</Text>
       </Pressable>
     </View>
   );
 
+  const botaoPerfil = (
+    <Pressable
+      style={[styles.perfil, !largo && styles.perfilEstreito]}
+      onPress={() => navegar('/login')}
+      accessibilityRole="button"
+      accessibilityLabel="Entrar"
+    >
+      <Ionicons name="person-outline" size={20} color={OURO_MENU} />
+    </Pressable>
+  );
+
+  const cabecalho = (
+    <View style={[styles.topo, largo ? styles.topoLargo : styles.topoEstreito]}>
+      <Pressable onPress={() => navegar('/')} accessibilityRole="button" accessibilityLabel="Início">
+        <Image
+          source={require('../../assets/images/Logo.png')}
+          style={[styles.logo, largo && styles.logoLargo]}
+          resizeMode="contain"
+        />
+      </Pressable>
+
+      {/* No site o menu fica centralizado na barra, como na web */}
+      {largo ? (
+        <View style={styles.menuCentro} pointerEvents="box-none">
+          {menuTopo}
+        </View>
+      ) : (
+        menuTopo
+      )}
+
+      {botaoPerfil}
+    </View>
+  );
+
   const rodape = (
-    <View style={[styles.rodape, largo && styles.rodapeLargo]}>
+    <View style={styles.rodape}>
       <Text style={styles.textoRodape}>©IncomeOfHouses. Todos os direitos reservados.</Text>
+      <View style={styles.linksRodape}>
+        <Pressable onPress={() => abrirLegal('termos')} accessibilityRole="button" hitSlop={8}>
+          <Text style={styles.linkRodape}>Termos de Uso</Text>
+        </Pressable>
+        <Text style={styles.separadorRodape}>|</Text>
+        <Pressable onPress={() => abrirLegal('privacidade')} accessibilityRole="button" hitSlop={8}>
+          <Text style={styles.linkRodape}>Política de Privacidade</Text>
+        </Pressable>
+      </View>
     </View>
   );
 
@@ -144,15 +187,18 @@ export default function DetalhesPlantas() {
     return (
       <View style={styles.raiz}>
         <StatusBar barStyle="light-content" />
-        <Image source={FUNDO} style={styles.fundoImagem} resizeMode="cover" />
-        <View style={styles.fundoOverlay} />
+        {fundo}
         <ScrollView style={styles.scroll} contentContainerStyle={styles.conteudo}>
           {cabecalho}
-          <View style={[styles.pagina, styles.vazio]}>
-            <Text style={styles.vazioTitulo}>Planta não encontrada</Text>
-            <Pressable style={styles.btnSecundario} onPress={() => navegar('/planta')}>
-              <Text style={styles.btnSecundarioTexto}>Voltar para plantas</Text>
-            </Pressable>
+          <View style={styles.principal}>
+            <View style={styles.naoEncontrada}>
+              <Text style={styles.naoEncontradaTitulo} accessibilityRole="header">
+                Planta não encontrada.
+              </Text>
+              <Text style={styles.naoEncontradaTexto}>
+                Volte para a lista de plantas e tente novamente.
+              </Text>
+            </View>
           </View>
           {rodape}
         </ScrollView>
@@ -188,9 +234,7 @@ export default function DetalhesPlantas() {
     <View style={styles.raiz}>
       <StatusBar barStyle="light-content" />
 
-      {/* Fundo da página inteira */}
-      <Image source={FUNDO} style={styles.fundoImagem} resizeMode="cover" />
-      <View style={styles.fundoOverlay} />
+      {fundo}
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.conteudo}>
         {cabecalho}
@@ -382,7 +426,7 @@ export default function DetalhesPlantas() {
 }
 
 const styles = StyleSheet.create({
-  raiz: { flex: 1, backgroundColor: '#0a0a0a' },
+  raiz: { flex: 1, backgroundColor: '#0b0b0b' },
 
   fundoImagem: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
   fundoOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0, 0, 0, 0.55)' },
@@ -392,44 +436,87 @@ const styles = StyleSheet.create({
 
   // Cabeçalho
   topo: {
-    backgroundColor: 'rgba(10, 10, 10, 0.55)',
+    backgroundColor: 'rgba(10, 10, 10, 0.25)',
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.08)',
     paddingHorizontal: 24,
   },
   topoLargo: {
-    height: 78,
+    height: 75,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 140,
+    paddingHorizontal: '6%',
   },
   topoEstreito: { alignItems: 'center', paddingTop: 40, paddingBottom: 16 },
-  logo: { width: 110, height: 60 },
-  menu: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  menuEstreito: { flexWrap: 'wrap', justifyContent: 'center', marginTop: 10 },
+  logo: { width: 90, height: 48 },
+  logoLargo: { width: 70, height: 60, marginLeft: 30 },
+  menuCentro: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  menu: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  menuEstreito: { flexWrap: 'wrap', justifyContent: 'center', marginTop: 10, gap: 8 },
   item: {
-    paddingVertical: 10,
+    paddingVertical: 12,
     paddingHorizontal: 20,
-    borderRadius: 8,
+    borderRadius: 7,
     borderWidth: 1,
     borderColor: 'transparent',
   },
   itemAtivo: {
-    paddingVertical: 10,
+    paddingVertical: 12,
     paddingHorizontal: 20,
-    borderRadius: 8,
+    borderRadius: 7,
     borderWidth: 1,
-    borderColor: '#6b5a36',
-    backgroundColor: 'rgba(28, 26, 20, 0.9)',
+    borderColor: 'rgba(212, 175, 106, 0.4)',
+    backgroundColor: 'rgba(212, 175, 106, 0.08)',
   },
-  textoItem: { color: '#ffffff', fontSize: 14 },
-  textoAtivo: { color: DOURADO, fontSize: 14 },
-  perfil: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  textoItem: { color: '#ffffff', fontSize: 14, fontWeight: '500' },
+  textoAtivo: { color: OURO_MENU, fontSize: 14, fontWeight: '500' },
+  perfil: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.75)',
+    borderRadius: 20,
+  },
   perfilEstreito: { position: 'absolute', right: 20, top: 40 },
+
+  // Planta não encontrada
+  principal: {
+    flexGrow: 1,
+    width: '100%',
+    maxWidth: 1280,
+    alignSelf: 'center',
+    paddingHorizontal: 24,
+    paddingTop: 30,
+    paddingBottom: 40,
+  },
+  naoEncontrada: {
+    paddingVertical: 60,
+    paddingHorizontal: 30,
+    alignItems: 'center',
+    backgroundColor: 'rgba(18, 18, 18, 0.9)',
+    borderWidth: 1,
+    borderColor: 'rgba(218, 174, 82, 0.4)',
+    borderRadius: 14,
+  },
+  naoEncontradaTitulo: {
+    marginBottom: 10,
+    color: '#d9af52',
+    fontSize: 32,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  naoEncontradaTexto: { color: '#bdbdbd', fontSize: 16, textAlign: 'center' },
 
   // Conteúdo
   pagina: {
+    flexGrow: 1,
     width: '100%',
     maxWidth: 1250,
     alignSelf: 'center',
@@ -440,9 +527,6 @@ const styles = StyleSheet.create({
   },
   voltar: { flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start' },
   voltarTexto: { color: DOURADO, fontSize: 14 },
-
-  vazio: { alignItems: 'center', paddingVertical: 100, gap: 20 },
-  vazioTitulo: { color: '#ffffff', fontSize: 24, fontWeight: 'bold' },
 
   // Início
   inicio: { gap: 24 },
@@ -630,14 +714,21 @@ const styles = StyleSheet.create({
   estrelas: { flexDirection: 'row', gap: 3 },
   avaliacaoTexto: { color: '#d0d0d0', fontSize: 13, lineHeight: 21, marginTop: 10 },
 
-  // Rodapé
+  // Rodapé (igual à web: texto à esquerda, links à direita)
   rodape: {
-    backgroundColor: 'rgba(10, 10, 10, 0.92)',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 16,
+    paddingVertical: 22,
+    paddingHorizontal: '6%',
+    backgroundColor: '#080808',
     borderTopWidth: 1,
-    borderTopColor: 'rgba(201, 164, 92, 0.5)',
-    paddingVertical: 24,
-    paddingHorizontal: 24,
+    borderTopColor: OURO_MENU,
   },
-  rodapeLargo: { paddingHorizontal: 115 },
-  textoRodape: { color: '#9a9a9a', fontSize: 12 },
+  textoRodape: { color: '#888888', fontSize: 13 },
+  linksRodape: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  linkRodape: { color: OURO_MENU, fontSize: 13 },
+  separadorRodape: { color: '#555555', fontSize: 13 },
 });
