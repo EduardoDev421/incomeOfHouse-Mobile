@@ -1,10 +1,19 @@
 import { useEffect } from 'react';
 import { Platform } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, usePathname, useRouter } from 'expo-router';
 import { LegalProvider } from '../components/LegalProvider';
 import { ContaProvider } from '../components/ContaProvider';
 
 export default function RootLayout() {
+  const router = useRouter();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (Platform.OS === 'web' && (pathname === '/index' || pathname === '/index.html')) {
+      router.replace('/');
+    }
+  }, [pathname, router]);
+
   // Web: sem rolagem lateral e raiz com a altura da janela
   useEffect(() => {
     if (Platform.OS !== 'web') return undefined;

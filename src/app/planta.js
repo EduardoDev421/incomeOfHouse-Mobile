@@ -3,7 +3,6 @@ import {
   View,
   Text,
   Image,
-  ImageBackground,
   ScrollView,
   StyleSheet,
   Pressable,
@@ -16,24 +15,36 @@ import {
   Cabecalho,
   Rodape,
   Seletor,
-  PainelFiltros,
   Paginacao,
   Vazio,
-  DOURADO,
-  LARGO,
 } from '../components/Comuns.js';
 
+/* ------------------------------------------------------------------ */
+/* CONSTANTES                                                          */
+/* ------------------------------------------------------------------ */
+const OURO = '#d4af6a';
 const POR_PAGINA = 6;
-const FUNDO = require('../../assets/images/fundo-casa.png');
+
+// Copie BackGroundPlantasEProfissionais.png da pasta img do site web
+// para assets/images/ antes de rodar.
+const FUNDO = require('../../assets/images/BackGroundPlantasEProfissionais.png');
 const CASA = require('../../assets/images/casa.png');
+
+const GAP_FILTROS_X = 30;
+const GAP_FILTROS_Y = 22;
+const GAP_CARDS = 24;
 
 /* ------------------------------------------------------------------ */
 /* DADOS DE EXEMPLO                                                    */
 /* Troque por seus dados reais (API/banco). Cada planta precisa ter:   */
 /* id, nome, tipo, quartos, garagens, area, estilo                     */
-/* Opcional: foto (require('...') ou { uri: '...' })                   */
+/* Opcional: foto (require('...') ou { uri: '...' }) e preco (número)  */
+/*                                                                     */
+/* TODO: buscar as plantas na API (services/api.js), como o site web.  */
 /* ------------------------------------------------------------------ */
-const PLANTAS = [
+const PLANTAS = [];
+
+/* Exemplos que estavam aqui (para voltar a usar, cole dentro de PLANTAS):
   { id: 1, nome: 'Casa Moderna Aurora', tipo: 'Sobrado', quartos: 4, garagens: 3, area: 320, estilo: 'Moderno' },
   { id: 2, nome: 'Residência Horizonte', tipo: 'Casa Térrea', quartos: 3, garagens: 2, area: 180, estilo: 'Contemporâneo' },
   { id: 3, nome: 'Casa Minimal', tipo: 'Casa Térrea', quartos: 2, garagens: 1, area: 95, estilo: 'Minimalista' },
@@ -43,7 +54,7 @@ const PLANTAS = [
   { id: 7, nome: 'Casa Tropical Brisa', tipo: 'Casa de Praia', quartos: 4, garagens: 2, area: 260, estilo: 'Tropical' },
   { id: 8, nome: 'Edícula Gourmet', tipo: 'Edícula', quartos: 1, garagens: 1, area: 55, estilo: 'Escandinavo' },
   { id: 9, nome: 'Residência Neoclássica', tipo: 'Casa de Condomínio', quartos: 5, garagens: 4, area: 520, estilo: 'Neoclássico' },
-];
+*/
 
 /* ------------------------------------------------------------------ */
 /* OPÇÕES DOS FILTROS                                                  */
@@ -100,10 +111,19 @@ const OPCOES_ESTILO = [
   ),
 ];
 
+// Ordem igual à do site: Projetos, Quartos, Garagens / Área, Estilo, Pesquisar
+const CAMPOS = [
+  { chave: 'tipo', rotulo: 'Projetos', icone: 'home-outline', opcoes: OPCOES_TIPO },
+  { chave: 'quartos', rotulo: 'Quartos', icone: 'bed-outline', opcoes: OPCOES_QUARTOS },
+  { chave: 'garagem', rotulo: 'Garagens', icone: 'car-outline', opcoes: OPCOES_GARAGEM },
+  { chave: 'area', rotulo: 'Área construída', icone: 'resize-outline', opcoes: OPCOES_AREA },
+  { chave: 'estilo', rotulo: 'Estilo', icone: 'color-palette-outline', opcoes: OPCOES_ESTILO },
+];
+
 const FILTROS_VAZIOS = { tipo: '', quartos: '', garagem: '', area: '', estilo: '' };
 
 /* ------------------------------------------------------------------ */
-/* LÓGICA DE FILTRO                                                    */
+/* FUNÇÕES AUXILIARES                                                  */
 /* ------------------------------------------------------------------ */
 function filtrar(lista, f) {
   return lista.filter((p) => {
@@ -134,14 +154,27 @@ function filtrar(lista, f) {
   });
 }
 
+// Mesmos pontos de quebra do site: 3 colunas, 2 (até 1000px), 1 (até 640px)
+const colunasPorLargura = (w) => (w >= 1000 ? 3 : w >= 640 ? 2 : 1);
+
+// Largura de cada célula de uma grade, a partir da largura medida do contêiner
+const larguraCelula = (total, colunas, gap) => {
+  if (!total) return '100%';
+  if (colunas === 1) return total;
+  return Math.floor((total - gap * (colunas - 1)) / colunas);
+};
+
+const moeda = (v) =>
+  'R$ ' + Number(v).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+
 /* ------------------------------------------------------------------ */
 /* TELA                                                                */
 /* ------------------------------------------------------------------ */
 export default function Plantas() {
   const router = useRouter();
   const { width } = useWindowDimensions();
-  const largo = width >= LARGO;
-  const medio = width >= 600;
+  const largo = width >= 1000;
+  const colunas = colunasPorLargura(width);
 
   const rolar = useRef(null);
   const pos = useRef({ pagina: 0, lista: 0 });
@@ -150,6 +183,8 @@ export default function Plantas() {
   const [aplicados, setAplicados] = useState(FILTROS_VAZIOS);
   const [pagina, setPagina] = useState(1);
   const [favoritos, setFavoritos] = useState([]);
+  const [larguraGrade, setLarguraGrade] = useState(0);
+  const [larguraLista, setLarguraLista] = useState(0);
 
   const mudar = (campo) => (valor) => setFiltros((f) => ({ ...f, [campo]: valor }));
 
@@ -179,7 +214,9 @@ export default function Plantas() {
   const resultado = filtrar(PLANTAS, aplicados);
   const totalPaginas = Math.max(1, Math.ceil(resultado.length / POR_PAGINA));
   const visiveis = resultado.slice((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA);
-  const larguraCard = largo ? '31.8%' : medio ? '48%' : '100%';
+
+  const celulaFiltro = larguraCelula(larguraGrade, colunas, GAP_FILTROS_X);
+  const larguraCard = larguraCelula(larguraLista, colunas, GAP_CARDS);
 
   return (
     <ScrollView
@@ -190,108 +227,165 @@ export default function Plantas() {
     >
       <StatusBar barStyle="light-content" />
 
-      <Cabecalho />
+      <View style={styles.corpo}>
+        {/* Fundo com as folhas e as linhas douradas (igual ao site) */}
+        <Image source={FUNDO} style={styles.fundo} resizeMode="cover" />
 
-      {/* Hero */}
-      <ImageBackground source={FUNDO} style={styles.hero} imageStyle={styles.heroImagem} resizeMode="cover">
-        <View style={styles.heroOverlay} />
-        <View style={[styles.heroConteudo, largo && styles.heroConteudoLargo]}>
+        <Cabecalho />
+
+        {/* Hero */}
+        <View style={[styles.hero, styles.contenedor]}>
           <View style={styles.etiqueta}>
-            <Text style={styles.etiquetaTexto}>Plantas</Text>
+            <View style={styles.etiquetaLinha} />
+            <Text style={styles.etiquetaTexto}>PLANTAS</Text>
+            <View style={styles.etiquetaLinha} />
           </View>
-          <Text style={[styles.heroTitulo, largo && styles.heroTituloLargo]}>
-            Encontre o projeto{'\n'}perfeito para você
-          </Text>
+
+          <View style={styles.tituloBloco}>
+            <Text style={[styles.titulo, !largo && styles.tituloPequeno]}>
+              Encontre o projeto{'\n'}perfeito para você
+            </Text>
+            <View style={styles.tituloBarra} />
+          </View>
+
           <Text style={styles.heroTexto}>
             Explore nossa coleção de plantas arquitetônicas e filtre por suas
             preferências para encontrar o projeto ideal.
           </Text>
         </View>
-      </ImageBackground>
 
-      <View
-        style={styles.pagina}
-        onLayout={(e) => (pos.current.pagina = e.nativeEvent.layout.y)}
-      >
-        <PainelFiltros ativos={ativos} aoPesquisar={pesquisar} aoLimpar={limpar}>
-          <Seletor rotulo="Projetos" icone="home-outline" valor={filtros.tipo} opcoes={OPCOES_TIPO} aoMudar={mudar('tipo')} />
-          <Seletor rotulo="Quartos" icone="bed-outline" valor={filtros.quartos} opcoes={OPCOES_QUARTOS} aoMudar={mudar('quartos')} />
-          <Seletor rotulo="Garagens" icone="car-outline" valor={filtros.garagem} opcoes={OPCOES_GARAGEM} aoMudar={mudar('garagem')} />
-          <Seletor rotulo="Área construída" icone="resize-outline" valor={filtros.area} opcoes={OPCOES_AREA} aoMudar={mudar('area')} />
-          <Seletor rotulo="Estilo" icone="color-palette-outline" valor={filtros.estilo} opcoes={OPCOES_ESTILO} aoMudar={mudar('estilo')} />
-        </PainelFiltros>
+        <View
+          style={[styles.pagina, styles.contenedor]}
+          onLayout={(e) => (pos.current.pagina = e.nativeEvent.layout.y)}
+        >
+          {/* Card de filtros */}
+          <View style={styles.filtros}>
+            <View
+              style={styles.filtrosGrade}
+              onLayout={(e) => setLarguraGrade(e.nativeEvent.layout.width)}
+            >
+              {CAMPOS.map((c) => (
+                <View key={c.chave} style={[styles.celula, { width: celulaFiltro }]}>
+                  <Seletor
+                    rotulo={c.rotulo}
+                    icone={c.icone}
+                    valor={filtros[c.chave]}
+                    opcoes={c.opcoes}
+                    aoMudar={mudar(c.chave)}
+                  />
+                </View>
+              ))}
 
-        <View onLayout={(e) => (pos.current.lista = e.nativeEvent.layout.y)}>
-          {resultado.length === 0 ? (
-            <Vazio texto="Nenhum projeto encontrado com esses filtros." aoLimpar={limpar} />
-          ) : (
-            <>
-              <Text style={styles.mensagem} accessibilityLiveRegion="polite">
-                {resultado.length} {resultado.length === 1 ? 'projeto encontrado' : 'projetos encontrados'}
-              </Text>
+              <View style={[styles.celula, { width: celulaFiltro }]}>
+                <Pressable
+                  onPress={pesquisar}
+                  style={({ pressed }) => [styles.btnPesquisar, pressed && styles.pressionado]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Pesquisar"
+                >
+                  <Ionicons name="search-outline" size={18} color="#111" />
+                  <Text style={styles.btnPesquisarTexto}>Pesquisar</Text>
+                </Pressable>
+              </View>
+            </View>
 
-              <View style={styles.lista}>
-                {visiveis.map((p) => {
-                  const favorito = favoritos.includes(p.id);
-                  return (
-                    <View key={p.id} style={[styles.card, { width: larguraCard }]}>
-                      <View>
-                        <Image source={p.foto ?? CASA} style={styles.cardImagem} resizeMode="cover" />
-                        <Pressable
-                          style={styles.favorito}
-                          onPress={() => alternarFavorito(p.id)}
-                          hitSlop={8}
-                          accessibilityRole="button"
-                          accessibilityLabel={favorito ? 'Remover dos favoritos' : 'Favoritar'}
-                        >
-                          <Ionicons
-                            name={favorito ? 'heart' : 'heart-outline'}
-                            size={18}
-                            color={favorito ? DOURADO : '#ffffff'}
-                          />
-                        </Pressable>
-                      </View>
+            {ativos > 0 && (
+              <Pressable onPress={limpar} hitSlop={8} style={styles.limpar} accessibilityRole="button">
+                <Text style={styles.limparTexto}>Limpar filtros</Text>
+              </Pressable>
+            )}
+          </View>
 
-                      <View style={styles.cardCorpo}>
-                        <Text style={styles.cardTipo}>{p.tipo}</Text>
-                        <Text style={styles.cardNome}>{p.nome}</Text>
+          {/* Mensagem + lista */}
+          <View onLayout={(e) => (pos.current.lista = e.nativeEvent.layout.y)}>
+            {PLANTAS.length === 0 ? (
+              <Text style={styles.semPlantas}>Nenhuma planta disponível no momento.</Text>
+            ) : resultado.length === 0 ? (
+              <Vazio texto="Nenhum projeto encontrado com esses filtros." aoLimpar={limpar} />
+            ) : (
+              <>
+                <Text style={styles.mensagem} accessibilityLiveRegion="polite">
+                  {resultado.length} {resultado.length === 1 ? 'projeto encontrado' : 'projetos encontrados'}
+                </Text>
 
-                        <View style={styles.specs}>
-                          <View style={styles.spec}>
-                            <Ionicons name="bed-outline" size={15} color={DOURADO} />
-                            <Text style={styles.specTexto}>{p.quartos}</Text>
-                          </View>
-                          <View style={styles.spec}>
-                            <Ionicons name="car-outline" size={15} color={DOURADO} />
-                            <Text style={styles.specTexto}>{p.garagens}</Text>
-                          </View>
-                          <View style={styles.spec}>
-                            <Ionicons name="resize-outline" size={15} color={DOURADO} />
-                            <Text style={styles.specTexto}>{p.area} m²</Text>
-                          </View>
+                <View
+                  style={styles.lista}
+                  onLayout={(e) => setLarguraLista(e.nativeEvent.layout.width)}
+                >
+                  {visiveis.map((p) => {
+                    const favorito = favoritos.includes(p.id);
+                    return (
+                      <View key={p.id} style={[styles.card, { width: larguraCard }]}>
+                        <View>
+                          <Image source={p.foto ?? CASA} style={styles.cardImagem} resizeMode="cover" />
+                          <Pressable
+                            style={styles.favorito}
+                            onPress={() => alternarFavorito(p.id)}
+                            hitSlop={8}
+                            accessibilityRole="button"
+                            accessibilityLabel={favorito ? 'Remover dos favoritos' : 'Favoritar'}
+                          >
+                            <Ionicons
+                              name={favorito ? 'heart' : 'heart-outline'}
+                              size={17}
+                              color={favorito ? OURO : '#ffffff'}
+                            />
+                          </Pressable>
                         </View>
 
-                        <Text style={styles.cardEstilo}>Estilo {p.estilo}</Text>
+                        <View style={styles.cardCorpo}>
+                          <Text style={styles.cardNome} numberOfLines={1}>
+                            {p.nome}
+                          </Text>
 
-                        <Pressable
-                          style={({ pressed }) => [styles.btnDetalhes, pressed && styles.pressionado]}
-                          accessibilityRole="button"
-                          onPress={() =>
-                            router.push({ pathname: '/detalhesPlantas', params: { id: String(p.id) } })
-                          }
-                        >
-                          <Text style={styles.btnDetalhesTexto}>Ver detalhes</Text>
-                        </Pressable>
+                          <View style={styles.tags}>
+                            <View style={styles.tag}>
+                              <Text style={styles.tagTexto}>{p.tipo}</Text>
+                            </View>
+                            <View style={styles.tag}>
+                              <Text style={styles.tagTexto}>{p.estilo}</Text>
+                            </View>
+                          </View>
+
+                          <View style={styles.specs}>
+                            <View style={styles.spec}>
+                              <Ionicons name="bed-outline" size={15} color={OURO} />
+                              <Text style={styles.specTexto}>{p.quartos}</Text>
+                            </View>
+                            <View style={styles.spec}>
+                              <Ionicons name="car-outline" size={15} color={OURO} />
+                              <Text style={styles.specTexto}>{p.garagens}</Text>
+                            </View>
+                            <View style={styles.spec}>
+                              <Ionicons name="resize-outline" size={15} color={OURO} />
+                              <Text style={styles.specTexto}>{p.area} m²</Text>
+                            </View>
+                          </View>
+
+                          {p.preco != null && <Text style={styles.preco}>{moeda(p.preco)}</Text>}
+
+                          <Pressable
+                            style={({ pressed }) => [styles.btnDetalhes, pressed && styles.pressionado]}
+                            accessibilityRole="button"
+                            onPress={() =>
+                              router.push({ pathname: '/detalhesPlantas', params: { id: String(p.id) } })
+                            }
+                          >
+                            <Text style={styles.btnDetalhesTexto}>Ver detalhes</Text>
+                          </Pressable>
+                        </View>
                       </View>
-                    </View>
-                  );
-                })}
-              </View>
-            </>
+                    );
+                  })}
+                </View>
+              </>
+            )}
+          </View>
+
+          {resultado.length > 0 && (
+            <Paginacao pagina={pagina} total={totalPaginas} aoMudar={irParaPagina} />
           )}
         </View>
-
-        <Paginacao pagina={pagina} total={totalPaginas} aoMudar={irParaPagina} />
       </View>
 
       <Rodape />
@@ -299,80 +393,149 @@ export default function Plantas() {
   );
 }
 
+/* ------------------------------------------------------------------ */
+/* ESTILOS                                                             */
+/* ------------------------------------------------------------------ */
 const styles = StyleSheet.create({
-  tela: { flex: 1, backgroundColor: '#0a0a0a' },
+  tela: { flex: 1, backgroundColor: '#0b0b0b' },
   conteudo: { flexGrow: 1 },
   pressionado: { opacity: 0.75 },
 
+  // Fundo
+  // Cresce para ocupar o espaço livre (sem usar flex: 1, que zeraria o flex-basis)
+  // e assim o rodapé fica sempre no final da página
+  corpo: {
+    flexGrow: 1,
+    flexShrink: 0,
+    flexBasis: 'auto',
+    backgroundColor: '#0b0b0b',
+    overflow: 'hidden',
+  },
+  fundo: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
+
+  // Contêiner central (90% da largura, máx. 1300)
+  contenedor: { width: '90%', maxWidth: 1300, alignSelf: 'center' },
+
   // Hero
-  hero: { width: '100%', backgroundColor: '#000' },
-  heroImagem: { width: '100%', height: '100%' },
-  heroOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.65)' },
-  heroConteudo: { paddingHorizontal: 24, paddingVertical: 36 },
-  heroConteudoLargo: { paddingHorizontal: 150, paddingVertical: 70 },
+  hero: { paddingTop: 56, paddingBottom: 10 },
   etiqueta: {
     alignSelf: 'flex-start',
-    borderWidth: 1,
-    borderColor: '#6b5a36',
-    backgroundColor: '#1c1a14',
-    borderRadius: 999,
-    paddingVertical: 5,
-    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
     marginBottom: 14,
   },
-  etiquetaTexto: { color: DOURADO, fontSize: 12, fontWeight: 'bold' },
-  heroTitulo: { color: '#fff', fontSize: 30, fontWeight: '800', lineHeight: 38 },
-  heroTituloLargo: { fontSize: 46, lineHeight: 54 },
-  heroTexto: { color: '#d8d8d8', fontSize: 15, lineHeight: 24, marginTop: 14, maxWidth: 520 },
+  etiquetaLinha: { width: 40, height: 1, backgroundColor: 'rgba(212, 175, 106, 0.5)' },
+  etiquetaTexto: { color: OURO, fontSize: 13, fontWeight: '700', letterSpacing: 1.5 },
+
+  tituloBloco: { alignSelf: 'flex-start', paddingBottom: 14, marginBottom: 16 },
+  titulo: { color: '#f5f5f5', fontSize: 40, fontWeight: '800', lineHeight: 48 },
+  tituloPequeno: { fontSize: 30, lineHeight: 36 },
+  tituloBarra: {
+    position: 'absolute',
+    left: 0,
+    bottom: 0,
+    width: 46,
+    height: 3,
+    backgroundColor: OURO,
+    borderRadius: 2,
+  },
+  heroTexto: { color: '#c7c7c7', fontSize: 14, lineHeight: 24 },
 
   // Página
-  pagina: {
-    width: '100%',
-    maxWidth: 1190,
-    alignSelf: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    paddingBottom: 36,
+  pagina: { paddingTop: 22, paddingBottom: 36 },
+
+  // Card de filtros
+  filtros: {
+    padding: 26,
+    paddingHorizontal: 30,
+    backgroundColor: '#141414',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 14,
+    shadowColor: '#000',
+    shadowOpacity: 0.35,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 8,
   },
-  mensagem: { color: '#b5b5b5', fontSize: 14, marginTop: 22, marginBottom: 14 },
-  lista: { flexDirection: 'row', flexWrap: 'wrap', gap: 20 },
+  filtrosGrade: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'flex-end',
+    columnGap: GAP_FILTROS_X,
+    rowGap: GAP_FILTROS_Y,
+  },
+  // Em linha para o Seletor ocupar a largura da célula sem colapsar a altura
+  celula: { flexDirection: 'row' },
+  btnPesquisar: {
+    flex: 1,
+    height: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: OURO,
+    borderRadius: 8,
+  },
+  btnPesquisarTexto: { color: '#111', fontSize: 14, fontWeight: '700' },
+  limpar: { alignSelf: 'flex-start', marginTop: 16 },
+  limparTexto: { color: OURO, fontSize: 13, textDecorationLine: 'underline' },
+
+  // Mensagem + lista
+  mensagem: { color: '#a3a3a3', fontSize: 13, marginTop: 30, marginBottom: 6, minHeight: 22 },
+  semPlantas: { color: '#a3a3a3', fontSize: 13, marginTop: 30, marginBottom: 40 },
+  lista: { flexDirection: 'row', flexWrap: 'wrap', gap: GAP_CARDS, paddingVertical: 20 },
 
   // Card
   card: {
-    backgroundColor: '#121212',
+    minWidth: 0,
+    backgroundColor: '#141414',
     borderWidth: 1,
-    borderColor: '#2a2a2a',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 14,
     overflow: 'hidden',
   },
-  cardImagem: { width: '100%', height: 180, backgroundColor: '#1a1a1a' },
+  cardImagem: { width: '100%', height: 210, backgroundColor: '#0e0e0e' },
   favorito: {
     position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(0,0,0,0.65)',
+    top: 14,
+    right: 14,
+    width: 34,
+    height: 34,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: 'rgba(10, 10, 10, 0.6)',
+    borderRadius: 17,
   },
-  cardCorpo: { padding: 18 },
-  cardTipo: { color: DOURADO, fontSize: 12, fontWeight: 'bold' },
-  cardNome: { color: '#fff', fontSize: 18, fontWeight: 'bold', marginTop: 4 },
-  specs: { flexDirection: 'row', gap: 18, marginTop: 12 },
-  spec: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  specTexto: { color: '#d0d0d0', fontSize: 13 },
-  cardEstilo: { color: '#8a8a8a', fontSize: 13, marginTop: 10 },
-  btnDetalhes: {
-    marginTop: 16,
+  cardCorpo: { paddingTop: 18, paddingHorizontal: 20, paddingBottom: 20 },
+  cardNome: { color: '#fff', fontSize: 17, fontWeight: '700', marginBottom: 10 },
+
+  tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 14 },
+  tag: {
+    paddingVertical: 3,
+    paddingHorizontal: 10,
+    backgroundColor: 'rgba(212, 175, 106, 0.08)',
     borderWidth: 1,
-    borderColor: '#6b5a36',
-    backgroundColor: '#1c1a14',
-    borderRadius: 8,
+    borderColor: 'rgba(212, 175, 106, 0.35)',
+    borderRadius: 999,
+  },
+  tagTexto: { color: OURO, fontSize: 11.5, fontWeight: '600' },
+
+  specs: { flexDirection: 'row', flexWrap: 'wrap', gap: 14, marginBottom: 14 },
+  spec: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  specTexto: { color: '#a3a3a3', fontSize: 12.5 },
+
+  preco: { color: OURO, fontSize: 19, fontWeight: '700', marginBottom: 16 },
+
+  btnDetalhes: {
     height: 44,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: 'rgba(212, 175, 106, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 106, 0.4)',
+    borderRadius: 8,
   },
-  btnDetalhesTexto: { color: DOURADO, fontWeight: 'bold', fontSize: 14 },
+  btnDetalhesTexto: { color: OURO, fontSize: 13, fontWeight: '600' },
 });

@@ -699,48 +699,51 @@ export default function MeuPortfolio() {
           onNavegar={navegar}
         />
 
-        <View style={[s.painel, medio && s.painelMedio, mobile && s.painelMobile]}>
-          {!mobile && (
-            <View style={[s.menuLateral, medio && s.menuLateralMedio]}>
-              {menuConta}
-            </View>
-          )}
-
-          <View
-            style={[
-              s.principal,
-              medio && s.principalMedio,
-              mobile && s.principalMobile,
-            ]}
-          >
-            <CabecalhoPagina
-              mobile={mobile}
-              preenchido={estado === 'preenchido'}
-              onTrocar={trocarArquivo}
-              onEditar={editarPortfolio}
-            />
-
-            {estado === 'vazio' && <AreaEnvio erro={erro} onEscolher={escolherArquivo} />}
-
-            {estado === 'analisando' && <Analisando nomeArquivo={nomeArquivo} etapa={etapa} />}
-
-            {estado === 'preenchido' && !!dados && (
-              <View style={s.preenchido}>
-                <Relatorio itens={dados.relatorio} mobile={mobile} />
-
-                {precisaRevisar && (
-                  <View style={s.avisoRevisao}>
-                    <Text style={s.avisoRevisaoTexto}>
-                      Revise as informações destacadas antes de publicar.
-                    </Text>
-                  </View>
-                )}
-
-                <PerfilBloco dados={dados} mobile={mobile} />
-                <CardSobre dados={dados} />
-                <CardProjetos projetos={dados.projetos || []} colunas={colunas} mobile={mobile} />
+        {/* Ocupa o espaço que sobra e empurra o rodapé para o final da página */}
+        <View style={s.areaPagina}>
+          <View style={[s.painel, medio && s.painelMedio, mobile && s.painelMobile]}>
+            {!mobile && (
+              <View style={[s.menuLateral, medio && s.menuLateralMedio]}>
+                {menuConta}
               </View>
             )}
+
+            <View
+              style={[
+                s.principal,
+                medio && s.principalMedio,
+                mobile && s.principalMobile,
+              ]}
+            >
+              <CabecalhoPagina
+                mobile={mobile}
+                preenchido={estado === 'preenchido'}
+                onTrocar={trocarArquivo}
+                onEditar={editarPortfolio}
+              />
+
+              {estado === 'vazio' && <AreaEnvio erro={erro} onEscolher={escolherArquivo} />}
+
+              {estado === 'analisando' && <Analisando nomeArquivo={nomeArquivo} etapa={etapa} />}
+
+              {estado === 'preenchido' && !!dados && (
+                <View style={s.preenchido}>
+                  <Relatorio itens={dados.relatorio} mobile={mobile} />
+
+                  {precisaRevisar && (
+                    <View style={s.avisoRevisao}>
+                      <Text style={s.avisoRevisaoTexto}>
+                        Revise as informações destacadas antes de publicar.
+                      </Text>
+                    </View>
+                  )}
+
+                  <PerfilBloco dados={dados} mobile={mobile} />
+                  <CardSobre dados={dados} />
+                  <CardProjetos projetos={dados.projetos || []} colunas={colunas} mobile={mobile} />
+                </View>
+              )}
+            </View>
           </View>
         </View>
 
@@ -773,6 +776,8 @@ const s = StyleSheet.create({
   fundo: { flex: 1, backgroundColor: '#090909' },
   sombra: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0, 0, 0, 0.65)' },
   conteudo: { flexGrow: 1 },
+  // Cresce para ocupar o espaço livre (sem usar flex: 1, que zeraria o flex-basis)
+  areaPagina: { flexGrow: 1, flexShrink: 0, flexBasis: 'auto' },
   pressionado: { opacity: 0.75 },
   faltando: { color: '#e0b44a', fontStyle: 'italic' },
 

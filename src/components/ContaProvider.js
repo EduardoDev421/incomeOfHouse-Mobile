@@ -23,6 +23,9 @@ export const DEBUG_CONTA = false;
 const TIPOS = ['usuario', 'profissional'];
 
 // Menus de cada tipo de conta
+// IMPORTANTE: cada "rota" precisa ser igual ao nome do arquivo dentro de app/
+// (sem o .js), com as mesmas maiúsculas e minúsculas.
+// Ex.: app/meusenderecosU.js  ->  '/meusenderecosU'
 export const MENUS = {
   usuario: [
     { id: 'perfil', nome: 'Meu Perfil', icone: 'person-outline', rota: '/PerfilUsuario' },
