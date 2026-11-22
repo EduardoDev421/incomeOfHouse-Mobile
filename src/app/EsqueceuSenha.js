@@ -6,6 +6,7 @@ import {
   AuthTela, CartaoTitulo, Campo, CaixaErro, Botao, Divisor,
   LinkConta, validarEmail, dourado,
 } from '../components/AuthComponentes';
+import { enviarRecuperacaoSenha, mensagemErroAuth } from '../services/auth';
 
 const ESPERA_REENVIO = 30; // segundos
 
@@ -41,11 +42,11 @@ export default function EsqueceuSenha() {
     setErro('');
     setEnviando(true);
     try {
-      // TODO: chamar o seu backend para enviar o e-mail de recuperação aqui
+      await enviarRecuperacaoSenha(valor);
       setEnviado(true);
       setEspera(ESPERA_REENVIO);
     } catch (e) {
-      setErro('Não foi possível enviar agora. Tente novamente em instantes.');
+      setErro(mensagemErroAuth(e));
     } finally {
       setEnviando(false);
     }

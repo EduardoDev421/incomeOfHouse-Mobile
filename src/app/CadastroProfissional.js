@@ -3,12 +3,15 @@ import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker'; // npx expo install expo-document-picker
+import { usarConta } from '../components/ContaProvider';
 import {
   AuthTela, CartaoTitulo, Campo, Seletor, Linha, CaixaErro, Botao,
   Divisor, LinkConta, LinkContorno, maskCPF, maskTelefone, maskData,
   validarEmail, validarTelefone, validarCPF, validarData, dourado,
 } from '../components/AuthComponentes';
 import TextoLegal from '../components/TextoLegal';
+import { cadastrarComEmail, dataParaISO, mensagemErroAuth } from '../services/auth';
+import { enviarComprovanteProfissional, tipoComprovante } from '../services/documentos';
 
 const TAMANHO_MAX = 10 * 1024 * 1024; // 10 MB
 
@@ -73,6 +76,7 @@ const formatarTamanho = (bytes) =>
 
 export default function CadastroProfissional() {
   const router = useRouter();
+  const { recarregarPerfil } = usarConta();
 
   const [nome, setNome] = useState('');
   const [registro, setRegistro] = useState('');
@@ -87,7 +91,11 @@ export default function CadastroProfissional() {
   const [confirmar, setConfirmar] = useState('');
   const [arquivo, setArquivo] = useState(null);
   const [erro, setErro] = useState('');
+  const [aviso, setAviso] = useState('');
+  const [cadastroConcluido, setCadastroConcluido] = useState(false);
+  const [sessaoCriada, setSessaoCriada] = useState(false);
   const [enviando, setEnviando] = useState(false);
+  const [continuando, setContinuando] = useState(false);
 
   // limpa a mensagem de erro assim que a pessoa volta a preencher
   const mudar = (set) => (valor) => {
@@ -99,20 +107,25 @@ export default function CadastroProfissional() {
   const escolherArquivo = async () => {
     try {
       const r = await DocumentPicker.getDocumentAsync({
-        type: ['application/pdf', 'image/*'],
+        type: ['application/pdf', 'image/jpeg', 'image/png'],
         copyToCacheDirectory: true,
       });
       if (r.canceled || !r.assets?.length) return;
 
       const escolhido = r.assets[0];
+      const mimeType = tipoComprovante(escolhido);
+      if (!mimeType) {
+        setErro('Escolha um comprovante em PDF, JPEG ou PNG.');
+        return;
+      }
       if (escolhido.size && escolhido.size > TAMANHO_MAX) {
         setErro('O arquivo deve ter no máximo 10 MB.');
         return;
       }
       setErro('');
-      setArquivo(escolhido);
-    } catch (e) {
-      setErro('Não foi possível abrir o seletor de arquivos.');
+      setArquivo({ ...escolhido, mimeType });
+    } catch (error) {
+      setErro(error?.message || 'Não foi possível abrir o seletor de arquivos.');
     }
   };
 
@@ -133,7 +146,7 @@ export default function CadastroProfissional() {
   };
 
   const cadastrar = async () => {
-    if (enviando) return;
+    if (enviando || cadastroConcluido) return;
 
     const mensagem = validar();
     if (mensagem) {
@@ -144,13 +157,60 @@ export default function CadastroProfissional() {
     setErro('');
     setEnviando(true);
     try {
-      // TODO: enviar os dados e o arquivo (arquivo.uri) para o seu backend aqui
-      // replace: depois de cadastrar, o botão voltar não deve retornar ao formulário
-      router.replace('/login?tipo=profissional');
+      const resultado = await cadastrarComEmail(email, senha, {
+        account_type: 'profissional',
+        full_name: nome.trim(),
+        cpf: cpf.replace(/\D/g, ''),
+        phone: telefone.replace(/\D/g, ''),
+        birth_date: dataParaISO(nascimento),
+        city: cidade.trim(),
+        state: estado,
+        profession: profissao,
+        professional_registration: registro.trim(),
+      });
+
+      const sessaoAtiva = Boolean(resultado.session);
+      let mensagemCadastro;
+      if (sessaoAtiva) {
+        try {
+          await enviarComprovanteProfissional(arquivo);
+          mensagemCadastro = 'Conta criada e comprovante enviado para análise.';
+        } catch (erroDocumento) {
+          mensagemCadastro =
+            `Conta criada, mas o comprovante não foi enviado: ${mensagemErroAuth(erroDocumento)}. ` +
+            'Você pode tentar novamente na tela do perfil profissional.';
+        }
+      } else {
+        mensagemCadastro =
+          'Cadastro criado. Confirme seu e-mail; depois, envie o comprovante pelo perfil profissional.';
+      }
+
+      setCadastroConcluido(true);
+      setSessaoCriada(sessaoAtiva);
+      setSenha('');
+      setConfirmar('');
+      setAviso(mensagemCadastro);
     } catch (e) {
-      setErro('Não foi possível concluir o cadastro. Tente novamente.');
+      setErro(mensagemErroAuth(e));
     } finally {
       setEnviando(false);
+    }
+  };
+
+  const continuar = async () => {
+    if (!sessaoCriada) {
+      router.replace('/login');
+      return;
+    }
+
+    setContinuando(true);
+    try {
+      await recarregarPerfil();
+      router.replace('/PerfilProfissional');
+    } catch (error) {
+      setAviso(`Conta criada, mas não foi possível carregar o perfil: ${mensagemErroAuth(error)}`);
+    } finally {
+      setContinuando(false);
     }
   };
 
@@ -325,13 +385,27 @@ export default function CadastroProfissional() {
       </View>
 
       <CaixaErro texto={erro} />
+      {!!aviso && <Text style={s.aviso} accessibilityLiveRegion="polite">{aviso}</Text>}
+      {cadastroConcluido && (
+        <Botao
+          texto={
+            continuando
+              ? 'Carregando perfil...'
+              : sessaoCriada
+                ? 'Continuar para o perfil'
+                : 'Ir para o login'
+          }
+          aoPressionar={continuar}
+          desativado={continuando}
+        />
+      )}
 
       <TextoLegal prefixo="Ao se cadastrar, você concorda com os" />
 
       <Botao
         texto={enviando ? 'Cadastrando...' : 'Cadastrar'}
         aoPressionar={cadastrar}
-        desativado={enviando}
+        desativado={enviando || cadastroConcluido}
       />
 
       <Divisor texto="ou" />
@@ -339,7 +413,7 @@ export default function CadastroProfissional() {
       <LinkConta
         pergunta="Já possui um cadastro?"
         acao="Entrar"
-        aoPressionar={() => router.push('/login?tipo=profissional')}
+        aoPressionar={() => router.push('/login')}
       />
 
       <LinkContorno
@@ -352,6 +426,7 @@ export default function CadastroProfissional() {
 
 const s = StyleSheet.create({
   grupoArquivo: { marginBottom: 14 },
+  aviso: { color: '#d8b965', fontSize: 13, textAlign: 'center', marginBottom: 12 },
   rotuloArquivo: { color: '#b5b5b5', fontSize: 12, marginBottom: 6 },
   caixaArquivo: {
     minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 10,

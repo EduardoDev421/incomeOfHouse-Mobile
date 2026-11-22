@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { StyleSheet, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   AuthTela, CartaoTitulo, Campo, Linha, CaixaErro, Botao, Divisor,
@@ -6,6 +7,7 @@ import {
   validarEmail, validarTelefone, validarCPF, validarData,
 } from '../components/AuthComponentes';
 import TextoLegal from '../components/TextoLegal';
+import { cadastrarComEmail, dataParaISO, mensagemErroAuth } from '../services/auth';
 
 export default function Cadastro() {
   const router = useRouter();
@@ -18,6 +20,7 @@ export default function Cadastro() {
   const [senha, setSenha] = useState('');
   const [confirmar, setConfirmar] = useState('');
   const [erro, setErro] = useState('');
+  const [aviso, setAviso] = useState('');
   const [enviando, setEnviando] = useState(false);
 
   // limpa a mensagem de erro assim que a pessoa volta a digitar
@@ -52,11 +55,23 @@ export default function Cadastro() {
     setErro('');
     setEnviando(true);
     try {
-      // TODO: salvar o usuário no seu backend aqui
-      // replace: depois de cadastrar, o botão voltar não deve retornar ao formulário
-      router.replace('/login?tipo=usuario');
+      const resultado = await cadastrarComEmail(email, senha, {
+        account_type: 'usuario',
+        full_name: nome.trim(),
+        cpf: cpf.replace(/\D/g, ''),
+        phone: telefone.replace(/\D/g, ''),
+        birth_date: dataParaISO(nascimento),
+      });
+
+      if (resultado.session) {
+        router.replace('/');
+      } else {
+        setSenha('');
+        setConfirmar('');
+        setAviso('Cadastro criado. Verifique seu e-mail para confirmar a conta antes de entrar.');
+      }
     } catch (e) {
-      setErro('Não foi possível concluir o cadastro. Tente novamente.');
+      setErro(mensagemErroAuth(e));
     } finally {
       setEnviando(false);
     }
@@ -157,6 +172,7 @@ export default function Cadastro() {
       </Linha>
 
       <CaixaErro texto={erro} />
+      {!!aviso && <Text style={s.aviso} accessibilityLiveRegion="polite">{aviso}</Text>}
 
       <TextoLegal prefixo="Ao se cadastrar, você concorda com os" />
 
@@ -171,7 +187,7 @@ export default function Cadastro() {
       <LinkConta
         pergunta="Já possui uma conta?"
         acao="Entrar"
-        aoPressionar={() => router.push('/login?tipo=usuario')}
+        aoPressionar={() => router.push('/login')}
       />
 
       <LinkContorno
@@ -181,3 +197,7 @@ export default function Cadastro() {
     </AuthTela>
   );
 }
+
+const s = StyleSheet.create({
+  aviso: { color: '#b5b5b5', fontSize: 13, textAlign: 'center', marginBottom: 12 },
+});

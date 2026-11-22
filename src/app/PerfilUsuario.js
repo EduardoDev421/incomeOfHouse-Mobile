@@ -14,7 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { usarConta, useDeclararConta } from '../components/ContaProvider';
+import { usarConta } from '../components/ContaProvider';
 import ContaMenu from '../components/MenuConta';
 
 /* ================================================= */
@@ -46,47 +46,25 @@ const LINKS_SITE = [
   { nome: 'Sobre Nós', icone: 'information-circle-outline', rota: '/sobreNos' },
 ];
 
-const ESTATISTICAS = [
-  { numero: '12', titulo: 'Projetos Salvos', icone: 'bookmark-outline' },
-  { numero: '8', titulo: 'Profissionais Favoritos', icone: 'star-outline' },
-  { numero: '15', titulo: 'Pedidos Realizados', icone: 'briefcase-outline' },
-];
+const formatarData = (valor) => {
+  const partes = /^(\d{4})-(\d{2})-(\d{2})$/.exec(valor || '');
+  return partes ? `${partes[3]}/${partes[2]}/${partes[1]}` : 'Não informado';
+};
 
-const INFORMACOES = [
-  { nome: 'Nome Completo', valor: 'Nome Sobrenome', icone: 'person-outline' },
-  { nome: 'Data de Nascimento', valor: '00/00/0000', icone: 'calendar-outline' },
-  { nome: 'CPF', valor: '000.000.000-00', icone: 'card-outline' },
-  { nome: 'E-mail', valor: 'email@gmail.com', icone: 'mail-outline' },
-  { nome: 'Telefone', valor: '(00) 00000-0000', icone: 'call-outline' },
-  { nome: 'Senha', valor: '••••••••••', icone: 'lock-closed-outline' },
-];
+const formatarCPF = (valor) => {
+  const digitos = (valor || '').replace(/\D/g, '');
+  return digitos.length === 11
+    ? digitos.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
+    : 'Não informado';
+};
 
-const ATIVIDADES = [
-  {
-    titulo: 'Projeto salvo',
-    descricao: 'Você salvou o projeto "Casa Moderna".',
-    data: 'Hoje, 14:30',
-    icone: 'bookmark-outline',
-  },
-  {
-    titulo: 'Profissional favoritado',
-    descricao: 'Você favoritou o profissional "Arq. João Silva".',
-    data: 'Ontem, 10:15',
-    icone: 'heart-outline',
-  },
-  {
-    titulo: 'Pedido realizado',
-    descricao: 'Novo pedido realizado: #1294',
-    data: '18/05/2025',
-    icone: 'briefcase-outline',
-  },
-  {
-    titulo: 'Mensagem recebida',
-    descricao: 'Você recebeu uma nova mensagem.',
-    data: '17/05/2024',
-    icone: 'chatbubble-outline',
-  },
-];
+const formatarTelefone = (valor) => {
+  const digitos = (valor || '').replace(/\D/g, '');
+  if (digitos.length === 11) return digitos.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+  if (digitos.length === 10) return digitos.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3');
+  return valor || 'Não informado';
+};
+
 function ItemMenu({ nome, icone, ativo, mobile, medio, onPress }) {
   const tamanhoIcone = mobile ? 20 : medio ? 14 : 16;
 
@@ -219,7 +197,7 @@ function CabecalhoPagina({ mobile, onEditar }) {
   );
 }
 
-function CardUsuario({ mobile, onEditar }) {
+function CardUsuario({ mobile, onEditar, nome, membroDesde }) {
   return (
     <View style={[s.usuario, mobile && s.usuarioMobile]}>
       <View style={[s.foto, mobile && s.fotoMobile]}>
@@ -231,12 +209,10 @@ function CardUsuario({ mobile, onEditar }) {
       </View>
 
       <View style={[s.dadosUsuario, mobile && s.dadosUsuarioMobile]}>
-        <Text style={[s.nome, mobile && s.nomeMobile]}>
-          Usuário não identificado
-        </Text>
+        <Text style={[s.nome, mobile && s.nomeMobile]}>{nome}</Text>
         <View style={[s.linhaMembro, mobile && s.linhaMembroMobile]}>
           <Ionicons name="calendar-outline" size={14} color={DOURADO} />
-          <Text style={s.dataMembro}>Membro Desde: Janeiro/2024</Text>
+          <Text style={s.dataMembro}>Membro desde {membroDesde}</Text>
         </View>
       </View>
 
@@ -248,25 +224,11 @@ function CardUsuario({ mobile, onEditar }) {
 function Estatisticas({ mobile, medio }) {
   return (
     <View style={[s.estatisticas, mobile && s.estatisticasMobile]}>
-      {ESTATISTICAS.map((item) => (
-        <View
-          key={item.titulo}
-          style={[
-            s.cardEstatistica,
-            medio && s.cardEstatisticaMedio,
-            mobile && s.cardEstatisticaMobile,
-          ]}
-        >
-          <Ionicons name={item.icone} size={mobile ? 20 : 23} color={DOURADO} />
-          <Text style={[s.numero, mobile && s.numeroMobile]}>{item.numero}</Text>
-          <Text
-            style={[s.nomeEstatistica, mobile && s.nomeEstatisticaMobile]}
-            numberOfLines={2}
-          >
-            {item.titulo}
-          </Text>
-        </View>
-      ))}
+      <View style={[s.cardEstatistica, medio && s.cardEstatisticaMedio, mobile && s.cardEstatisticaMobile]}>
+        <Text style={[s.nomeEstatistica, mobile && s.nomeEstatisticaMobile]}>
+          Projetos, pedidos e favoritos aparecerão aqui após a integração desses módulos.
+        </Text>
+      </View>
     </View>
   );
 }
@@ -286,18 +248,18 @@ function BotaoCard({ texto, mobile, onPress }) {
   );
 }
 
-function CardInformacoes({ mobile, onAlterarSenha }) {
+function CardInformacoes({ mobile, onAlterarSenha, informacoes }) {
   return (
     <View style={[s.cardGrande, mobile && s.cardGrandeMobile]}>
       <Text style={s.tituloCard}>Informações Pessoais</Text>
 
-      {INFORMACOES.map((info, i) => (
+      {informacoes.map((info, i) => (
         <View
           key={info.nome}
           style={[
             s.linhaInfo,
             mobile && s.linhaInfoMobile,
-            i === INFORMACOES.length - 1 && s.semBorda,
+            i === informacoes.length - 1 && s.semBorda,
           ]}
         >
           <View style={s.iconeCirculo}>
@@ -327,31 +289,9 @@ function CardAtividades({ mobile, onVerTodas }) {
   return (
     <View style={[s.cardGrande, mobile && s.cardGrandeMobile]}>
       <Text style={s.tituloCard}>Atividades Recentes</Text>
-
-      {ATIVIDADES.map((item, i) => (
-        <View
-          key={item.titulo}
-          style={[s.atividade, i === ATIVIDADES.length - 1 && s.semBorda]}
-        >
-          <View style={s.iconeCirculo}>
-            <Ionicons name={item.icone} size={16} color={DOURADO} />
-          </View>
-
-          <View style={s.detalhesAtividade}>
-            <Text style={[s.tituloAtividade, mobile && s.tituloAtividadeMobile]}>
-              {item.titulo}
-            </Text>
-            <Text
-              style={[s.descricaoAtividade, mobile && s.descricaoAtividadeMobile]}
-            >
-              {item.descricao}
-            </Text>
-            {mobile && <Text style={s.dataAtividadeMobile}>{item.data}</Text>}
-          </View>
-
-          {!mobile && <Text style={s.dataAtividade}>{item.data}</Text>}
-        </View>
-      ))}
+      <Text style={[s.descricaoAtividade, mobile && s.descricaoAtividadeMobile]}>
+        As atividades serão exibidas quando pedidos, mensagens e projetos estiverem conectados.
+      </Text>
 
       <BotaoCard
         texto="Ver todas as atividades"
@@ -379,7 +319,7 @@ function Rodape({ mobile, insets }) {
   );
 }
 
-function Drawer({ aberto, deslize, fade, insets, paisagem, onFechar, onNavegar, children }) {
+function Drawer({ aberto, deslize, fade, insets, paisagem, onFechar, onNavegar, nomeUsuario, children }) {
   return (
     <View style={s.camadaDrawer} pointerEvents={aberto ? 'auto' : 'none'}>
       <Animated.View style={[s.overlay, { opacity: fade }]}>
@@ -401,7 +341,7 @@ function Drawer({ aberto, deslize, fade, insets, paisagem, onFechar, onNavegar, 
             <Ionicons name="person-circle-outline" size={44} color={DOURADO} />
             <View>
               <Text style={s.drawerTitulo}>Minha Conta</Text>
-              <Text style={s.drawerSub}>Usuário não identificado</Text>
+              <Text style={s.drawerSub}>{nomeUsuario}</Text>
             </View>
           </View>
 
@@ -433,8 +373,19 @@ function Drawer({ aberto, deslize, fade, insets, paisagem, onFechar, onNavegar, 
 export default function PerfilUsuario() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  useDeclararConta('usuario');
+  const { user, perfil, tipo, carregado, erroPerfil } = usarConta();
   const { width, height } = useWindowDimensions();
+  const nomeUsuario = perfil?.full_name || user?.email || 'Usuário';
+  const membroDesde = user?.created_at
+    ? new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(new Date(user.created_at))
+    : 'Não informado';
+  const informacoes = [
+    { nome: 'Nome Completo', valor: perfil?.full_name || 'Não informado', icone: 'person-outline' },
+    { nome: 'Data de Nascimento', valor: formatarData(perfil?.birth_date), icone: 'calendar-outline' },
+    { nome: 'CPF', valor: formatarCPF(perfil?.cpf), icone: 'card-outline' },
+    { nome: 'E-mail', valor: user?.email || 'Não informado', icone: 'mail-outline' },
+    { nome: 'Telefone', valor: formatarTelefone(perfil?.phone), icone: 'call-outline' },
+  ];
 
   // Celular em pé: menu vira drawer
   const mobile = width < 650;
@@ -471,12 +422,6 @@ export default function PerfilUsuario() {
   const navegar = (rota) => {
     setMenuAberto(false);
     router.push(rota);
-  };
-
-  const sair = () => {
-    setMenuAberto(false);
-    limpar();
-    router.replace('/login');
   };
 
   const verTodasAtividades = () =>
@@ -521,25 +466,47 @@ export default function PerfilUsuario() {
               mobile && s.principalMobile,
             ]}
           >
-            <AvisoLogin mobile={mobile} onLogin={() => navegar('/login')} />
+            {!carregado ? (
+              <View style={s.avisoCaixa}>
+                <Text style={s.aviso}>Carregando os dados da conta...</Text>
+              </View>
+            ) : !user ? (
+              <AvisoLogin mobile={mobile} onLogin={() => navegar('/login')} />
+            ) : erroPerfil ? (
+              <View style={s.avisoCaixa}>
+                <Text style={s.aviso}>Não foi possível carregar seu perfil: {erroPerfil}</Text>
+              </View>
+            ) : tipo !== 'usuario' ? (
+              <View style={s.avisoCaixa}>
+                <Text style={s.aviso}>Esta tela é destinada a contas de cliente.</Text>
+              </View>
+            ) : (
+              <>
+                <CabecalhoPagina
+                  mobile={mobile}
+                  onEditar={() => navegar('/DadosPermissoes')}
+                />
 
-            <CabecalhoPagina
-              mobile={mobile}
-              onEditar={() => navegar('/DadosPermissoes')}
-            />
+                <View style={[s.resumo, mobile && s.resumoMobile]}>
+                  <CardUsuario
+                    mobile={mobile}
+                    nome={nomeUsuario}
+                    membroDesde={membroDesde}
+                    onEditar={() => navegar('/DadosPermissoes')}
+                  />
+                  <Estatisticas mobile={mobile} medio={medio} />
+                </View>
 
-            <View style={[s.resumo, mobile && s.resumoMobile]}>
-              <CardUsuario mobile={mobile} onEditar={() => navegar('/DadosPermissoes')} />
-              <Estatisticas mobile={mobile} medio={medio} />
-            </View>
-
-            <View style={[s.colunas, mobile && s.colunasMobile]}>
-              <CardInformacoes
-                mobile={mobile}
-                onAlterarSenha={() => navegar('/AlterarSenha')}
-              />
-              <CardAtividades mobile={mobile} onVerTodas={verTodasAtividades} />
-            </View>
+                <View style={[s.colunas, mobile && s.colunasMobile]}>
+                  <CardInformacoes
+                    mobile={mobile}
+                    informacoes={informacoes}
+                    onAlterarSenha={() => navegar('/AlterarSenha')}
+                  />
+                  <CardAtividades mobile={mobile} onVerTodas={verTodasAtividades} />
+                </View>
+              </>
+            )}
           </View>
         </View>
 
@@ -555,6 +522,7 @@ export default function PerfilUsuario() {
           paisagem={paisagem}
           onFechar={() => setMenuAberto(false)}
           onNavegar={navegar}
+          nomeUsuario={nomeUsuario}
         >
           {menuConta}
         </Drawer>

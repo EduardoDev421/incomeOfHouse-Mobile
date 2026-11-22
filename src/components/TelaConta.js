@@ -14,7 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { usarConta, MENUS } from './ContaProvider';
+import { usarConta } from './ContaProvider';
 import { useLegal } from './LegalProvider';
 
 const gold = '#c9a45c';
@@ -54,12 +54,12 @@ function ItemMenu({ nome, icone, ativo, mobile, medio, onPress }) {
   );
 }
 
-export function LayoutConta({ titulo, subtitulo, ativo, tipo: tipoDaTela, children }) {
+export function LayoutConta({ titulo, subtitulo, ativo, children }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { abrirLegal } = useLegal();
-  const { menu: menuDaConta, limpar } = usarConta();
-  const menu = tipoDaTela ? MENUS[tipoDaTela] : menuDaConta;
+  const { menu: menuDaConta, erroSessao, limpar } = usarConta();
+  const menu = menuDaConta;
   const { width, height } = useWindowDimensions();
 
   const mobile = width < 650;
@@ -96,10 +96,9 @@ export function LayoutConta({ titulo, subtitulo, ativo, tipo: tipoDaTela, childr
     router.push(rota);
   };
 
-  const sair = () => {
+  const sair = async () => {
     setMenuAberto(false);
-    limpar();
-    router.replace('/login');
+    if (await limpar()) router.replace('/login');
   };
 
   const rotaPerfil = menu[0]?.rota ?? '/';
@@ -199,6 +198,7 @@ export function LayoutConta({ titulo, subtitulo, ativo, tipo: tipoDaTela, childr
             <View style={[s.principal, medio && s.principalMedio, mobile && s.principalMobile]}>
               <Text style={[s.titulo, mobile && s.tituloMobile]}>{titulo}</Text>
               {!!subtitulo && <Text style={s.subtitulo}>{subtitulo}</Text>}
+            {!!erroSessao && <Text style={s.erroSessao}>Falha ao sair: {erroSessao}</Text>}
 
               <View style={s.divisor} />
 
@@ -658,6 +658,7 @@ const s = StyleSheet.create({
   titulo: { color: '#fff', fontSize: 25, fontWeight: 'bold' },
   tituloMobile: { fontSize: 24 },
   subtitulo: { color: '#aeb7c0', fontSize: 13, marginTop: 5 },
+  erroSessao: { color: '#ff8b80', fontSize: 12, marginTop: 8 },
   divisor: { height: 1, backgroundColor: '#8e7138', marginVertical: 16 },
   conteudo: { gap: 16 },
 
