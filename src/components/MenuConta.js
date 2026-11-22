@@ -31,29 +31,42 @@ function ItemConta({ item, router, aoSelecionar }) {
 // Cada tela é de UM tipo de conta (ex.: EnderecosUsuario, EnderecosProfissional),
 // então ela informa o "tipo" e o menu certo aparece, sem depender de mais nada.
 // Sem a prop, o menu usa o tipo de conta guardado no Provider.
-export default function ContaMenu({ tipo: tipoDaTela, aoSelecionar }) {
+export default function ContaMenu({ aoSelecionar }) {
   const conta = usarConta();
   const router = useRouter();
 
-  const tipo = tipoDaTela || conta.tipo || null;
+  const tipo = conta.tipo || null;
   const menu = tipo ? MENUS[tipo] || [] : [];
 
-  // Aguarda o AsyncStorage terminar de carregar
-  if (!conta.carregado && !tipoDaTela) {
+  // Aguarda a sessão e o perfil remoto terminarem de carregar
+  if (!conta.carregado) {
     return null;
+  }
+
+  if (conta.user && conta.erroPerfil) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.mensagemErro}>
+          Não foi possível carregar seu perfil: {conta.erroPerfil}
+        </Text>
+      </View>
+    );
   }
 
   if (!tipo) {
     return (
       <View style={styles.container}>
-        <Text style={styles.mensagem}>Faça login para acessar sua conta.</Text>
+        <Text style={styles.mensagem}>
+          {conta.user
+            ? 'Seu perfil ainda não está disponível. Confira a configuração do Supabase.'
+            : 'Faça login para acessar sua conta.'}
+        </Text>
       </View>
     );
   }
 
   const sair = async () => {
-    await conta.limpar();
-    router.replace('/login');
+    if (await conta.limpar()) router.replace('/login');
   };
 
   return (
@@ -62,6 +75,9 @@ export default function ContaMenu({ tipo: tipoDaTela, aoSelecionar }) {
         <Text style={styles.debug}>
           DEBUG conta: {String(conta.tipo)}
         </Text>
+      )}
+      {!!conta.erroSessao && (
+        <Text style={styles.mensagemErro}>Falha ao sair: {conta.erroSessao}</Text>
       )}
 
       {menu.map((item) => (
@@ -106,5 +122,6 @@ const styles = StyleSheet.create({
   divisor: { height: 1, marginVertical: 8, backgroundColor: '#333' },
   pressionado: { opacity: 0.65, borderColor: '#c9a45c' },
   mensagem: { color: '#fff', fontSize: 13 },
+  mensagemErro: { color: '#ff8b80', fontSize: 12, lineHeight: 18 },
   debug: { marginBottom: 6, color: '#ff5c5c', fontSize: 10 },
 });

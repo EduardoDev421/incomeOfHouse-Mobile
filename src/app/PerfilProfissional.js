@@ -14,8 +14,11 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { usarConta, useDeclararConta } from '../components/ContaProvider';
+import * as DocumentPicker from 'expo-document-picker';
+import { usarConta } from '../components/ContaProvider';
 import ContaMenu from '../components/MenuConta';
+import { mensagemErroAuth } from '../services/auth';
+import { enviarComprovanteProfissional, tipoComprovante } from '../services/documentos';
 
 /* ================================================= */
 /* CONSTANTES                                        */
@@ -24,6 +27,7 @@ import ContaMenu from '../components/MenuConta';
 const DOURADO = '#c9a45c';
 const AMARELO = '#f0ca4c';
 const LARGURA_DRAWER = 290;
+const TAMANHO_MAX_COMPROVANTE = 10 * 1024 * 1024;
 
 // Em coluna, "flex: 0" / "flex: 1" colapsam a altura (flex-basis: 0).
 // Use isto para deixar o item com a altura do próprio conteúdo.
@@ -36,8 +40,15 @@ const ALTURA_AUTO = {
 const LOGO = require('../../assets/images/Logo.png');
 const FUNDO = require('../../assets/images/BackgroundFundo.png');
 
+const formatarTelefone = (valor) => {
+  const digitos = (valor || '').replace(/\D/g, '');
+  if (digitos.length === 11) return digitos.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+  if (digitos.length === 10) return digitos.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3');
+  return valor;
+};
+
 /* ================================================= */
-/* DADOS (exemplo — troque pelos dados do backend)   */
+/* DADOS                                             */
 /* ================================================= */
 
 const LINKS_SITE = [
@@ -47,92 +58,6 @@ const LINKS_SITE = [
   { nome: 'Sobre Nós', icone: 'information-circle-outline', rota: '/sobreNos' },
 ];
 
-
-const PERFIL = {
-  nome: 'João Silva',
-  profissao: 'Arquiteto e Urbanista',
-  selos: ['São Paulo, SP', 'Atende online'],
-  nota: '4,9',
-  totalAvaliacoes: 87,
-  contatos: [
-    { icone: 'mail-outline', texto: 'joao.silva@exemplo.com' },
-    { icone: 'call-outline', texto: '(11) 98765-4321' },
-    { icone: 'location-outline', texto: 'Av. Paulista, 1000 - São Paulo' },
-  ],
-  sobre:
-    'Arquiteto e urbanista com mais de 10 anos de experiência em projetos residenciais e comerciais. Trabalho com foco em soluções funcionais, sustentáveis e que respeitam o orçamento de cada cliente, acompanhando o projeto da ideia até a entrega.',
-};
-
-const ESTATISTICAS = [
-  { valor: '156', titulo: 'Projetos concluídos', icone: 'layers-outline' },
-  { valor: '98+', titulo: 'Clientes atendidos', icone: 'people-outline' },
-  { valor: '4,9', titulo: 'Avaliação média', icone: 'star-outline' },
-  { valor: '98%', titulo: 'Taxa de resposta', icone: 'chatbubble-ellipses-outline' },
-  { valor: '1h 30m', titulo: 'Tempo médio de resposta', icone: 'time-outline' },
-];
-
-const AREAS = ['Residencial', 'Comercial', 'Interiores', 'Paisagismo', 'Reformas', 'Projeto 3D'];
-
-const SERVICOS = [
-  { nome: 'Projeto arquitetônico', descricao: 'Projeto completo com plantas, cortes e fachadas.', preco: 'a partir de R$ 3.500' },
-  { nome: 'Planta baixa', descricao: 'Planta baixa para casas e sobrados.', preco: 'a partir de R$ 980' },
-  { nome: 'Projeto de interiores', descricao: 'Layout, materiais e iluminação dos ambientes.', preco: 'a partir de R$ 2.200' },
-  { nome: 'Consultoria técnica', descricao: 'Acompanhamento de obra e análise de projetos.', preco: 'R$ 250 / hora' },
-];
-
-const PORTFOLIO = [
-  { nome: 'Casa Moderna', detalhe: 'Residencial · 240 m²' },
-  { nome: 'Sobrado Jardim', detalhe: 'Residencial · 180 m²' },
-  { nome: 'Loja Centro', detalhe: 'Comercial · 95 m²' },
-];
-
-const AVALIACOES = [
-  {
-    autor: 'Maria S.',
-    data: '12/05/2025',
-    estrelas: 5,
-    texto: 'Excelente profissional, entregou o projeto antes do prazo e com muito cuidado nos detalhes.',
-  },
-  {
-    autor: 'Carlos P.',
-    data: '28/04/2025',
-    estrelas: 5,
-    texto: 'Muito atencioso e rápido nas respostas. Recomendo para quem quer um projeto sem dor de cabeça.',
-  },
-  {
-    autor: 'Ana L.',
-    data: '15/04/2025',
-    estrelas: 4,
-    texto: 'Ótimo trabalho na planta da minha casa. Só precisou de um ajuste no layout da cozinha.',
-  },
-];
-
-const RESUMO = [
-  { rotulo: 'Membro desde', valor: 'Janeiro/2022' },
-  { rotulo: 'Plano', valor: 'Profissional Premium' },
-  { rotulo: 'Experiência', valor: '10 anos' },
-  { rotulo: 'Idiomas', valor: 'Português, Inglês' },
-];
-
-const REGISTRO = [
-  { rotulo: 'Conselho', valor: 'CAU' },
-  { rotulo: 'Número', valor: 'A12345-6' },
-  { rotulo: 'Estado', valor: 'São Paulo (SP)' },
-  { rotulo: 'Situação', valor: 'Verificado', selo: true },
-];
-
-const DISPONIBILIDADE = [
-  { rotulo: 'Segunda a sexta', valor: '09h às 18h' },
-  { rotulo: 'Sábado', valor: '09h às 13h' },
-  { rotulo: 'Domingo', valor: 'Indisponível', apagado: true },
-];
-
-const REGIAO = ['São Paulo', 'Grande São Paulo', 'Campinas', 'Online (todo o Brasil)'];
-
-const ORCAMENTO = [
-  { rotulo: 'Valor mínimo de projeto', valor: 'R$ 980' },
-  { rotulo: 'Prazo médio de entrega', valor: '15 a 30 dias' },
-];
 
 /* ================================================= */
 /* COMPONENTES PEQUENOS                              */
@@ -253,22 +178,7 @@ function Selo({ texto, verificado }) {
   );
 }
 
-function Estrelas({ quantidade, tamanho = 14 }) {
-  return (
-    <View style={s.estrelas}>
-      {[1, 2, 3, 4, 5].map((n) => (
-        <Ionicons
-          key={n}
-          name={n <= quantidade ? 'star' : 'star-outline'}
-          size={tamanho}
-          color={AMARELO}
-        />
-      ))}
-    </View>
-  );
-}
-
-function CardPerfil({ mobile, empilhado, onEditar, onEditarFoto }) {
+function CardPerfil({ mobile, empilhado, onEditar, onEditarFoto, perfil }) {
   return (
     <View style={[s.perfilCard, mobile && s.perfilCardMobile]}>
       <View style={s.fotoColuna}>
@@ -281,25 +191,23 @@ function CardPerfil({ mobile, empilhado, onEditar, onEditarFoto }) {
       </View>
 
       <View style={[s.dadosUsuario, mobile && s.dadosUsuarioMobile]}>
-        <Text style={[s.nome, mobile && s.nomeMobile]}>{PERFIL.nome}</Text>
-        <Text style={s.profissao}>{PERFIL.profissao}</Text>
+        <Text style={[s.nome, mobile && s.nomeMobile]}>{perfil.nome}</Text>
+        <Text style={s.profissao}>{perfil.profissao}</Text>
 
         <View style={[s.selos, mobile && s.selosMobile]}>
-          <Selo texto="Verificado" verificado />
-          {PERFIL.selos.map((t) => (
+          <Selo texto={perfil.statusTexto} verificado={perfil.verificado} />
+          {perfil.selos.map((t) => (
             <Selo key={t} texto={t} />
           ))}
         </View>
 
         <View style={[s.linhaAvaliacao, mobile && s.linhaAvaliacaoMobile]}>
-          <Estrelas quantidade={5} />
-          <Text style={s.notaTopo}>{PERFIL.nota}</Text>
-          <Text style={s.cinza}>({PERFIL.totalAvaliacoes} avaliações)</Text>
+          <Text style={s.cinza}>Sem avaliações cadastradas</Text>
         </View>
       </View>
 
       <View style={[s.contatos, empilhado && s.contatosEmpilhados]}>
-        {PERFIL.contatos.map((c) => (
+        {perfil.contatos.map((c) => (
           <View key={c.texto} style={s.contatoItem}>
             <Ionicons name={c.icone} size={16} color={DOURADO} />
             <Text style={s.textoContato} numberOfLines={1}>
@@ -314,27 +222,14 @@ function CardPerfil({ mobile, empilhado, onEditar, onEditarFoto }) {
   );
 }
 
-function Estatisticas({ mobile, medio }) {
-  const base = mobile ? '47%' : medio ? '30%' : '17%';
-
+function Estatisticas({ mobile }) {
   return (
     <View style={[s.estatisticas, mobile && s.estatisticasMobile]}>
-      {ESTATISTICAS.map((item) => (
-        <View
-          key={item.titulo}
-          style={[s.cardEstatistica, { flexBasis: base }, mobile && s.cardEstatisticaMobile]}
-        >
-          <View style={s.iconeCirculo}>
-            <Ionicons name={item.icone} size={18} color={DOURADO} />
-          </View>
-          <View style={s.textosEstatistica}>
-            <Text style={[s.valorEstatistica, mobile && s.valorEstatisticaMobile]}>{item.valor}</Text>
-            <Text style={s.tituloEstatistica} numberOfLines={2}>
-              {item.titulo}
-            </Text>
-          </View>
-        </View>
-      ))}
+      <View style={[s.cardEstatistica, mobile && s.cardEstatisticaMobile]}>
+        <Text style={s.tituloEstatistica}>
+          Estatísticas serão exibidas após a integração de projetos e avaliações.
+        </Text>
+      </View>
     </View>
   );
 }
@@ -382,11 +277,18 @@ function Tags({ itens }) {
   );
 }
 
-function BotaoCard({ texto, mobile, onPress }) {
+function BotaoCard({ texto, mobile, onPress, desativado = false }) {
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [s.botaoLargo, mobile && s.botaoLargoMobile, pressed && s.pressionado]}
+      disabled={desativado}
+      accessibilityState={{ disabled: desativado }}
+      style={({ pressed }) => [
+        s.botaoLargo,
+        mobile && s.botaoLargoMobile,
+        pressed && s.pressionado,
+        desativado && { opacity: 0.5 },
+      ]}
     >
       <Text style={[s.textoBotao, mobile && s.textoBotaoMobile]}>{texto}</Text>
     </Pressable>
@@ -402,7 +304,7 @@ function Rodape({ mobile, insets }) {
   );
 }
 
-function Drawer({ aberto, deslize, fade, insets, paisagem, onFechar, onNavegar, children }) {
+function Drawer({ aberto, deslize, fade, insets, paisagem, onFechar, onNavegar, nomeUsuario, children }) {
   return (
     <View style={s.camadaDrawer} pointerEvents={aberto ? 'auto' : 'none'}>
       <Animated.View style={[s.overlay, { opacity: fade }]}>
@@ -424,7 +326,7 @@ function Drawer({ aberto, deslize, fade, insets, paisagem, onFechar, onNavegar, 
             <Ionicons name="person-circle-outline" size={44} color={DOURADO} />
             <View>
               <Text style={s.drawerTitulo}>Minha Conta</Text>
-              <Text style={s.drawerSub}>{PERFIL.nome}</Text>
+              <Text style={s.drawerSub}>{nomeUsuario}</Text>
             </View>
           </View>
 
@@ -460,9 +362,43 @@ function Drawer({ aberto, deslize, fade, insets, paisagem, onFechar, onNavegar, 
 export default function PerfilProfissional() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  useDeclararConta('profissional');
-  const { limpar } = usarConta();
+  const { user, perfil, tipo, carregado, erroPerfil, recarregarPerfil } = usarConta();
   const { width, height } = useWindowDimensions();
+  const [arquivoComprovante, setArquivoComprovante] = useState(null);
+  const [enviandoComprovante, setEnviandoComprovante] = useState(false);
+  const [erroComprovante, setErroComprovante] = useState('');
+  const statusTexto = {
+    not_applicable: 'Não verificado',
+    pending_document: 'Documento pendente',
+    pending_review: 'Em análise',
+    verified: 'Verificado',
+    rejected: 'Verificação recusada',
+  }[perfil?.verification_status] || 'Status indisponível';
+  const localidade = [perfil?.city, perfil?.state].filter(Boolean).join(', ');
+  const perfilTela = {
+    nome: perfil?.full_name || user?.email || 'Perfil profissional',
+    profissao: perfil?.profession || 'Profissão não informada',
+    statusTexto,
+    verificado: perfil?.verification_status === 'verified',
+    selos: localidade ? [localidade] : [],
+    contatos: [
+      user?.email && { icone: 'mail-outline', texto: user.email },
+      perfil?.phone && { icone: 'call-outline', texto: formatarTelefone(perfil.phone) },
+      localidade && { icone: 'location-outline', texto: localidade },
+    ].filter(Boolean),
+  };
+  const membroDesde = user?.created_at
+    ? new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(new Date(user.created_at))
+    : 'Não informado';
+  const resumo = [
+    { rotulo: 'Membro desde', valor: membroDesde },
+    { rotulo: 'Profissão', valor: perfilTela.profissao },
+    { rotulo: 'Tipo de conta', valor: 'Profissional' },
+  ];
+  const registro = [
+    { rotulo: 'Registro profissional', valor: perfil?.professional_registration || 'Não informado' },
+    { rotulo: 'Verificação', valor: statusTexto, selo: perfilTela.verificado },
+  ];
 
   // Celular em pé: menu vira drawer
   const mobile = width < 650;
@@ -503,14 +439,56 @@ export default function PerfilProfissional() {
     router.push(rota);
   };
 
-  const sair = () => {
-    setMenuAberto(false);
-    limpar();
-    router.replace('/login');
+  const editarFoto = () =>
+    Alert.alert('Foto do perfil', 'O envio de foto ainda não está integrado.');
+
+  const escolherComprovante = async () => {
+    try {
+      const resultado = await DocumentPicker.getDocumentAsync({
+        type: ['application/pdf', 'image/jpeg', 'image/png'],
+        copyToCacheDirectory: true,
+      });
+      if (resultado.canceled || !resultado.assets?.length) return;
+
+      const escolhido = resultado.assets[0];
+      const mimeType = tipoComprovante(escolhido);
+      if (!mimeType) {
+        setErroComprovante('Escolha um comprovante em PDF, JPEG ou PNG.');
+        return;
+      }
+      if (escolhido.size && escolhido.size > TAMANHO_MAX_COMPROVANTE) {
+        setErroComprovante('O comprovante deve ter no máximo 10 MB.');
+        return;
+      }
+
+      setArquivoComprovante({ ...escolhido, mimeType });
+      setErroComprovante('');
+    } catch (error) {
+      setErroComprovante(mensagemErroAuth(error));
+    }
   };
 
-  const editarFoto = () =>
-    Alert.alert('Foto do perfil', 'Adicione aqui a função de alterar sua foto.');
+  const enviarComprovante = async () => {
+    if (!arquivoComprovante || enviandoComprovante || perfilTela.verificado) return;
+
+    setEnviandoComprovante(true);
+    setErroComprovante('');
+    try {
+      await enviarComprovanteProfissional(arquivoComprovante);
+      setArquivoComprovante(null);
+      try {
+        await recarregarPerfil();
+      } catch (error) {
+        setErroComprovante(
+          `O comprovante foi enviado, mas a tela não atualizou: ${mensagemErroAuth(error)}`
+        );
+      }
+    } catch (error) {
+      setErroComprovante(mensagemErroAuth(error));
+    } finally {
+      setEnviandoComprovante(false);
+    }
+  };
 
   /* ----- Menu da conta (aside no site, dentro do drawer no mobile) ----- */
   const menuConta = (
@@ -521,54 +499,24 @@ export default function PerfilProfissional() {
   const colunaEsquerda = (
     <View style={[s.coluna, empilhado ? s.colunaEmpilhada : s.colunaEsquerda]}>
       <Card titulo="Sobre mim" icone="person-outline" mobile={mobile}>
-        <Text style={s.paragrafo}>{PERFIL.sobre}</Text>
+        <Text style={s.paragrafo}>Descrição profissional ainda não cadastrada.</Text>
       </Card>
 
       <Card titulo="Áreas de atuação" icone="compass-outline" mobile={mobile}>
-        <Tags itens={AREAS} />
+        <Text style={s.paragrafo}>Nenhuma área de atuação cadastrada.</Text>
       </Card>
 
       <Card titulo="Serviços oferecidos" icone="construct-outline" mobile={mobile}>
-        {SERVICOS.map((sv, i) => (
-          <View
-            key={sv.nome}
-            style={[s.servico, mobile && s.servicoMobile, i === SERVICOS.length - 1 && s.semBorda]}
-          >
-            <View style={s.servicoTextos}>
-              <Text style={s.servicoNome}>{sv.nome}</Text>
-              <Text style={s.servicoDescricao}>{sv.descricao}</Text>
-            </View>
-            <Text style={s.servicoPreco}>{sv.preco}</Text>
-          </View>
-        ))}
+        <Text style={s.paragrafo}>Nenhum serviço cadastrado.</Text>
       </Card>
 
       <Card titulo="Portfólio em destaque" icone="folder-outline" mobile={mobile}>
-        <View style={[s.portfolio, mobile && s.portfolioMobile]}>
-          {PORTFOLIO.map((p) => (
-            <View key={p.nome} style={[s.projeto, mobile && s.projetoMobile]}>
-              <View style={s.projetoImg}>
-                <Ionicons name="image-outline" size={26} color="#59431f" />
-              </View>
-              <Text style={s.projetoNome}>{p.nome}</Text>
-              <Text style={s.projetoDetalhe}>{p.detalhe}</Text>
-            </View>
-          ))}
-        </View>
+        <Text style={s.paragrafo}>Nenhum item de portfólio cadastrado.</Text>
         <BotaoCard texto="Ver portfólio completo" mobile={mobile} onPress={() => navegar('/Meuportfolio')} />
       </Card>
 
       <Card titulo="Avaliações recentes" icone="star-outline" mobile={mobile}>
-        {AVALIACOES.map((a) => (
-          <View key={a.autor} style={s.avaliacao}>
-            <View style={s.avaliacaoTopo}>
-              <Text style={s.avaliacaoAutor}>{a.autor}</Text>
-              <Text style={s.cinza}>{a.data}</Text>
-            </View>
-            <Estrelas quantidade={a.estrelas} tamanho={13} />
-            <Text style={s.avaliacaoTexto}>{a.texto}</Text>
-          </View>
-        ))}
+        <Text style={s.paragrafo}>Nenhuma avaliação cadastrada.</Text>
         <BotaoCard texto="Ver todas as avaliações" mobile={mobile} onPress={() => navegar('/Comentarios')} />
       </Card>
     </View>
@@ -577,23 +525,55 @@ export default function PerfilProfissional() {
   const colunaDireita = (
     <View style={[s.coluna, empilhado ? s.colunaEmpilhada : s.colunaDireita]}>
       <Card titulo="Resumo profissional" icone="briefcase-outline" mobile={mobile}>
-        <ListaInfo itens={RESUMO} />
+        <ListaInfo itens={resumo} />
       </Card>
 
       <Card titulo="Registro profissional" icone="ribbon-outline" mobile={mobile}>
-        <ListaInfo itens={REGISTRO} />
+        <ListaInfo itens={registro} />
+      </Card>
+
+      <Card titulo="Comprovante profissional" icone="document-text-outline" mobile={mobile}>
+        <Text style={s.paragrafo}>
+          {perfil?.professional_document_path
+            ? `Documento enviado. Status: ${statusTexto}.`
+            : 'Nenhum comprovante enviado.'}
+        </Text>
+        {!!arquivoComprovante && (
+          <Text style={s.paragrafo} numberOfLines={1}>
+            Arquivo selecionado: {arquivoComprovante.name}
+          </Text>
+        )}
+        {!!erroComprovante && <Text style={s.erroComprovante}>{erroComprovante}</Text>}
+        {!perfilTela.verificado && (
+          <>
+            <BotaoCard
+              texto={arquivoComprovante ? 'Trocar arquivo' : 'Selecionar comprovante'}
+              mobile={mobile}
+              onPress={escolherComprovante}
+              desativado={enviandoComprovante}
+            />
+            {!!arquivoComprovante && (
+              <BotaoCard
+                texto={enviandoComprovante ? 'Enviando...' : 'Enviar comprovante'}
+                mobile={mobile}
+                onPress={enviarComprovante}
+                desativado={enviandoComprovante}
+              />
+            )}
+          </>
+        )}
       </Card>
 
       <Card titulo="Disponibilidade" icone="time-outline" mobile={mobile}>
-        <ListaInfo itens={DISPONIBILIDADE} />
+        <Text style={s.paragrafo}>Horários de atendimento ainda não cadastrados.</Text>
       </Card>
 
       <Card titulo="Região de atendimento" icone="location-outline" mobile={mobile}>
-        <Tags itens={REGIAO} />
+        {localidade ? <Tags itens={[localidade]} /> : <Text style={s.paragrafo}>Região não informada.</Text>}
       </Card>
 
       <Card titulo="Orçamento" icone="cash-outline" mobile={mobile}>
-        <ListaInfo itens={ORCAMENTO} />
+        <Text style={s.paragrafo}>Informações de orçamento ainda não cadastradas.</Text>
       </Card>
     </View>
   );
@@ -619,22 +599,44 @@ export default function PerfilProfissional() {
           {!mobile && <View style={[s.menuLateral, medio && s.menuLateralMedio]}>{menuConta}</View>}
 
           <View style={[s.principal, medio && s.principalMedio, mobile && s.principalMobile]}>
-            <CabecalhoPagina mobile={mobile} onEditar={() => navegar('/DadosEmpresa')} />
+            {!carregado ? (
+              <Card titulo="Conta" icone="person-outline" mobile={mobile}>
+                <Text style={s.paragrafo}>Carregando os dados da conta...</Text>
+              </Card>
+            ) : !user ? (
+              <Card titulo="Conta" icone="person-outline" mobile={mobile}>
+                <Text style={s.paragrafo}>Entre na sua conta para visualizar o perfil profissional.</Text>
+                <BotaoCard texto="Ir para o login" mobile={mobile} onPress={() => navegar('/login')} />
+              </Card>
+            ) : erroPerfil ? (
+              <Card titulo="Conta" icone="person-outline" mobile={mobile}>
+                <Text style={s.paragrafo}>Não foi possível carregar seu perfil: {erroPerfil}</Text>
+              </Card>
+            ) : tipo !== 'profissional' ? (
+              <Card titulo="Conta" icone="person-outline" mobile={mobile}>
+                <Text style={s.paragrafo}>Esta tela é destinada a contas profissionais.</Text>
+              </Card>
+            ) : (
+              <>
+                <CabecalhoPagina mobile={mobile} onEditar={() => navegar('/DadosPermissoes')} />
 
-            <View style={[s.bloco, mobile && s.blocoMobile]}>
-              <CardPerfil
-                mobile={mobile}
-                empilhado={empilhado}
-                onEditar={() => navegar('/DadosEmpresa')}
-                onEditarFoto={editarFoto}
-              />
-              <Estatisticas mobile={mobile} medio={medio} />
-            </View>
+                <View style={[s.bloco, mobile && s.blocoMobile]}>
+                  <CardPerfil
+                    mobile={mobile}
+                    empilhado={empilhado}
+                    perfil={perfilTela}
+                    onEditar={() => navegar('/DadosPermissoes')}
+                    onEditarFoto={editarFoto}
+                  />
+                  <Estatisticas mobile={mobile} />
+                </View>
 
-            <View style={[s.colunas, empilhado && s.colunasEmpilhadas]}>
-              {colunaEsquerda}
-              {colunaDireita}
-            </View>
+                <View style={[s.colunas, empilhado && s.colunasEmpilhadas]}>
+                  {colunaEsquerda}
+                  {colunaDireita}
+                </View>
+              </>
+            )}
           </View>
         </View>
 
@@ -650,6 +652,7 @@ export default function PerfilProfissional() {
           paisagem={paisagem}
           onFechar={() => setMenuAberto(false)}
           onNavegar={navegar}
+          nomeUsuario={perfilTela.nome}
         >
           {menuConta}
         </Drawer>
@@ -991,6 +994,7 @@ const s = StyleSheet.create({
   },
   tituloCard: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   paragrafo: { marginTop: 8, color: '#c8c8c8', fontSize: 13, lineHeight: 21 },
+  erroComprovante: { marginTop: 8, color: '#e0594a', fontSize: 12, lineHeight: 18 },
 
   /* ----- Tags ----- */
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },

@@ -6,10 +6,8 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Switch,
   Modal,
   Pressable,
-  Alert,
   StyleSheet,
   StatusBar,
   SafeAreaView,
@@ -17,6 +15,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useLegal } from '../components/LegalProvider';
+import { usarConta } from '../components/ContaProvider';
+import { mensagemErroAuth } from '../services/auth';
 
 const LOGO = require('../../assets/images/Logo.png');
 
@@ -52,65 +52,7 @@ const LINKS_TOPO = [
   ['Sobre', '/sobreNos'],
 ];
 
-const FUNCOES = [
-  {
-    key: 'admin',
-    icon: 'shield-checkmark-outline',
-    titulo: 'Administrador',
-    desc: 'Acesso total ao sistema, incluindo configurações e gerenciamento de usuários.',
-  },
-  {
-    key: 'gerente',
-    icon: 'briefcase-outline',
-    titulo: 'Gerente',
-    desc: 'Acesso a projetos, profissionais e configurações (sem acesso a permissões).',
-  },
-  {
-    key: 'editor',
-    icon: 'create-outline',
-    titulo: 'Editor',
-    desc: 'Pode criar e editar projetos, plantas e informações da conta.',
-  },
-  {
-    key: 'visualizador',
-    icon: 'eye-outline',
-    titulo: 'Visualizador',
-    desc: 'Apenas visualização de projetos, plantas e informações públicas.',
-  },
-];
-
-const MODULOS = [
-  { key: 'plantas', icon: 'grid-outline', titulo: 'Plantas', desc: 'Acesso às plantas e projetos arquitetônicos.' },
-  { key: 'profissionais', icon: 'star-outline', titulo: 'Profissionais', desc: 'Busca e contato com profissionais.' },
-  { key: 'projetos', icon: 'bookmark-outline', titulo: 'Projetos', desc: 'Gerenciamento de projetos salvos.' },
-  { key: 'mensagens', icon: 'chatbox-ellipses-outline', titulo: 'Mensagens', desc: 'Troca de mensagens com profissionais e clientes.' },
-  { key: 'agendamentos', icon: 'calendar-outline', titulo: 'Agendamentos', desc: 'Controle de agendamentos e reuniões.' },
-];
-
-const ACOES = ['Visualizar', 'Criar', 'Editar', 'Excluir'];
-
-const PERMISSOES_INICIAIS = {
-  plantas: [true, true, true, false],
-  profissionais: [true, false, false, false],
-  projetos: [true, true, true, false],
-  mensagens: [true, true, true, false],
-  agendamentos: [true, true, true, false],
-};
-
-const FUNCOES_INICIAIS = { admin: true, gerente: true, editor: true, visualizador: false };
-
 /* ---------- Componentes auxiliares ---------- */
-
-function Toggle({ value, onChange }) {
-  return (
-    <Switch
-      value={value}
-      onValueChange={onChange}
-      trackColor={{ false: '#2a2a2a', true: COLORS.gold }}
-      thumbColor="#fff"
-    />
-  );
-}
 
 function CardTitulo({ icon, titulo, descricao }) {
   return (
@@ -153,35 +95,49 @@ function InfoConta({ icon, label, valor, editando, onChange, keyboardType }) {
 export default function DadosPermissoes() {
   const router = useRouter();
   const { abrirLegal } = useLegal();
+  const { user, perfil, tipo, salvarPerfil } = usarConta();
   const [menuAberto, setMenuAberto] = useState(false);
 
   const [editando, setEditando] = useState(false);
-  const [nome, setNome] = useState('João Silva');
-  const [email, setEmail] = useState('joao@exemplo.com');
-  const [telefone, setTelefone] = useState('(11) 98765-4321');
-
-  const [funcoes, setFuncoes] = useState(FUNCOES_INICIAIS);
-  const [permissoes, setPermissoes] = useState(PERMISSOES_INICIAIS);
+  const [salvando, setSalvando] = useState(false);
+  const [aviso, setAviso] = useState('');
+  const [nome, setNome] = useState('');
+  const [telefone, setTelefone] = useState('');
 
   const ir = (route) => {
     setMenuAberto(false);
     router.push(route);
   };
 
-  const alternarEdicao = () => {
-    if (editando) {
-      Alert.alert('Dados atualizados', 'Seus dados foram salvos com sucesso.');
+  const alternarEdicao = async () => {
+    if (!editando) {
+      setNome(perfil?.full_name || '');
+      setTelefone(perfil?.phone || '');
+      setAviso('');
+      setEditando(true);
+      return;
     }
-    setEditando((v) => !v);
+
+    if (!nome.trim()) {
+      setAviso('Informe seu nome completo.');
+      return;
+    }
+
+    setSalvando(true);
+    setAviso('');
+    try {
+      await salvarPerfil({
+        full_name: nome.trim(),
+        phone: telefone.replace(/\D/g, ''),
+      });
+      setEditando(false);
+      setAviso('Seus dados foram salvos.');
+    } catch (error) {
+      setAviso(mensagemErroAuth(error));
+    } finally {
+      setSalvando(false);
+    }
   };
-
-  const alternarFuncao = (key, valor) => setFuncoes((prev) => ({ ...prev, [key]: valor }));
-
-  const alternarPermissao = (modulo, indice, valor) =>
-    setPermissoes((prev) => ({
-      ...prev,
-      [modulo]: prev[modulo].map((v, i) => (i === indice ? valor : v)),
-    }));
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -221,86 +177,63 @@ export default function DadosPermissoes() {
             descricao="Informações da sua conta e acesso ao sistema."
           />
 
-          <InfoConta icon="person-outline" label="Nome completo" valor={nome} editando={editando} onChange={setNome} />
+          <InfoConta
+            icon="person-outline"
+            label="Nome completo"
+            valor={editando ? nome : perfil?.full_name || 'Não informado'}
+            editando={editando}
+            onChange={setNome}
+          />
           <InfoConta
             icon="mail-outline"
             label="E-mail"
-            valor={email}
-            editando={editando}
-            onChange={setEmail}
-            keyboardType="email-address"
+            valor={user?.email || 'Não disponível'}
           />
           <InfoConta
             icon="call-outline"
             label="Telefone"
-            valor={telefone}
+            valor={editando ? telefone : perfil?.phone || 'Não informado'}
             editando={editando}
             onChange={setTelefone}
             keyboardType="phone-pad"
           />
-          <InfoConta icon="person-circle-outline" label="Tipo de conta" valor="Cliente" />
+          <InfoConta
+            icon="person-circle-outline"
+            label="Tipo de conta"
+            valor={
+              tipo === 'profissional'
+                ? 'Profissional'
+                : tipo === 'usuario'
+                  ? 'Cliente'
+                  : 'Não disponível'
+            }
+          />
 
-          <TouchableOpacity style={styles.botaoOutline} onPress={alternarEdicao} activeOpacity={0.8}>
+          {!!aviso && <Text style={styles.avisoPerfil}>{aviso}</Text>}
+
+          <TouchableOpacity
+            style={styles.botaoOutline}
+            onPress={alternarEdicao}
+            activeOpacity={0.8}
+            disabled={!user || salvando}
+          >
             <Ionicons name={editando ? 'checkmark' : 'create-outline'} size={16} color={COLORS.gold} />
-            <Text style={styles.botaoOutlineTxt}>{editando ? 'Salvar dados' : 'Editar dados'}</Text>
+            <Text style={styles.botaoOutlineTxt}>
+              {salvando ? 'Salvando...' : editando ? 'Salvar dados' : 'Editar dados'}
+            </Text>
           </TouchableOpacity>
         </View>
 
         {/* Funções e Permissões */}
         <View style={styles.card}>
           <CardTitulo
-            icon="settings-outline"
-            titulo="Funções e Permissões"
-            descricao="Configure as permissões de acesso da sua conta."
+            icon="shield-checkmark-outline"
+            titulo="Permissões e acesso"
+            descricao="O nível de acesso é validado no backend."
           />
-
-          {FUNCOES.map((f, i) => (
-            <View key={f.key} style={[styles.roleRow, i === FUNCOES.length - 1 && { borderBottomWidth: 0 }]}>
-              <View style={styles.roleIcone}>
-                <Ionicons name={f.icon} size={18} color={COLORS.gold} />
-              </View>
-              <View style={styles.flex}>
-                <Text style={styles.roleTitulo}>{f.titulo}</Text>
-                <Text style={styles.roleDesc}>{f.desc}</Text>
-              </View>
-              <Toggle value={funcoes[f.key]} onChange={(v) => alternarFuncao(f.key, v)} />
-            </View>
-          ))}
-        </View>
-
-        {/* Permissões por Módulo */}
-        <View style={styles.card}>
-          <CardTitulo
-            icon="albums-outline"
-            titulo="Permissões por Módulo"
-            descricao="Defina quais módulos o usuário pode acessar e quais ações estão liberadas."
-          />
-
-          {MODULOS.map((m, i) => (
-            <View key={m.key} style={[styles.modulo, i === MODULOS.length - 1 && { borderBottomWidth: 0 }]}>
-              <View style={styles.moduloTop}>
-                <View style={styles.roleIcone}>
-                  <Ionicons name={m.icon} size={18} color={COLORS.gold} />
-                </View>
-                <View style={styles.flex}>
-                  <Text style={styles.roleTitulo}>{m.titulo}</Text>
-                  <Text style={styles.roleDesc}>{m.desc}</Text>
-                </View>
-              </View>
-
-              <View style={styles.acoesRow}>
-                {ACOES.map((acao, idx) => (
-                  <View key={acao} style={styles.acao}>
-                    <Text style={styles.acaoLabel}>{acao}</Text>
-                    <Toggle
-                      value={permissoes[m.key][idx]}
-                      onChange={(v) => alternarPermissao(m.key, idx, v)}
-                    />
-                  </View>
-                ))}
-              </View>
-            </View>
-          ))}
+          <Text style={styles.roleDesc}>
+            O tipo de conta é definido no cadastro e não pode ser alterado aqui. A configuração de permissões por módulo ainda não está disponível.
+          </Text>
         </View>
 
         {/* Rodapé */}
@@ -427,6 +360,11 @@ const styles = StyleSheet.create({
     marginTop: 2,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.goldDim,
+  },
+  avisoPerfil: {
+    color: COLORS.mutedBlue,
+    fontSize: 12,
+    marginBottom: 10,
   },
 
   botaoOutline: {

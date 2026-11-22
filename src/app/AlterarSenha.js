@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,13 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import {
+  alterarSenha,
+  definirSenhaRecuperacao,
+  mensagemErroAuth,
+  trocarCodigoPorSessao,
+} from '../services/auth';
 
 /* =========================================================
    LOGO
@@ -210,6 +216,7 @@ function Requisito({ texto, cumprido }) {
 
 export default function AlterarSenha() {
   const router = useRouter();
+  const parametros = useLocalSearchParams();
   const { width, height } = useWindowDimensions();
   const largo = width >= 900;       // menu do topo centralizado + menu lateral fixo ao lado
   const compacto = width < 600;
@@ -223,9 +230,36 @@ export default function AlterarSenha() {
   const [confirmar, setConfirmar] = useState('');
   const [msg, setMsg] = useState(null); // { tipo: 'erro' | 'ok', texto }
   const [enviando, setEnviando] = useState(false);
+  const [recuperacao, setRecuperacao] = useState(false);
 
+  const codigo = Array.isArray(parametros.code) ? parametros.code[0] : parametros.code;
+  const erroLink = Array.isArray(parametros.error) ? parametros.error[0] : parametros.error;
+  const codigoProcessado = useRef('');
   const refNova = useRef(null);
   const refConfirmar = useRef(null);
+
+  useEffect(() => {
+    if (erroLink) return;
+    if (!codigo || codigoProcessado.current === codigo) return;
+
+    codigoProcessado.current = codigo;
+    Promise.resolve()
+      .then(() => {
+        setEnviando(true);
+        return trocarCodigoPorSessao(codigo);
+      })
+      .then(() => {
+        setRecuperacao(true);
+        setMsg({ tipo: 'ok', texto: 'Link validado. Defina uma nova senha.' });
+      })
+      .catch((error) => {
+        setMsg({ tipo: 'erro', texto: mensagemErroAuth(error) });
+      })
+      .finally(() => setEnviando(false));
+  }, [codigo, erroLink]);
+  const avisoLink = erroLink
+    ? { tipo: 'erro', texto: 'O link de recuperação é inválido ou expirou. Solicite outro e-mail.' }
+    : null;
 
   const forca = useMemo(() => calcularForca(nova), [nova]);
   const iguais = confirmar.length > 0 && nova === confirmar;
@@ -238,9 +272,9 @@ export default function AlterarSenha() {
   };
 
   const validar = () => {
-    if (!atual || !nova || !confirmar) return 'Preencha todos os campos.';
+    if ((!recuperacao && !atual) || !nova || !confirmar) return 'Preencha todos os campos.';
     if (nova.length < 8) return 'A nova senha deve ter pelo menos 8 caracteres.';
-    if (nova === atual) return 'A nova senha deve ser diferente da atual.';
+    if (!recuperacao && nova === atual) return 'A nova senha deve ser diferente da atual.';
     if (forca < 2) return 'Escolha uma senha mais forte: combine letras, números e símbolos.';
     if (nova !== confirmar) return 'As senhas não conferem.';
     return '';
@@ -257,14 +291,17 @@ export default function AlterarSenha() {
 
     setEnviando(true);
     try {
-      // TODO: enviar senha atual + nova senha para o seu backend aqui
-      // (se a senha atual estiver errada, mostre: 'A senha atual está incorreta.')
-      setMsg({ tipo: 'ok', texto: 'Senha alterada com sucesso.' });
+      if (recuperacao) await definirSenhaRecuperacao(nova);
+      else await alterarSenha(atual, nova);
+      setMsg({
+        tipo: 'ok',
+        texto: recuperacao ? 'Senha redefinida com sucesso.' : 'Senha alterada com sucesso.',
+      });
       setAtual('');
       setNova('');
       setConfirmar('');
     } catch (e) {
-      setMsg({ tipo: 'erro', texto: 'Não foi possível alterar a senha. Tente novamente.' });
+      setMsg({ tipo: 'erro', texto: mensagemErroAuth(e) });
     } finally {
       setEnviando(false);
     }
@@ -326,9 +363,13 @@ export default function AlterarSenha() {
           {/* ---------- .conteudo ---------- */}
           <View style={[styles.conteudo, compacto && styles.conteudoCompacto]}>
             <Text style={styles.titulo} accessibilityRole="header">
-              Alterar Senha
+              {recuperacao ? 'Redefinir Senha' : 'Alterar Senha'}
             </Text>
-            <Text style={styles.subtitulo}>Mantenha sua conta segura. Escolha uma senha forte e exclusiva.</Text>
+            <Text style={styles.subtitulo}>
+              {recuperacao
+                ? 'Escolha uma nova senha forte para sua conta.'
+                : 'Mantenha sua conta segura. Escolha uma senha forte e exclusiva.'}
+            </Text>
 
             <View style={[styles.panel, compacto && styles.panelCompacto]}>
               {/* ---------- .info-side ---------- */}
@@ -345,15 +386,17 @@ export default function AlterarSenha() {
               </View>
 
               {/* ---------- formulário ---------- */}
-              <CampoSenha
-                rotulo="Senha atual"
-                value={atual}
-                onChangeText={mudar(setAtual)}
-                placeholder="Digite sua senha atual"
-                autoComplete="current-password"
-                returnKeyType="next"
-                onSubmitEditing={() => refNova.current?.focus()}
-              />
+              {!recuperacao && (
+                <CampoSenha
+                  rotulo="Senha atual"
+                  value={atual}
+                  onChangeText={mudar(setAtual)}
+                  placeholder="Digite sua senha atual"
+                  autoComplete="current-password"
+                  returnKeyType="next"
+                  onSubmitEditing={() => refNova.current?.focus()}
+                />
+              )}
 
               <CampoSenha
                 ref={refNova}
@@ -400,14 +443,22 @@ export default function AlterarSenha() {
                 {iguais && <Text style={[styles.ajuda, { color: COR.ok }]}>As senhas conferem.</Text>}
               </CampoSenha>
 
-              {msg && (
-                <View style={[styles.msg, msg.tipo === 'ok' ? styles.msgOk : styles.msgErro]} accessibilityLiveRegion="polite">
+              {(avisoLink || msg) && (
+                <View
+                  style={[
+                    styles.msg,
+                    (avisoLink || msg).tipo === 'ok' ? styles.msgOk : styles.msgErro,
+                  ]}
+                  accessibilityLiveRegion="polite"
+                >
                   <Ionicons
-                    name={msg.tipo === 'ok' ? 'checkmark-circle-outline' : 'alert-circle-outline'}
+                    name={(avisoLink || msg).tipo === 'ok' ? 'checkmark-circle-outline' : 'alert-circle-outline'}
                     size={18}
-                    color={msg.tipo === 'ok' ? COR.ok : COR.erro}
+                    color={(avisoLink || msg).tipo === 'ok' ? COR.ok : COR.erro}
                   />
-                  <Text style={[styles.msgTexto, { color: msg.tipo === 'ok' ? COR.ok : COR.erro }]}>{msg.texto}</Text>
+                  <Text style={[styles.msgTexto, { color: (avisoLink || msg).tipo === 'ok' ? COR.ok : COR.erro }]}>
+                    {(avisoLink || msg).texto}
+                  </Text>
                 </View>
               )}
 
@@ -424,7 +475,9 @@ export default function AlterarSenha() {
                 {enviando ? (
                   <ActivityIndicator color="#111" />
                 ) : (
-                  <Text style={styles.botaoTexto}>Alterar senha</Text>
+                  <Text style={styles.botaoTexto}>
+                    {recuperacao ? 'Redefinir senha' : 'Alterar senha'}
+                  </Text>
                 )}
               </Pressable>
 
