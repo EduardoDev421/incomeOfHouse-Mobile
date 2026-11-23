@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { enviarContato } from '../services/envios';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Rodape } from '../components/Comuns';
 
@@ -188,7 +189,7 @@ export default function FaleConosco() {
 
   const navegar = (rota) => router.push(rota);
 
-  const enviar = () => {
+  const enviar = async () => {
     setSucesso(false);
 
     if (!nome.trim()) return setErro('Informe seu nome completo.');
@@ -206,8 +207,11 @@ export default function FaleConosco() {
       mensagem: mensagem.trim(),
     };
 
-    // TODO: enviar "contato" para o seu backend / serviço de e-mail aqui.
-    console.log('Mensagem pronta para enviar:', contato);
+    try {
+      await enviarContato(contato);
+    } catch (e) {
+      return setErro('Não foi possível enviar sua mensagem. Tente novamente.');
+    }
 
     setSucesso(true);
     setNome('');

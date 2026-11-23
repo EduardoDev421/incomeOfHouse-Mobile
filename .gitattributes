@@ -1,0 +1,6 @@
+# Normaliza finais de linha (evita arquivos "modificados" só por CRLF/LF)
+* text=auto
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary

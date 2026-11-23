@@ -1,19 +1,51 @@
 import { useEffect } from 'react';
 import { Platform } from 'react-native';
-import { Stack, usePathname, useRouter } from 'expo-router';
+import { SplashScreen, Stack, usePathname, useRouter } from 'expo-router';
 import { LegalProvider } from '../components/LegalProvider';
-import { ContaProvider } from '../components/ContaProvider';
+import { ContaProvider, useConta } from '../components/ContaProvider';
 
-export default function RootLayout() {
+// Mantém a splash visível até a sessão e o perfil terminarem de carregar.
+SplashScreen.preventAutoHideAsync();
+
+function Navegacao() {
   const router = useRouter();
   const pathname = usePathname();
+  const { autenticado, tipo, carregado } = useConta();
 
   useEffect(() => {
+    if (carregado) SplashScreen.hide();
+  }, [carregado]);
+
+  useEffect(() => {
+    if (!carregado) return;
     if (Platform.OS === 'web' && (pathname === '/index' || pathname === '/index.html')) {
       router.replace('/');
     }
-  }, [pathname, router]);
+  }, [carregado, pathname, router]);
 
+  // Só renderiza as rotas depois de saber quem é o usuário.
+  if (!carregado) return null;
+
+  // Telas exclusivas de profissionais logados.
+  // Quem não tiver acesso é redirecionado para a rota inicial.
+  const profissional = autenticado && tipo === 'profissional';
+
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Protected guard={profissional}>
+        <Stack.Screen name="ConfigProfissionais" />
+        <Stack.Screen name="DadosEmpresa" />
+        <Stack.Screen name="DadosRecebimento" />
+        <Stack.Screen name="HistoricoPagamentos" />
+        <Stack.Screen name="NotaFicais" />
+        <Stack.Screen name="DispositivosConectados" />
+        <Stack.Screen name="AutenticacaoDuasEtapas" />
+      </Stack.Protected>
+    </Stack>
+  );
+}
+
+export default function RootLayout() {
   // Web: sem rolagem lateral e raiz com a altura da janela
   useEffect(() => {
     if (Platform.OS !== 'web') return undefined;
@@ -32,7 +64,7 @@ export default function RootLayout() {
   return (
     <LegalProvider>
       <ContaProvider>
-        <Stack screenOptions={{ headerShown: false }} />
+        <Navegacao />
       </ContaProvider>
     </LegalProvider>
   );

@@ -40,7 +40,7 @@ const GAP_CARDS = 24;
 /* id, nome, tipo, quartos, garagens, area, estilo                     */
 /* Opcional: foto (require('...') ou { uri: '...' }) e preco (número)  */
 /*                                                                     */
-/* TODO: buscar as plantas na API (services/api.js), como o site web.  */
+/* TODO: buscar as plantas na API (services/supabase.js, usando getSupabaseClient()).  */
 /* ------------------------------------------------------------------ */
 const PLANTAS = [];
 

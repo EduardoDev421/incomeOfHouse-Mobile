@@ -28,7 +28,7 @@ import {
    Enquanto estiver null, a tela mostra o texto "Income of Houses".
 ========================================================= */
 
-const LOGO = require('../assets/images/Logo.png');
+const LOGO = require('../../assets/images/Logo.png');
 
 /* =========================================================
    ROTAS

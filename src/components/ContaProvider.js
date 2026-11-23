@@ -210,7 +210,7 @@ export function ContaProvider({ children }) {
   return <ContaContext.Provider value={valor}>{children}</ContaContext.Provider>;
 }
 
-export function usarConta() {
+export function useConta() {
   const contexto = useContext(ContaContext);
 
   if (!contexto) {
@@ -223,6 +223,6 @@ export function usarConta() {
 }
 
 export function useDeclararConta(esperado) {
-  const { tipo, carregado } = usarConta();
+  const { tipo, carregado } = useConta();
   return carregado && tipo === esperado;
 }

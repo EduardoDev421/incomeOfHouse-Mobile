@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
+import { enviarPlanta } from '../services/envios';
 import { useDeclararConta } from '../components/ContaProvider';
 import ContaMenu from '../components/MenuConta';
 
@@ -499,8 +500,7 @@ export default function PublicarPlanta() {
         imagem, // { uri, fileName, mimeType, fileSize, ... }
       };
 
-      // TODO: enviar "planta" para o seu backend / banco de dados aqui.
-      console.log('Planta pronta para publicar:', planta);
+      await enviarPlanta(planta);
 
       setSucesso(true);
       limparFormulario();

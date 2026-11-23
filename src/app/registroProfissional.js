@@ -14,6 +14,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
+import { enviarSolicitacaoProfissional } from '../services/envios';
 
 const DOURADO = '#c9a45c';
 const DOURADO_BOTAO = '#d9b45f';
@@ -249,7 +250,7 @@ export default function RegistroProfissional() {
 
   const removerArquivo = (uri) => setArquivos((lista) => lista.filter((a) => a.uri !== uri));
 
-  const enviar = () => {
+  const enviar = async () => {
     setSucesso(false);
 
     const docDigitos = soDigitos(cpfCnpj).length;
@@ -284,8 +285,11 @@ export default function RegistroProfissional() {
       arquivos, // [{ uri, name, size, mimeType }]
     };
 
-    // TODO: enviar "solicitacao" (e os arquivos) para o seu backend aqui.
-    console.log('Solicitação pronta para enviar:', solicitacao);
+    try {
+      await enviarSolicitacaoProfissional(solicitacao);
+    } catch (e) {
+      return setErro('Não foi possível enviar a solicitação. Tente novamente.');
+    }
 
     setSucesso(true);
     setNome('');
