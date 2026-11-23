@@ -4,7 +4,7 @@ import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, usePathname } from 'expo-router';
 
-import { usarConta, MENUS, DEBUG_CONTA } from './ContaProvider';
+import { useConta, MENUS, DEBUG_CONTA } from './ContaProvider';
 
 function ItemConta({ item, router, aoSelecionar }) {
   const pathname = usePathname().toLowerCase();
@@ -29,13 +29,13 @@ function ItemConta({ item, router, aoSelecionar }) {
 }
 
 // Cada tela é de UM tipo de conta (ex.: EnderecosUsuario, EnderecosProfissional),
-// então ela informa o "tipo" e o menu certo aparece, sem depender de mais nada.
+// então ela pode informar o "tipo" e o menu certo aparece.
 // Sem a prop, o menu usa o tipo de conta guardado no Provider.
-export default function ContaMenu({ aoSelecionar }) {
-  const conta = usarConta();
+export default function ContaMenu({ tipo: tipoProp, aoSelecionar }) {
+  const conta = useConta();
   const router = useRouter();
 
-  const tipo = conta.tipo || null;
+  const tipo = tipoProp || conta.tipo || null;
   const menu = tipo ? MENUS[tipo] || [] : [];
 
   // Aguarda a sessão e o perfil remoto terminarem de carregar
@@ -73,7 +73,7 @@ export default function ContaMenu({ aoSelecionar }) {
     <View style={styles.container}>
       {DEBUG_CONTA && (
         <Text style={styles.debug}>
-          DEBUG conta: {String(conta.tipo)}
+          DEBUG conta: {String(tipo)}
         </Text>
       )}
       {!!conta.erroSessao && (
