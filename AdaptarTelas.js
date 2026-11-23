@@ -77,10 +77,10 @@ function gravar(arquivo, conteudo) {
   const src = ler(origem);
   if (src) {
     const novo = trocar(src, [
-      [/import \{ usarConta \} from '\.\.\/components\/ContaProvider';\r?\n/, '', "import { usarConta }"],
+      [/import \{ useConta \} from '\.\.\/components\/ContaProvider';\r?\n/, '', "import { useConta }"],
       ["import ContaMenu from '../components/MenuConta';", "import ContaMenu from './MenuConta';", 'import ContaMenu'],
       ['export default function Meusenderecos() {', 'export default function TelaEnderecos({ tipo }) {', 'export default function Meusenderecos'],
-      [/[ \t]*const \{ tipo \} = usarConta\(\);\r?\n/, '', 'const { tipo } = usarConta()'],
+      [/[ \t]*const \{ tipo \} = useConta\(\);\r?\n/, '', 'const { tipo } = useConta()'],
       ['<ContaMenu aoSelecionar={() => setMenuAberto(false)} />', '<ContaMenu tipo={tipo} aoSelecionar={() => setMenuAberto(false)} />', '<ContaMenu aoSelecionar=...>'],
     ], origem);
     if (novo) {
@@ -135,7 +135,7 @@ function gravar(arquivo, conteudo) {
       console.log('• TelaConta.js já está adaptado, nada a fazer');
     } else {
       const novo = trocar(src, [
-        ["import { usarConta } from './ContaProvider';", "import { usarConta, MENUS } from './ContaProvider';", 'import { usarConta }'],
+        ["import { usarConta } from './ContaProvider';", "import { useConta, MENUS } from './ContaProvider';", 'import { usarConta }'],
         [
           'export function LayoutConta({ titulo, subtitulo, ativo, children }) {',
           'export function LayoutConta({ titulo, subtitulo, ativo, tipo: tipoDaTela, children }) {',
@@ -143,7 +143,7 @@ function gravar(arquivo, conteudo) {
         ],
         [
           'const { menu, limpar } = usarConta();',
-          'const { menu: menuDaConta, limpar } = usarConta();\n  const menu = tipoDaTela ? MENUS[tipoDaTela] : menuDaConta;',
+          'const { menu: menuDaConta, limpar } = useConta();\n  const menu = tipoDaTela ? MENUS[tipoDaTela] : menuDaConta;',
           'const { menu, limpar } = usarConta()',
         ],
       ], 'TelaConta.js');

@@ -3,7 +3,7 @@ import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker'; // npx expo install expo-document-picker
-import { usarConta } from '../components/ContaProvider';
+import { useConta } from '../components/ContaProvider';
 import {
   AuthTela, CartaoTitulo, Campo, Seletor, Linha, CaixaErro, Botao,
   Divisor, LinkConta, LinkContorno, maskCPF, maskTelefone, maskData,
@@ -76,7 +76,7 @@ const formatarTamanho = (bytes) =>
 
 export default function CadastroProfissional() {
   const router = useRouter();
-  const { recarregarPerfil } = usarConta();
+  const { recarregarPerfil } = useConta();
 
   const [nome, setNome] = useState('');
   const [registro, setRegistro] = useState('');

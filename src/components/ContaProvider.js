@@ -1,10 +1,10 @@
-import React, {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
+import {
+    createContext,
+    useCallback,
+    useContext,
+    useEffect,
+    useMemo,
+    useState,
 } from 'react';
 import { AppState, Platform } from 'react-native';
 import { atualizarPerfil, buscarPerfil } from '../services/auth';
@@ -215,7 +215,7 @@ export function useConta() {
 
   if (!contexto) {
     throw new Error(
-      'usarConta precisa estar dentro de <ContaProvider>. Verifique o _layout.js.'
+      'useConta precisa estar dentro de <ContaProvider>. Verifique o _layout.js.'
     );
   }
 

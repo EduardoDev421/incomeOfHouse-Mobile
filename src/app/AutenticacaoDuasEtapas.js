@@ -1,26 +1,26 @@
-  import React, { useRef, useState } from 'react';
-  import {
-    View,
-    Text,
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { useRef, useState } from 'react';
+import {
     Image,
-    ScrollView,
-    TouchableOpacity,
-    TextInput,
-    Switch,
-    Modal,
-    Pressable,
     KeyboardAvoidingView,
+    Modal,
     Platform,
-    Share,
-    StyleSheet,
-    StatusBar,
+    Pressable,
     SafeAreaView,
+    ScrollView,
+    Share,
+    StatusBar,
+    StyleSheet,
+    Switch,
+    Text,
+    TextInput,
+    TouchableOpacity,
     useWindowDimensions,
-  } from 'react-native';
-  import { Ionicons } from '@expo/vector-icons';
-  import { useRouter } from 'expo-router';
-  import { useLegal } from '../components/LegalProvider';
-  import { usarConta } from '../components/ContaProvider';
+    View,
+} from 'react-native';
+import { useConta } from '../components/ContaProvider';
+import { useLegal } from '../components/LegalProvider';
 
   // Dependencias OPCIONAIS (a tela funciona mesmo sem elas):
   //   npx expo install expo-clipboard react-native-svg
@@ -138,7 +138,7 @@
   export default function AutenticacaoDuasEtapas() {
     const router = useRouter();
     const { abrirLegal } = useLegal();
-    const { user } = usarConta();
+    const { user } = useConta();
     const EMAIL_USUARIO = user?.email || '';
     const { width } = useWindowDimensions();
     const largo = width >= 900; // layout igual ao da web: menu lateral fixo + cabeçalho completo

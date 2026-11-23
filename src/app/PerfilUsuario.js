@@ -1,20 +1,20 @@
-import React, { useState, useRef, useEffect } from 'react';
-import {
-  View,
-  Text,
-  Image,
-  ImageBackground,
-  ScrollView,
-  StyleSheet,
-  Pressable,
-  useWindowDimensions,
-  Alert,
-  Animated,
-} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
+import {
+    Alert,
+    Animated,
+    Image,
+    ImageBackground,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    useWindowDimensions,
+    View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { usarConta } from '../components/ContaProvider';
+import { useConta } from '../components/ContaProvider';
 import ContaMenu from '../components/MenuConta';
 
 /* ================================================= */
@@ -373,7 +373,7 @@ function Drawer({ aberto, deslize, fade, insets, paisagem, onFechar, onNavegar, 
 export default function PerfilUsuario() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { user, perfil, tipo, carregado, erroPerfil } = usarConta();
+  const { user, perfil, tipo, carregado, erroPerfil } = useConta();
   const { width, height } = useWindowDimensions();
   const nomeUsuario = perfil?.full_name || user?.email || 'Usuário';
   const membroDesde = user?.created_at

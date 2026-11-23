@@ -1,21 +1,21 @@
-import React, { useState, useRef, useEffect } from 'react';
-import {
-  View,
-  Text,
-  Image,
-  ImageBackground,
-  ScrollView,
-  StyleSheet,
-  Pressable,
-  useWindowDimensions,
-  Alert,
-  Animated,
-} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as DocumentPicker from 'expo-document-picker';
-import { usarConta } from '../components/ContaProvider';
+import { useRouter } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
+import {
+    Alert,
+    Animated,
+    Image,
+    ImageBackground,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    useWindowDimensions,
+    View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useConta } from '../components/ContaProvider';
 import ContaMenu from '../components/MenuConta';
 import { mensagemErroAuth } from '../services/auth';
 import { enviarComprovanteProfissional, tipoComprovante } from '../services/documentos';
@@ -362,7 +362,7 @@ function Drawer({ aberto, deslize, fade, insets, paisagem, onFechar, onNavegar, 
 export default function PerfilProfissional() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { user, perfil, tipo, carregado, erroPerfil, recarregarPerfil } = usarConta();
+  const { user, perfil, tipo, carregado, erroPerfil, recarregarPerfil } = useConta();
   const { width, height } = useWindowDimensions();
   const [arquivoComprovante, setArquivoComprovante] = useState(null);
   const [enviandoComprovante, setEnviandoComprovante] = useState(false);

@@ -1,21 +1,21 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  Image,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  Modal,
-  Pressable,
-  StyleSheet,
-  StatusBar,
-  SafeAreaView,
-} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
+import {
+    Image,
+    Modal,
+    Pressable,
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import { useConta } from '../components/ContaProvider';
 import { useLegal } from '../components/LegalProvider';
-import { usarConta } from '../components/ContaProvider';
 import { mensagemErroAuth } from '../services/auth';
 
 const LOGO = require('../../assets/images/Logo.png');
@@ -95,7 +95,7 @@ function InfoConta({ icon, label, valor, editando, onChange, keyboardType }) {
 export default function DadosPermissoes() {
   const router = useRouter();
   const { abrirLegal } = useLegal();
-  const { user, perfil, tipo, salvarPerfil } = usarConta();
+  const { user, perfil, tipo, salvarPerfil } = useConta();
   const [menuAberto, setMenuAberto] = useState(false);
 
   const [editando, setEditando] = useState(false);

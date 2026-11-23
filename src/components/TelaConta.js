@@ -1,20 +1,20 @@
-import React, { useState, useRef, useEffect } from 'react';
-import {
-  View,
-  Text,
-  Image,
-  ImageBackground,
-  ScrollView,
-  TextInput,
-  StyleSheet,
-  Pressable,
-  useWindowDimensions,
-  Animated,
-} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
+import {
+    Animated,
+    Image,
+    ImageBackground,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    useWindowDimensions,
+    View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { usarConta } from './ContaProvider';
+import { useConta } from './ContaProvider';
 import { useLegal } from './LegalProvider';
 
 const gold = '#c9a45c';
@@ -58,7 +58,7 @@ export function LayoutConta({ titulo, subtitulo, ativo, children }) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { abrirLegal } = useLegal();
-  const { menu: menuDaConta, erroSessao, limpar } = usarConta();
+  const { menu: menuDaConta, erroSessao, limpar } = useConta();
   const menu = menuDaConta;
   const { width, height } = useWindowDimensions();
 
