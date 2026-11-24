@@ -43,6 +43,16 @@ Deno.serve(async (request: Request) => {
   });
 
   // Remove primeiro os dados públicos associados à conta profissional/cliente.
+  // Aquisições são removidas antes das plantas para respeitar possíveis chaves estrangeiras.
+  const { error: aquisicoesError } = await adminClient
+    .from("plantas_adquiridas")
+    .delete()
+    .eq("usuario_id", user.id);
+  if (aquisicoesError) {
+    console.error("Falha ao remover aquisições da conta:", aquisicoesError);
+    return resposta(500, { error: "Não foi possível remover as aquisições vinculadas à conta." });
+  }
+
   // As plantas publicadas pertencem ao profissional; aquisições pertencem ao usuário.
   const { error: plantasError } = await adminClient
     .from("plantas")
@@ -60,15 +70,6 @@ Deno.serve(async (request: Request) => {
   if (profissionalError) {
     console.error("Falha ao remover perfil profissional:", profissionalError);
     return resposta(500, { error: "Não foi possível remover o perfil profissional vinculado à conta." });
-  }
-
-  const { error: aquisicoesError } = await adminClient
-    .from("plantas_adquiridas")
-    .delete()
-    .eq("usuario_id", user.id);
-  if (aquisicoesError) {
-    console.error("Falha ao remover aquisições da conta:", aquisicoesError);
-    return resposta(500, { error: "Não foi possível remover as aquisições vinculadas à conta." });
   }
 
   // Remove arquivos do Storage antes de excluir o usuário do Auth.
