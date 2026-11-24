@@ -42,27 +42,69 @@ Deno.serve(async (request: Request) => {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  // A exclusão do usuário dispara as FKs ON DELETE CASCADE já configuradas
-  // para profiles, profissionais e plantas.
+  // Remove primeiro os dados públicos associados à conta profissional/cliente.
+  // As plantas publicadas pertencem ao profissional; aquisições pertencem ao usuário.
+  const { error: plantasError } = await adminClient
+    .from("plantas")
+    .delete()
+    .eq("profissional_id", user.id);
+  if (plantasError) {
+    console.error("Falha ao remover plantas da conta:", plantasError);
+    return resposta(500, { error: "Não foi possível remover os projetos vinculados à conta." });
+  }
+
+  const { error: profissionalError } = await adminClient
+    .from("profissionais")
+    .delete()
+    .eq("id", user.id);
+  if (profissionalError) {
+    console.error("Falha ao remover perfil profissional:", profissionalError);
+    return resposta(500, { error: "Não foi possível remover o perfil profissional vinculado à conta." });
+  }
+
+  const { error: aquisicoesError } = await adminClient
+    .from("plantas_adquiridas")
+    .delete()
+    .eq("usuario_id", user.id);
+  if (aquisicoesError) {
+    console.error("Falha ao remover aquisições da conta:", aquisicoesError);
+    return resposta(500, { error: "Não foi possível remover as aquisições vinculadas à conta." });
+  }
+
+  // Remove arquivos do Storage antes de excluir o usuário do Auth.
+  const { error: documentoError } = await adminClient.storage
+    .from("professional-documents")
+    .remove([`${user.id}/comprovante`]);
+
+  const { data: imagens, error: listarImagensError } = await adminClient.storage
+    .from("plantas")
+    .list(user.id, { limit: 1000 });
+
+  let imagensError = listarImagensError;
+  if (!listarImagensError && imagens?.length) {
+    const caminhos = imagens
+      .filter((arquivo) => arquivo.name)
+      .map((arquivo) => `${user.id}/${arquivo.name}`);
+    if (caminhos.length) {
+      const { error } = await adminClient.storage.from("plantas").remove(caminhos);
+      imagensError = error;
+    }
+  }
+
+  if (documentoError || imagensError) {
+    console.error("Falha ao limpar arquivos do Storage:", documentoError || imagensError);
+  }
+
   const { error: deleteError } = await adminClient.auth.admin.deleteUser(user.id);
   if (deleteError) {
     console.error("Falha ao excluir usuário:", deleteError);
     return resposta(500, {
-      error: "Não foi possível excluir a conta. Nenhum acesso foi removido. " + deleteError.message,
+      error: "Não foi possível concluir a exclusão da conta. " + deleteError.message,
     });
-  }
-
-  // Os objetos do Storage não são removidos automaticamente pela exclusão do Auth.
-  const { error: storageError } = await adminClient.storage
-    .from("professional-documents")
-    .remove([`${user.id}/comprovante`]);
-
-  if (storageError) {
-    console.error("Conta excluída, mas houve falha ao remover documento:", storageError);
   }
 
   return resposta(200, {
     success: true,
-    storageCleanupWarning: Boolean(storageError),
+    storageCleanupWarning: Boolean(documentoError || imagensError),
   });
 });
