@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -14,10 +14,12 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDeclararConta } from '../components/ContaProvider';
 import ContaMenu from '../components/MenuConta';
+import { useConta } from '../components/ContaProvider';
+import { getSupabaseClient } from '../services/supabase';
 
 /* ================================================= */
 /* CONSTANTES                                        */
@@ -435,6 +437,7 @@ export default function Projetos() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   useDeclararConta('profissional');
+  const { user } = useConta();
   const { width, height } = useWindowDimensions();
 
   // Breakpoints (iguais ao CSS da versão web: 850 / 1100)
@@ -466,8 +469,46 @@ export default function Projetos() {
     if (!mobile) setMenuAberto(false);
   }, [mobile]);
 
-  /* ----- Projetos ----- */
-  const [projetos, setProjetos] = useState(PROJETOS_INICIAIS);
+  /* ----- Projetos publicados no Supabase ----- */
+  const [projetos, setProjetos] = useState([]);
+  const [carregandoProjetos, setCarregandoProjetos] = useState(true);
+  const [erroProjetos, setErroProjetos] = useState('');
+  useFocusEffect(useCallback(() => {
+    let ativo = true;
+    async function carregarProjetos() {
+      setCarregandoProjetos(true);
+      setErroProjetos('');
+      try {
+        if (!user?.id) { if (ativo) setProjetos([]); return; }
+        const { data, error } = await getSupabaseClient().from('plantas')
+          .select('id,nome,descricao,categoria,ativa,preco,quartos,garagem,area,criado_em,imagem_url')
+          .eq('profissional_id', user.id)
+          .order('criado_em', { ascending: false });
+        if (error) throw error;
+        const lista = (data || []).map((item) => ({
+          id: String(item.id),
+          nome: item.nome || 'Planta sem título',
+          descricao: item.descricao || 'Sem descrição cadastrada.',
+          tipo: item.categoria || 'Outros',
+          status: item.ativa ? 'publicada' : 'inativa',
+          valor: Number(item.preco) || 0,
+          quartos: Number(item.quartos) || 0,
+          garagens: Number(item.garagem) || 0,
+          area: Number(item.area) || 0,
+          data: (item.criado_em || new Date().toISOString()).slice(0, 10),
+          foto: item.imagem_url ? { uri: item.imagem_url } : null,
+        }));
+        if (ativo) setProjetos(lista);
+      } catch (falha) {
+        console.error('Erro ao carregar projetos do profissional:', falha);
+        if (ativo) setErroProjetos(falha?.message || 'Não foi possível carregar seus projetos.');
+      } finally { if (ativo) setCarregandoProjetos(false); }
+    }
+    carregarProjetos();
+    return () => { ativo = false; };
+  }, [user?.id]));
+  const [carregandoProjetos, setCarregandoProjetos] = useState(true);
+  const [erroProjetos, setErroProjetos] = useState('');
   const [busca, setBusca] = useState('');
   const [statusFiltro, setStatusFiltro] = useState('todos');
   const [tipo, setTipo] = useState('todos');
@@ -536,22 +577,38 @@ export default function Projetos() {
     setBusca('');
   };
 
-  const remover = (projeto) => {
-    setRemovido({
-      projeto,
-      indice: projetos.findIndex((p) => p.id === projeto.id),
-    });
-    setProjetos((lista) => lista.filter((p) => p.id !== projeto.id));
+  const remover = async (projeto) => {
+    try {
+      const { data, error } = await getSupabaseClient().from('plantas')
+        .update({ ativa: false }).eq('id', projeto.id)
+        .eq('profissional_id', user.id).select('id').maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error('O banco não confirmou a desativação deste projeto.');
+      setRemovido({ projeto, indice: projetos.findIndex((p) => p.id === projeto.id) });
+      setProjetos((lista) => lista.filter((p) => p.id !== projeto.id));
+    } catch (falha) {
+      console.error('Erro ao arquivar projeto:', falha);
+      Alert.alert('Não foi possível excluir', falha?.message || 'Tente novamente.');
+    }
   };
 
-  const desfazer = () => {
-    if (!removido) return;
-    setProjetos((lista) => {
-      const copia = [...lista];
-      copia.splice(Math.min(removido.indice, copia.length), 0, removido.projeto);
-      return copia;
-    });
-    setRemovido(null);
+  const desfazer = async () => {
+    if (!removido || !user?.id) return;
+    try {
+      const { error } = await getSupabaseClient().from('plantas')
+        .update({ ativa: true }).eq('id', removido.projeto.id)
+        .eq('profissional_id', user.id);
+      if (error) throw error;
+      setProjetos((lista) => {
+        const copia = [...lista];
+        copia.splice(Math.min(removido.indice, copia.length), 0, { ...removido.projeto, status: 'publicada' });
+        return copia;
+      });
+      setRemovido(null);
+    } catch (falha) {
+      console.error('Erro ao restaurar projeto:', falha);
+      Alert.alert('Não foi possível restaurar', falha?.message || 'Tente novamente.');
+    }
   };
 
   /* ----- Navegação ----- */
@@ -580,8 +637,11 @@ export default function Projetos() {
   const basisResumo = mobile || medio ? '46%' : '22%';
 
   /* ----- Conteúdo ----- */
-  const grade =
-    projetos.length === 0 && !removido ? (
+  const grade = carregandoProjetos ? (
+    <Vazio icone="hourglass-outline" titulo="Carregando seus projetos..." />
+  ) : erroProjetos ? (
+    <Vazio icone="alert-circle-outline" titulo="Não foi possível carregar os projetos" texto={erroProjetos} />
+  ) : projetos.length === 0 && !removido ? (
       <Vazio
         icone="grid-outline"
         titulo="Você ainda não tem nenhum projeto"
