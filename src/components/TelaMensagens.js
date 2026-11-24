@@ -1,10 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
   View, Text, TextInput, Pressable, ScrollView, StyleSheet, Platform,
-  BackHandler, KeyboardAvoidingView, useWindowDimensions, ActivityIndicator,
+  BackHandler, KeyboardAvoidingView, useWindowDimensions, ActivityIndicator, Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { LayoutConta } from './TelaConta';
 import { useConta } from './ContaProvider';
 import {
@@ -13,6 +13,7 @@ import {
   garantirConversaComProfissional,
   listarConversas,
   marcarConversaComoLida,
+  ocultarConversa,
 } from '../services/chat';
 import { getSupabaseClient } from '../services/supabase';
 
@@ -72,7 +73,7 @@ function Balao({ msg }) {
   return (
     <View style={[s.balao, enviada ? s.balaoEnviado : s.balaoRecebido]}>
       <Text style={s.balaoTxt}>{msg.texto}</Text>
-      <Text style={[s.balaoHora, enviada && s.balaoHoraEnviada]}>{msg.hora}</Text>
+      <View style={s.balaoRodape}>\n        <Text style={[s.balaoHora, enviada && s.balaoHoraEnviada]}>{msg.hora}</Text>\n        {enviada && <Ionicons name={msg.visualizada ? 'checkmark-done' : 'checkmark'} size={14}\n          color={msg.visualizada ? '#67b7ff' : '#b59a58'} accessibilityLabel={msg.visualizada ? 'Mensagem visualizada' : 'Mensagem enviada'} />}\n      </View>
     </View>
   );
 }
@@ -80,7 +81,7 @@ function Balao({ msg }) {
 export default function TelaMensagens({ tipo: tipoConta }) {
   const { width, height } = useWindowDimensions();
   const { user, perfil, tipo } = useConta();
-  const router = useRouter();
+  const idInstancia = useId().replace(/:/g, '');
   const params = useLocalSearchParams();
   const tipoAtivo = tipo || tipoConta;
   const [conversas, setConversas] = useState([]);
@@ -143,23 +144,38 @@ export default function TelaMensagens({ tipo: tipoConta }) {
     };
     iniciar();
 
-    const canal = getSupabaseClient()
-      .channel('mobile-chat-' + user.id)
+    return () => {
+      ativo = false;
+    };
+  }, [user?.id, tipoAtivo, params.com, params.nome, params.conversa]);
+
+  // Cada montagem recebe um tópico exclusivo. Isso evita reutilizar um canal
+  // ainda inscrito durante navegação rápida ou remontagens do React.
+  useEffect(() => {
+    if (!user?.id || !tipoAtivo) return undefined;
+
+    let ativo = true;
+    const supabase = getSupabaseClient();
+    const canal = supabase
+      .channel(`mobile-chat-${user.id}-${idInstancia}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'mensagens' }, () => {
         if (ativo) carregar().catch(() => {});
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'conversas' }, () => {
         if (ativo) carregar().catch(() => {});
-      })
-      .subscribe();
+      });
+
     canalRef.current = canal;
+    canal.subscribe();
 
     return () => {
       ativo = false;
-      if (canalRef.current) getSupabaseClient().removeChannel(canalRef.current);
-      canalRef.current = null;
+      if (canalRef.current === canal) canalRef.current = null;
+      // removeChannel encerra a inscrição; o tópico exclusivo impede colisão
+      // caso uma nova tela seja montada antes da remoção terminar.
+      supabase.removeChannel(canal).catch(() => {});
     };
-  }, [user?.id, tipoAtivo, params.com, params.conversa, carregar]);
+  }, [user?.id, tipoAtivo, carregar, idInstancia]);
 
   const conversaAtual = useMemo(
     () => conversas.find((c) => c.id === conversaId) || null,
@@ -213,6 +229,32 @@ export default function TelaMensagens({ tipo: tipoConta }) {
       setConversas((atuais) => atuais.map((c) => c.id === conversaAtual.id ? { ...c, salvo: !novo } : c));
       setErro(falha?.message || 'Não foi possível salvar o contato.');
     }
+  };
+
+  const apagarContato = () => {
+    if (!conversaAtual) return;
+    const id = conversaAtual.id;
+    Alert.alert(
+      'Apagar contato?',
+      'A conversa será removida da sua lista. As mensagens da outra pessoa serão preservadas.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Apagar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await ocultarConversa(id, tipoAtivo);
+              setConversas((atuais) => atuais.filter((c) => c.id !== id));
+              setConversaId(null);
+              setErro('');
+            } catch (falha) {
+              setErro(falha?.message || 'Não foi possível apagar o contato.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const enviar = async () => {
@@ -294,6 +336,11 @@ export default function TelaMensagens({ tipo: tipoConta }) {
                 {!mobile && <Text style={[s.btnSalvarTxt, conversaAtual.salvo && { color: DOURADO }]}>
                   {conversaAtual.salvo ? 'Salvo' : 'Salvar contato'}
                 </Text>}
+              </Pressable>
+              <Pressable onPress={apagarContato} style={({ pressed }) => [
+                s.btnApagar, pressed && s.pressionado,
+              ]} accessibilityRole="button" accessibilityLabel="Apagar contato">
+                <Ionicons name="trash-outline" size={17} color="#ff8585" />
               </Pressable>
             </View>
             <ScrollView ref={scrollRef} style={s.flex} contentContainerStyle={s.chatConteudo}
@@ -656,7 +703,7 @@ const s = StyleSheet.create({
     color: '#888',
     fontSize: 10,
   },
-  balaoHoraEnviada: { color: '#b59a58' },
+  balaoHoraEnviada: { color: '#b59a58' },\n  balaoRodape: {\n    flexDirection: 'row',\n    alignItems: 'center',\n    justifyContent: 'flex-end',\n    gap: 4,\n    marginTop: 4,\n  },
 
   chatVazio: {
     alignItems: 'center',
