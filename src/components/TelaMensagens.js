@@ -147,7 +147,7 @@ export default function TelaMensagens({ tipo: tipoConta }) {
     return () => {
       ativo = false;
     };
-  }, [user?.id, tipoAtivo, params.com, params.nome, params.conversa]);
+  }, [user?.id, tipoAtivo, params.com, params.nome, params.conversa, carregar]);
 
   // Cada montagem recebe um tópico exclusivo. Isso evita reutilizar um canal
   // ainda inscrito durante navegação rápida ou remontagens do React.
