@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { getSupabaseClient } from '../services/supabase.js';
+import { useConta } from '../components/ContaProvider';
 import { Ionicons } from '@expo/vector-icons';
 import {
   Cabecalho,
@@ -152,6 +153,7 @@ const moeda = (v) =>
 export default function Plantas() {
   const router = useRouter();
   const { width } = useWindowDimensions();
+  const { user } = useConta();
   const largo = width >= 1000;
   const colunas = colunasPorLargura(width);
 
@@ -165,6 +167,7 @@ export default function Plantas() {
   const [aplicados, setAplicados] = useState(FILTROS_VAZIOS);
   const [pagina, setPagina] = useState(1);
   const [favoritos, setFavoritos] = useState([]);
+  const [alterandoFavorito, setAlterandoFavorito] = useState(null);
   const [larguraGrade, setLarguraGrade] = useState(0);
   const [larguraLista, setLarguraLista] = useState(0);
 
@@ -196,6 +199,23 @@ export default function Plantas() {
     return () => { ativo = false; };
   }, []);
 
+  useEffect(() => {
+    let ativo = true;
+    async function carregarFavoritos() {
+      if (!user?.id) { setFavoritos([]); return; }
+      try {
+        const { data, error } = await getSupabaseClient().from('plantas_favoritas')
+          .select('planta_id').eq('usuario_id', user.id);
+        if (error) throw error;
+        if (ativo) setFavoritos((data || []).map((item) => String(item.planta_id)));
+      } catch (falha) {
+        console.error('Erro ao carregar favoritos das plantas:', falha);
+      }
+    }
+    carregarFavoritos();
+    return () => { ativo = false; };
+  }, [user?.id]);
+
   const mudar = (campo) => (valor) => setFiltros((f) => ({ ...f, [campo]: valor }));
 
   const pesquisar = () => {
@@ -217,8 +237,31 @@ export default function Plantas() {
     });
   };
 
-  const alternarFavorito = (id) =>
-    setFavoritos((l) => (l.includes(id) ? l.filter((x) => x !== id) : [...l, id]));
+  const alternarFavorito = async (id) => {
+    if (!user?.id) { router.push('/login'); return; }
+    const chave = String(id);
+    if (alterandoFavorito === chave) return;
+    setAlterandoFavorito(chave);
+    try {
+      const supabase = getSupabaseClient();
+      if (favoritos.includes(chave)) {
+        const { error } = await supabase.from('plantas_favoritas')
+          .delete().eq('usuario_id', user.id).eq('planta_id', id);
+        if (error) throw error;
+        setFavoritos((lista) => lista.filter((item) => item !== chave));
+      } else {
+        const { error } = await supabase.from('plantas_favoritas')
+          .insert({ usuario_id: user.id, planta_id: id });
+        if (error && error.code !== '23505') throw error;
+        setFavoritos((lista) => lista.includes(chave) ? lista : [...lista, chave]);
+      }
+    } catch (falha) {
+      console.error('Erro ao favoritar planta:', falha);
+      setErro('Não foi possível atualizar o favorito. Verifique sua conexão e tente novamente.');
+    } finally {
+      setAlterandoFavorito(null);
+    }
+  };
 
   const ativos = Object.values(aplicados).filter(Boolean).length;
   const resultado = filtrar(plantas, aplicados);
@@ -327,7 +370,7 @@ export default function Plantas() {
                   onLayout={(e) => setLarguraLista(e.nativeEvent.layout.width)}
                 >
                   {visiveis.map((p) => {
-                    const favorito = favoritos.includes(p.id);
+                    const favorito = favoritos.includes(String(p.id));
                     return (
                       <View key={p.id} style={[styles.card, { width: larguraCard }]}>
                         <View>
