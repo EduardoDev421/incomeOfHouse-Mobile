@@ -30,16 +30,6 @@ const FUNDO_PLANTAS = require('../../assets/images/BackGroundPlantasEProfissiona
 const FUNDO = require('../../assets/images/BackgroundFundo.png');
 const IMAGEM_PADRAO = require('../../assets/images/casa.png');
 
-const DESTAQUES_PADRAO = [
-  'Ambientes integrados',
-  'Iluminação natural',
-  'Ventilação cruzada',
-  'Espaço gourmet',
-  'Projeto sustentável',
-  'Acabamento de qualidade',
-];
-
-
 
 const formatarPreco = (n) => `R$ ${n.toLocaleString('pt-BR')}`;
 const plural = (n, singular, pluralTxt) => `${n} ${n === 1 ? singular : pluralTxt}`;
@@ -271,21 +261,13 @@ export default function DetalhesPlantas() {
     );
   }
 
-  const resumo =
-    p.resumo ||
-    `${p.categoria} de estilo ${p.estilo.toLowerCase()} com ${plural(p.quartos, 'quarto', 'quartos')} e ${p.area} m² de área construída.`;
+  const resumo = p.descricao || 'Confira as características e informações cadastradas desta planta.';
 
-  const descricao =
-    p.descricao ||
-    `Projeto ${p.estilo.toLowerCase()} do tipo ${p.categoria.toLowerCase()}, pensado para unir conforto, funcionalidade e beleza. Com ${p.area} m² de área construída, oferece ambientes bem distribuídos e integrados, ideais para o dia a dia da família.`;
+  const descricao = p.descricao || 'O profissional não adicionou uma descrição para esta planta.';
 
-  const distribuicao =
-    p.distribuicao ||
-    `Sala de estar e jantar, cozinha, ${plural(p.quartos, 'quarto', 'quartos')}, ${plural(p.banheiros, 'banheiro', 'banheiros')}${
-      p.garagens > 0 ? ` e ${plural(p.garagens, 'vaga de garagem', 'vagas de garagem')}` : ''
-    }.`;
+  const distribuicao = p.distribuicao || 'Distribuição dos ambientes não informada.';
 
-  const destaques = p.destaques?.length ? p.destaques : DESTAQUES_PADRAO;
+  const destaques = p.destaques || [];
 
   const infos = [
     { icone: 'home-outline', titulo: 'Área construída', valor: `${p.area} m²` },
@@ -343,7 +325,7 @@ export default function DetalhesPlantas() {
               </View>
 
               <View style={styles.botoes}>
-                {tipo === 'usuario' && !ehDono && (
+                {(!user || tipo === 'usuario') && !ehDono && (
                   <Pressable style={styles.btnPrincipal} onPress={adquirir} disabled={adquirindo || adquirida}>
                     <Ionicons name={adquirida ? 'checkmark-circle' : 'download-outline'} size={17} color="#1a1a1a" />
                     <Text style={styles.btnPrincipalTexto}>{adquirindo ? 'Adquirindo...' : adquirida ? 'Planta adquirida' : 'Adquirir planta'}</Text>
@@ -406,7 +388,7 @@ export default function DetalhesPlantas() {
               </View>
 
               <View style={styles.destaques}>
-                {destaques.map((d) => (
+                {destaques.length === 0 ? <Text style={styles.texto}>Nenhum destaque cadastrado.</Text> : destaques.map((d) => (
                   <View key={d} style={styles.destaqueItem}>
                     <Ionicons name="checkmark-circle" size={17} color={DOURADO} />
                     <Text style={styles.destaqueTexto}>{d}</Text>
