@@ -15,10 +15,12 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { enviarPlanta } from '../services/envios';
+import { getSupabaseClient } from '../services/supabase';
+import { useConta } from '../components/ContaProvider';
 import { useDeclararConta } from '../components/ContaProvider';
 import ContaMenu from '../components/MenuConta';
 
@@ -185,9 +187,9 @@ function Topo({ mobile, medio, insets, onAbrirMenu, onNavegar }) {
 function CabecalhoPagina({ mobile }) {
   return (
     <View style={[s.cabecalho, mobile && s.cabecalhoMobile]}>
-      <Text style={[s.titulo, mobile && s.tituloMobile]}>Publicar Nova Planta</Text>
+      <Text style={[s.titulo, mobile && s.tituloMobile]}>{modoEdicao ? 'Editar Planta' : 'Publicar Nova Planta'}</Text>
       <Text style={[s.subtitulo, mobile && s.subtituloMobile]}>
-        Preencha as informações abaixo para cadastrar uma nova planta.
+        {modoEdicao ? 'Atualize as informações da sua planta.' : 'Preencha as informações abaixo para cadastrar uma nova planta.'}
       </Text>
     </View>
   );
@@ -362,6 +364,10 @@ function Drawer({ aberto, deslize, fade, insets, paisagem, onFechar, onNavegar, 
 
 export default function PublicarPlanta() {
   const router = useRouter();
+  const { editar } = useLocalSearchParams();
+  const { user } = useConta();
+  const idEdicao = Array.isArray(editar) ? editar[0] : editar;
+  const modoEdicao = Boolean(idEdicao);
   const insets = useSafeAreaInsets();
   useDeclararConta('profissional');
   const { width, height } = useWindowDimensions();
@@ -410,10 +416,41 @@ export default function PublicarPlanta() {
   const [area, setArea] = useState('');
   const [preco, setPreco] = useState('');
   const [imagem, setImagem] = useState(null);
+  const [imagemAtualUrl, setImagemAtualUrl] = useState('');
 
   const [erro, setErro] = useState('');
   const [sucesso, setSucesso] = useState(false);
   const [publicando, setPublicando] = useState(false);
+
+  useEffect(() => {
+    let ativo = true;
+    async function carregarParaEdicao() {
+      if (!modoEdicao || !user?.id) return;
+      try {
+        const { data, error } = await getSupabaseClient().from('plantas')
+          .select('*').eq('id', idEdicao).eq('profissional_id', user.id).single();
+        if (error) throw error;
+        if (!ativo) return;
+        setTitulo(data.nome || '');
+        setDescricao(data.descricao || '');
+        setEstilo(data.estilo || '');
+        setCategoria(data.categoria || '');
+        setDistribuicao(data.distribuicao_ambientes || '');
+        setDestaques(Array.isArray(data.destaques) ? data.destaques : []);
+        setQuartos(String(data.quartos ?? ''));
+        setBanheiros(String(data.banheiros ?? ''));
+        setGaragem(String(data.garagem ?? ''));
+        setArea(String(data.area ?? ''));
+        setPreco(String(data.preco ?? '').replace('.', ','));
+        setImagemAtualUrl(data.imagem_url || '');
+      } catch (falha) {
+        console.error('Erro ao carregar planta para edição:', falha);
+        if (ativo) setErro('Não foi possível carregar esta planta para edição. Verifique se ela pertence à sua conta.');
+      }
+    }
+    carregarParaEdicao();
+    return () => { ativo = false; };
+  }, [modoEdicao, idEdicao, user?.id]);
 
   const adicionarDestaque = () => {
     const texto = novoDestaque.trim();
@@ -479,7 +516,7 @@ export default function PublicarPlanta() {
     if (garagem === '') return setErro('Informe as vagas na garagem (pode ser 0).');
     if (!area) return setErro('Informe a área construída.');
     if (!preco.trim()) return setErro('Informe o preço.');
-    if (!imagem) return setErro('Escolha a imagem da planta.');
+    if (!modoEdicao && !imagem) return setErro('Escolha a imagem da planta.');
 
     setErro('');
     setPublicando(true);
@@ -500,10 +537,28 @@ export default function PublicarPlanta() {
         imagem, // { uri, fileName, mimeType, fileSize, ... }
       };
 
-      await enviarPlanta(planta);
-
-      setSucesso(true);
-      limparFormulario();
+      if (modoEdicao) {
+        const { error } = await getSupabaseClient().from('plantas').update({
+          nome: planta.titulo,
+          descricao: planta.descricao,
+          estilo: planta.estilo || null,
+          categoria: planta.categoria,
+          distribuicao_ambientes: planta.distribuicao || null,
+          destaques: planta.destaques || [],
+          quartos: planta.quartos,
+          banheiros: planta.banheiros,
+          garagem: planta.garagem,
+          area: planta.area,
+          preco: planta.preco,
+        }).eq('id', idEdicao).eq('profissional_id', user.id);
+        if (error) throw error;
+        setSucesso(true);
+        router.replace({ pathname: '/detalhesPlantas', params: { id: String(idEdicao) } });
+      } else {
+        await enviarPlanta(planta);
+        setSucesso(true);
+        limparFormulario();
+      }
     } catch (e) {
       setErro('Não foi possível publicar a planta. Tente novamente.');
     } finally {
@@ -729,11 +784,11 @@ export default function PublicarPlanta() {
                           </Text>
                         </View>
                       ) : (
-                        <Text style={s.arquivoTexto}>Nenhum arquivo escolhido</Text>
+                        <Text style={s.arquivoTexto}>{modoEdicao && imagemAtualUrl ? 'Imagem atual mantida' : 'Nenhum arquivo escolhido'}</Text>
                       )}
                     </Pressable>
                     <Text style={s.dica}>
-                      JPEG, PNG ou WebP, até 5 MB. A imagem é reduzida automaticamente antes do envio.
+                      {modoEdicao ? 'A imagem atual será mantida nesta edição.' : 'JPEG, PNG ou WebP, até 5 MB. A imagem é reduzida automaticamente antes do envio.'}
                     </Text>
                   </View>
                 </Linha>
@@ -760,7 +815,7 @@ export default function PublicarPlanta() {
                   accessibilityRole="button"
                   accessibilityState={{ disabled: publicando }}
                 >
-                  <Text style={s.btnPublicarTexto}>Publicar Planta</Text>
+                  <Text style={s.btnPublicarTexto}>{publicando ? 'Salvando...' : modoEdicao ? 'Salvar alterações' : 'Publicar Planta'}</Text>
                 </Pressable>
               </View>
             </View>
