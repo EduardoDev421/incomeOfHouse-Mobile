@@ -21,7 +21,7 @@ const formatarHora = (valor) => {
 };
 
 const iniciais = (nome) =>
-  (nome || '?').trim().split(/\\s+/).slice(0, 2).map((parte) => parte[0]).join('').toUpperCase();
+  (nome || '?').trim().split(/\s+/).slice(0, 2).map((parte) => parte[0]).join('').toUpperCase();
 
 function mapearConversa(linha, mensagens, tipo) {
   const souUsuario = tipo === 'usuario';
