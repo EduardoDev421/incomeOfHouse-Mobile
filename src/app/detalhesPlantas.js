@@ -445,12 +445,7 @@ export default function DetalhesPlantas() {
                   </View>
                   <View style={styles.profTextos}>
                     <Text style={styles.profNome}>{prof.nome}</Text>
-                    <Text style={styles.profProfissao}>{prof.profissao}</Text>
-                    <View style={styles.profNotaLinha}>
-                      <Ionicons name="star" size={14} color={DOURADO} />
-                      <Text style={styles.profNota}>{formatarNota(prof.nota)}</Text>
-                      <Text style={styles.profQtd}>({prof.avaliacoes} avaliações)</Text>
-                    </View>
+                    <Text style={styles.profProfissao}>{prof.profissaoNome || prof.profissao || "Profissional"}</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={18} color="#777" />
                 </Pressable>
