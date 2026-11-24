@@ -1,31 +1,43 @@
 -- Políticas das interações de plantas (favoritos, aquisições e exclusão pelo proprietário).
 -- Execute no SQL Editor do Supabase. As operações são idempotentes.
 
--- FAVORITOS: a tabela já é usada pelo projeto. Este script espera usuario_id e planta_id.
-alter table public.plantas_favoritas enable row level security;
+-- FAVORITOS: tabela compartilhada com o site (favoritos.usuario_id,
+-- favoritos.planta_id e favoritos.profissional_id).
+alter table public.favoritos enable row level security;
 
-create unique index if not exists plantas_favoritas_usuario_planta_uidx
-  on public.plantas_favoritas (usuario_id, planta_id);
+create unique index if not exists favoritos_usuario_planta_uidx
+  on public.favoritos (usuario_id, planta_id)
+  where planta_id is not null;
 
-drop policy if exists "Usuário consulta seus favoritos de plantas" on public.plantas_favoritas;
-create policy "Usuário consulta seus favoritos de plantas"
-  on public.plantas_favoritas for select to authenticated
+create unique index if not exists favoritos_usuario_profissional_uidx
+  on public.favoritos (usuario_id, profissional_id)
+  where profissional_id is not null;
+
+drop policy if exists "Usuário consulta seus favoritos" on public.favoritos;
+create policy "Usuário consulta seus favoritos"
+  on public.favoritos for select to authenticated
   using (usuario_id = (select auth.uid()));
 
-drop policy if exists "Usuário salva seus favoritos de plantas" on public.plantas_favoritas;
-create policy "Usuário salva seus favoritos de plantas"
-  on public.plantas_favoritas for insert to authenticated
+drop policy if exists "Usuário salva seus favoritos" on public.favoritos;
+create policy "Usuário salva seus favoritos"
+  on public.favoritos for insert to authenticated
   with check (
     usuario_id = (select auth.uid())
-    and exists (select 1 from public.plantas p where p.id = planta_id and p.ativa = true)
+    and (
+      (planta_id is not null and profissional_id is null
+        and exists (select 1 from public.plantas p where p.id = planta_id))
+      or
+      (profissional_id is not null and planta_id is null
+        and exists (select 1 from public.profissionais pr where pr.id = profissional_id))
+    )
   );
 
-drop policy if exists "Usuário remove seus favoritos de plantas" on public.plantas_favoritas;
-create policy "Usuário remove seus favoritos de plantas"
-  on public.plantas_favoritas for delete to authenticated
+drop policy if exists "Usuário remove seus favoritos" on public.favoritos;
+create policy "Usuário remove seus favoritos"
+  on public.favoritos for delete to authenticated
   using (usuario_id = (select auth.uid()));
 
-grant select, insert, delete on public.plantas_favoritas to authenticated;
+grant select, insert, delete on public.favoritos to authenticated;
 
 -- AQUISIÇÕES: aquisição é individual por usuário, mas não torna a planta exclusiva.
 alter table public.plantas_adquiridas enable row level security;
