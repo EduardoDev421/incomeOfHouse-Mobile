@@ -44,7 +44,6 @@ const AVALIACAO = {
     'Excelente projeto! Os ambientes são bem distribuídos e o profissional foi muito atencioso durante todo o processo.',
 };
 
-const formatarNota = (n) => n.toFixed(1).replace('.', ',');
 const formatarPreco = (n) => `R$ ${n.toLocaleString('pt-BR')}`;
 const plural = (n, singular, pluralTxt) => `${n} ${n === 1 ? singular : pluralTxt}`;
 
@@ -102,7 +101,7 @@ export default function DetalhesPlantas() {
           banheiros: Number(data.banheiros) || 0, area: Number(data.area) || 0,
           preco: Number(data.preco) || 0, resumo: '', descricao: data.descricao || '',
           distribuicao: data.distribuicao_ambientes || '',
-          destaques: Array.isArray(data.destaques) ? data.destaques : [],
+          destaques: Array.isArray(data.destaques) && data.destaques.length ? data.destaques : DESTAQUES_PADRAO,
           imagem: data.imagem_url ? { uri: data.imagem_url } : null,
         });
       } catch (e) {
@@ -233,7 +232,7 @@ export default function DetalhesPlantas() {
       p.garagens > 0 ? ` e ${plural(p.garagens, 'vaga de garagem', 'vagas de garagem')}` : ''
     }.`;
 
-  const destaques = p.destaques || DESTAQUES_PADRAO;
+  const destaques = p.destaques?.length ? p.destaques : DESTAQUES_PADRAO;
 
   const infos = [
     { icone: 'home-outline', titulo: 'Área construída', valor: `${p.area} m²` },
