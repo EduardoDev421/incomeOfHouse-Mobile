@@ -157,9 +157,9 @@ function Topo({ mobile, medio, insets, onAbrirMenu, onNavegar }) {
 function CabecalhoPagina({ mobile }) {
   return (
     <View style={[s.cabecalho, mobile && s.cabecalhoMobile]}>
-      <Text style={[s.titulo, mobile && s.tituloMobile]}>Meus Pedidos</Text>
+      <Text style={[s.titulo, mobile && s.tituloMobile]}>Minhas Plantas Adquiridas</Text>
       <Text style={[s.subtitulo, mobile && s.subtituloMobile]}>
-        Acompanhe as plantas que você adquiriu.
+        Acompanhe as plantas que você adquiriu. Nenhuma cobrança é realizada por esta funcionalidade.
       </Text>
     </View>
   );
@@ -325,7 +325,7 @@ function Paginacao({ atual, total, onMudar }) {
 function SemPedidos({ onExplorar }) {
   return (
     <View style={s.vazio}>
-      <Text style={s.tituloVazio}>Nenhum pedido encontrado</Text>
+      <Text style={s.tituloVazio}>Nenhuma planta adquirida</Text>
       <Text style={s.textoVazio}>
         As plantas que você adquirir aparecerão aqui. Elas continuam disponíveis para outros usuários.
       </Text>
