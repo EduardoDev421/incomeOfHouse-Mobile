@@ -69,7 +69,7 @@ create policy "Usuário consulta plantas adquiridas"
   on public.plantas for select to authenticated
   using (exists (
     select 1 from public.plantas_adquiridas pa
-    where pa.planta_id = id and pa.usuario_id = (select auth.uid())
+    where pa.planta_id = plantas.id and pa.usuario_id = (select auth.uid())
   ));
 
 -- EXCLUSÃO LÓGICA: o profissional desativa a planta sem apagar registros
