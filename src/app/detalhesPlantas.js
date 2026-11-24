@@ -50,6 +50,7 @@ export default function DetalhesPlantas() {
   const [prof, setProf] = useState(null);
   const [adquirida, setAdquirida] = useState(false);
   const [adquirindo, setAdquirindo] = useState(false);
+  const [erroAquisicao, setErroAquisicao] = useState('');
   const [excluindo, setExcluindo] = useState(false);
   const [erroExclusao, setErroExclusao] = useState('');
 
@@ -161,19 +162,39 @@ export default function DetalhesPlantas() {
 
   const adquirir = async () => {
     if (!user?.id) { router.push('/login'); return; }
-    if (tipo !== 'usuario' || !p?.id) return;
-    if (adquirindo || adquirida) return;
+    if (tipo !== 'usuario' || !p?.id || adquirindo || adquirida) return;
     setAdquirindo(true);
+    setErroAquisicao('');
     try {
-      const { error } = await getSupabaseClient().from('plantas_adquiridas')
-        .upsert({ usuario_id: user.id, planta_id: p.id }, { onConflict: 'usuario_id,planta_id', ignoreDuplicates: true });
-      if (error) throw error;
+      const supabase = getSupabaseClient();
+      // Confirma primeiro se já existe aquisição para evitar depender de upsert.
+      const { data: existente, error: erroConsulta } = await supabase
+        .from('plantas_adquiridas')
+        .select('id')
+        .eq('usuario_id', user.id)
+        .eq('planta_id', p.id)
+        .maybeSingle();
+      if (erroConsulta) throw erroConsulta;
+      if (existente) {
+        setAdquirida(true);
+        return;
+      }
+
+      const { error: erroInsercao } = await supabase
+        .from('plantas_adquiridas')
+        .insert({ usuario_id: user.id, planta_id: p.id });
+      if (erroInsercao && erroInsercao.code !== '23505') throw erroInsercao;
+
       setAdquirida(true);
       Alert.alert('Planta adquirida', 'A planta foi adicionada ao seu perfil. Ela continua disponível para outros usuários.');
     } catch (falha) {
       console.error('Erro ao adquirir planta:', falha);
-      Alert.alert('Não foi possível adquirir', 'Verifique sua conexão e tente novamente.');
-    } finally { setAdquirindo(false); }
+      const mensagem = falha?.message || falha?.details || 'Erro desconhecido ao registrar a aquisição.';
+      setErroAquisicao(mensagem);
+      Alert.alert('Não foi possível adquirir', mensagem);
+    } finally {
+      setAdquirindo(false);
+    }
   };
 
   const excluirPlanta = async () => {
@@ -360,6 +381,7 @@ export default function DetalhesPlantas() {
               </View>
 
               {!!erroExclusao && <Text style={styles.erroExclusao}>{erroExclusao}</Text>}
+              {!!erroAquisicao && <Text style={styles.erroExclusao}>{erroAquisicao}</Text>}
               <View style={styles.botoes}>
                 {(!user || tipo === 'usuario') && !ehDono && (
                   <Pressable style={styles.btnPrincipal} onPress={adquirir} disabled={adquirindo || adquirida}>
