@@ -50,6 +50,8 @@ export default function DetalhesPlantas() {
   const [prof, setProf] = useState(null);
   const [adquirida, setAdquirida] = useState(false);
   const [adquirindo, setAdquirindo] = useState(false);
+  const [excluindo, setExcluindo] = useState(false);
+  const [erroExclusao, setErroExclusao] = useState('');
 
   const navegar = (rota) => router.push(rota);
 
@@ -68,7 +70,7 @@ export default function DetalhesPlantas() {
         const supabase = getSupabaseClient();
         const { data, error: erroConsulta } = await supabase
           .from('plantas').select('*').eq('id', idPlanta)
-          .eq('ativa', true).maybeSingle();
+          .maybeSingle();
         if (erroConsulta) throw erroConsulta;
         if (ativo && data) setPlanta({
           id: data.id, profissionalId: data.profissional_id,
@@ -174,30 +176,28 @@ export default function DetalhesPlantas() {
     } finally { setAdquirindo(false); }
   };
 
-  const excluirPlanta = () => Alert.alert('Excluir planta', 'Tem certeza de que deseja excluir esta planta?', [
-    { text: 'Cancelar', style: 'cancel' },
-    { text: 'Excluir', style: 'destructive', onPress: async () => {
-      try {
-        const { data: removida, error } = await getSupabaseClient().from('plantas').delete()
-          .eq('id', p.id).eq('profissional_id', user.id).select('id').maybeSingle();
-        if (error) throw error;
-        if (!removida) throw new Error('Nenhuma linha foi removida. Confira se o profissional_id da planta corresponde ao ID da sessão e se a policy DELETE permite a operação.');
-        const marcadorStorage = '/storage/v1/object/public/plantas/';
-        const urlImagem = p.imagem?.uri || '';
-        const indiceStorage = urlImagem.indexOf(marcadorStorage);
-        if (indiceStorage >= 0) {
-          const caminhoImagem = decodeURIComponent(urlImagem.slice(indiceStorage + marcadorStorage.length));
-          const { error: erroImagem } = await getSupabaseClient().storage.from('plantas').remove([caminhoImagem]);
-          if (erroImagem) console.warn('A planta foi excluída, mas a imagem permaneceu no Storage:', erroImagem);
-        }
-        Alert.alert('Planta excluída', 'O registro foi removido.');
-        router.replace('/planta');
-      } catch (falha) {
-        console.error('Erro ao excluir planta:', falha);
-        Alert.alert('Erro', 'Não foi possível excluir a planta.');
-      }
-    }}
-  ]);
+  const excluirPlanta = async () => {
+    if (!user?.id || !ehDono || excluindo) return;
+    setExcluindo(true);
+    setErroExclusao('');
+    try {
+      const { data: atualizada, error } = await getSupabaseClient().from('plantas')
+        .update({ ativa: false })
+        .eq('id', p.id)
+        .eq('profissional_id', user.id)
+        .eq('ativa', true)
+        .select('id')
+        .maybeSingle();
+      if (error) throw error;
+      if (!atualizada) throw new Error('O banco não confirmou a desativação. Verifique a policy de UPDATE da tabela plantas.');
+      router.replace('/planta');
+    } catch (falha) {
+      console.error('Erro ao desativar planta:', falha);
+      setErroExclusao(falha?.message || 'Não foi possível excluir esta planta.');
+    } finally {
+      setExcluindo(false);
+    }
+  };
 
   const larguraCard = largo ? '31%' : medio ? '48%' : '100%';
 
@@ -362,6 +362,7 @@ export default function DetalhesPlantas() {
                 ))}
               </View>
 
+              {!!erroExclusao && <Text style={styles.erroExclusao}>{erroExclusao}</Text>}
               <View style={styles.botoes}>
                 {(!user || tipo === 'usuario') && !ehDono && (
                   <Pressable style={styles.btnPrincipal} onPress={adquirir} disabled={adquirindo || adquirida}>
@@ -376,9 +377,9 @@ export default function DetalhesPlantas() {
                   </Pressable>
                 )}
                 {ehDono && (
-                  <Pressable style={styles.btnSecundario} onPress={excluirPlanta}>
+                  <Pressable style={styles.btnSecundario} onPress={excluirPlanta} disabled={excluindo}>
                     <Ionicons name="trash-outline" size={17} color={DOURADO} />
-                    <Text style={styles.btnSecundarioTexto}>Excluir planta</Text>
+                    <Text style={styles.btnSecundarioTexto}>{excluindo ? 'Excluindo...' : 'Excluir planta'}</Text>
                   </Pressable>
                 )}
 
@@ -641,6 +642,7 @@ const styles = StyleSheet.create({
   infoTitulo: { color: '#a8a8a8', fontSize: 12, marginTop: 10 },
   infoValor: { color: '#ffffff', fontSize: 16, fontWeight: 'bold', marginTop: 3 },
 
+  erroExclusao: { color: '#ff8b8b', fontSize: 12, marginTop: 8 },
   botoes: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 24 },
   btnPrincipal: {
     flexDirection: 'row',
