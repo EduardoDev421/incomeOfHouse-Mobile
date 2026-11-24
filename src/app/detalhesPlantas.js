@@ -8,11 +8,14 @@ import {
   Pressable,
   StatusBar,
   useWindowDimensions,
+  Alert,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useLegal } from '../components/LegalProvider';
 import { getSupabaseClient } from '../services/supabase.js';
+import { useConta } from '../components/ContaProvider';
+import { buscarProfissional } from '../services/profissionais';
 
 const DOURADO = '#c9a45c';
 const OURO_MENU = '#d4af6a'; // dourado do cabeçalho e do rodapé (igual à web)
@@ -36,13 +39,7 @@ const DESTAQUES_PADRAO = [
   'Acabamento de qualidade',
 ];
 
-const AVALIACAO = {
-  cliente: 'Nome do Cliente',
-  quando: 'Há 1 ano',
-  nota: 5,
-  texto:
-    'Excelente projeto! Os ambientes são bem distribuídos e o profissional foi muito atencioso durante todo o processo.',
-};
+
 
 const formatarPreco = (n) => `R$ ${n.toLocaleString('pt-BR')}`;
 const plural = (n, singular, pluralTxt) => `${n} ${n === 1 ? singular : pluralTxt}`;
@@ -67,6 +64,7 @@ export default function DetalhesPlantas() {
   const { abrirLegal } = useLegal();
   const { id } = useLocalSearchParams();
   const { width } = useWindowDimensions();
+  const { user, tipo } = useConta();
   const largo = width >= 900;
   const medio = width >= 600;
 
@@ -74,6 +72,9 @@ export default function DetalhesPlantas() {
   const [p, setPlanta] = useState(null);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState('');
+  const [prof, setProf] = useState(null);
+  const [adquirida, setAdquirida] = useState(false);
+  const [adquirindo, setAdquirindo] = useState(false);
 
   const navegar = (rota) => router.push(rota);
 
@@ -104,6 +105,11 @@ export default function DetalhesPlantas() {
           destaques: Array.isArray(data.destaques) && data.destaques.length ? data.destaques : DESTAQUES_PADRAO,
           imagem: data.imagem_url ? { uri: data.imagem_url } : null,
         });
+        if (ativo && data?.profissional_id) {
+          buscarProfissional(data.profissional_id)
+            .then((dados) => { if (ativo) setProf(dados); })
+            .catch((falha) => console.warn('Não foi possível carregar o profissional:', falha));
+        }
       } catch (e) {
         console.error('Erro ao carregar detalhes da planta:', e);
         if (ativo) setErro('Não foi possível carregar esta planta. Tente novamente.');
@@ -115,8 +121,55 @@ export default function DetalhesPlantas() {
     return () => { ativo = false; };
   }, [idPlanta]);
 
-  // Não exibir dados fictícios de profissionais.
-  const prof = null;
+  const ehDono = Boolean(user?.id && p?.profissionalId === user.id);
+
+  useEffect(() => {
+    let ativo = true;
+    async function verificarAquisicao() {
+      if (!user?.id || !idPlanta || tipo !== 'usuario') { setAdquirida(false); return; }
+      try {
+        const { data, error } = await getSupabaseClient().from('plantas_adquiridas')
+          .select('id').eq('usuario_id', user.id).eq('planta_id', idPlanta).maybeSingle();
+        if (error) throw error;
+        if (ativo) setAdquirida(Boolean(data));
+      } catch (falha) {
+        console.warn('Não foi possível verificar aquisição:', falha);
+      }
+    }
+    verificarAquisicao();
+    return () => { ativo = false; };
+  }, [user?.id, tipo, idPlanta]);
+
+  const adquirir = async () => {
+    if (!user) { router.push('/login'); return; }
+    if (adquirindo || adquirida) return;
+    setAdquirindo(true);
+    try {
+      const { error } = await getSupabaseClient().from('plantas_adquiridas')
+        .insert({ usuario_id: user.id, planta_id: p.id });
+      if (error && error.code !== '23505') throw error;
+      setAdquirida(true);
+      Alert.alert('Planta adquirida', 'A planta foi adicionada ao seu perfil. Ela continua disponível para outros usuários.');
+    } catch (falha) {
+      console.error('Erro ao adquirir planta:', falha);
+      Alert.alert('Não foi possível adquirir', 'Verifique sua conexão e tente novamente.');
+    } finally { setAdquirindo(false); }
+  };
+
+  const excluirPlanta = () => Alert.alert('Excluir planta', 'Tem certeza de que deseja excluir esta planta?', [
+    { text: 'Cancelar', style: 'cancel' },
+    { text: 'Excluir', style: 'destructive', onPress: async () => {
+      try {
+        const { error } = await getSupabaseClient().from('plantas').delete().eq('id', p.id).eq('profissional_id', user.id);
+        if (error) throw error;
+        Alert.alert('Planta excluída', 'O registro foi removido.');
+        router.replace('/planta');
+      } catch (falha) {
+        console.error('Erro ao excluir planta:', falha);
+        Alert.alert('Erro', 'Não foi possível excluir a planta.');
+      }
+    }}
+  ]);
 
   const larguraCard = largo ? '31%' : medio ? '48%' : '100%';
 
@@ -148,9 +201,9 @@ export default function DetalhesPlantas() {
   const botaoPerfil = (
     <Pressable
       style={[styles.perfil, !largo && styles.perfilEstreito]}
-      onPress={() => navegar('/login')}
+      onPress={() => navegar(user ? (tipo === 'profissional' ? '/PerfilProfissional' : '/PerfilUsuario') : '/login')}
       accessibilityRole="button"
-      accessibilityLabel="Entrar"
+      accessibilityLabel={user ? 'Abrir perfil' : 'Entrar'}
     >
       <Ionicons name="person-outline" size={20} color={OURO_MENU} />
     </Pressable>
@@ -290,15 +343,24 @@ export default function DetalhesPlantas() {
               </View>
 
               <View style={styles.botoes}>
-                <Pressable
-                  style={styles.btnPrincipal}
-                  onPress={() => {
-                    // TODO: enviar a solicitação do projeto para o seu backend
-                  }}
-                >
-                  <Ionicons name="calendar-outline" size={17} color="#1a1a1a" />
-                  <Text style={styles.btnPrincipalTexto}>Solicitar Projeto</Text>
-                </Pressable>
+                {tipo === 'usuario' && !ehDono && (
+                  <Pressable style={styles.btnPrincipal} onPress={adquirir} disabled={adquirindo || adquirida}>
+                    <Ionicons name={adquirida ? 'checkmark-circle' : 'download-outline'} size={17} color="#1a1a1a" />
+                    <Text style={styles.btnPrincipalTexto}>{adquirindo ? 'Adquirindo...' : adquirida ? 'Planta adquirida' : 'Adquirir planta'}</Text>
+                  </Pressable>
+                )}
+                {ehDono && (
+                  <Pressable style={styles.btnPrincipal} onPress={() => router.push({ pathname: '/publicarPlanta', params: { editar: String(p.id) } })}>
+                    <Ionicons name="create-outline" size={17} color="#1a1a1a" />
+                    <Text style={styles.btnPrincipalTexto}>Editar planta</Text>
+                  </Pressable>
+                )}
+                {ehDono && (
+                  <Pressable style={styles.btnSecundario} onPress={excluirPlanta}>
+                    <Ionicons name="trash-outline" size={17} color={DOURADO} />
+                    <Text style={styles.btnSecundarioTexto}>Excluir planta</Text>
+                  </Pressable>
+                )}
 
                 <Pressable
                   style={[styles.btnSecundario, favorito && styles.btnFavoritoAtivo]}
@@ -396,37 +458,7 @@ export default function DetalhesPlantas() {
                 <Text style={styles.texto}>Profissional ainda não definido.</Text>
               )}
 
-              <View style={styles.avaliacao}>
-                <View style={styles.avaliacaoTopo}>
-                  <View style={styles.avaliacaoTitulo}>
-                    <Ionicons name="chatbubble-outline" size={16} color={DOURADO} />
-                    <Text style={styles.avaliacaoTituloTexto}>Avaliações do cliente</Text>
-                  </View>
-                  <Pressable
-                    onPress={() => {
-                      // TODO: abrir a tela de avaliações quando ela existir
-                    }}
-                  >
-                    <Text style={styles.verMais}>Ver mais avaliações →</Text>
-                  </Pressable>
-                </View>
-
-                <View style={styles.cardAvaliacao}>
-                  <View style={styles.cliente}>
-                    <View style={styles.clienteFoto}>
-                      <Ionicons name="person" size={18} color="#555" />
-                    </View>
-                    <View>
-                      <Text style={styles.clienteNome}>{AVALIACAO.cliente}</Text>
-                      <Text style={styles.clienteQuando}>{AVALIACAO.quando}</Text>
-                    </View>
-                  </View>
-                  <View style={styles.avaliacaoEstrelas}>
-                    <Estrelas nota={AVALIACAO.nota} tamanho={14} />
-                  </View>
-                  <Text style={styles.avaliacaoTexto}>{AVALIACAO.texto}</Text>
-                </View>
-              </View>
+              <Text style={styles.texto}>Ainda não há avaliações cadastradas para esta planta.</Text>
             </View>
           </View>
         </View>
