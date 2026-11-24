@@ -181,15 +181,12 @@ export default function DetalhesPlantas() {
     setExcluindo(true);
     setErroExclusao('');
     try {
-      const { data: atualizada, error } = await getSupabaseClient().from('plantas')
+      const { error } = await getSupabaseClient().from('plantas')
         .update({ ativa: false })
         .eq('id', p.id)
         .eq('profissional_id', user.id)
-        .eq('ativa', true)
-        .select('id')
-        .maybeSingle();
+        .eq('ativa', true);
       if (error) throw error;
-      if (!atualizada) throw new Error('O banco não confirmou a desativação. Verifique a policy de UPDATE da tabela plantas.');
       router.replace('/planta');
     } catch (falha) {
       console.error('Erro ao desativar planta:', falha);
