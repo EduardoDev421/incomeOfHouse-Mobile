@@ -571,11 +571,10 @@ export default function Projetos() {
 
   const remover = async (projeto) => {
     try {
-      const { data, error } = await getSupabaseClient().from('plantas')
+      const { error } = await getSupabaseClient().from('plantas')
         .update({ ativa: false }).eq('id', projeto.id)
-        .eq('profissional_id', user.id).select('id').maybeSingle();
+        .eq('profissional_id', user.id);
       if (error) throw error;
-      if (!data) throw new Error('O banco não confirmou a desativação deste projeto.');
       setRemovido({ projeto, indice: projetos.findIndex((p) => p.id === projeto.id) });
       setProjetos((lista) => lista.filter((p) => p.id !== projeto.id));
     } catch (falha) {
