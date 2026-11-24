@@ -30,7 +30,14 @@ function mapearConversa(linha, mensagens, tipo) {
     : linha.usuario_nome || 'Cliente';
   const lidoPorMim = dataHora(souUsuario ? linha.lido_usuario : linha.lido_profissional);
   const lidoPeloOutro = dataHora(souUsuario ? linha.lido_profissional : linha.lido_usuario);
-  const minhasMensagens = mensagens.map((mensagem) => ({
+  // Cada participante pode limpar seu próprio histórico sem afetar o do outro.
+  const limiteHistorico = dataHora(
+    souUsuario ? linha.limpar_historico_usuario_em : linha.limpar_historico_profissional_em
+  );
+  const mensagensVisiveis = mensagens.filter(
+    (mensagem) => !limiteHistorico || dataHora(mensagem.criado_em) > limiteHistorico
+  );
+  const minhasMensagens = mensagensVisiveis.map((mensagem) => ({
     id: mensagem.id,
     tipo: mensagem.de === tipo ? 'enviada' : 'recebida',
     texto: mensagem.texto,
