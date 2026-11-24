@@ -49,12 +49,7 @@ const LINKS_SITE = [
   { nome: 'Sobre Nós', icone: 'information-circle-outline', rota: '/sobreNos' },
 ];
 
-const FAVORITOS_INICIAIS = PROFISSIONAIS.map((profissional) => ({
-  id: profissional.id,
-  nome: profissional.nome,
-  funcao: profissional.profissaoNome,
-  especialidade: profissional.especialidade,
-}));
+
 
 /* ================================================= */
 /* FUNÇÕES AUXILIARES                                */
