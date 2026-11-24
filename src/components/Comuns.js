@@ -13,6 +13,7 @@ import { useRouter, usePathname } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLegal } from './LegalProvider';
+import { useConta } from './ContaProvider';
 
 // Este arquivo está em src/components/.
 // '../../assets' = pasta assets na RAIZ do projeto (igual às telas em src/app).
@@ -54,12 +55,23 @@ export function Cabecalho({ translucido = false }) {
   const rotaAtual = usePathname();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
+  const { user, tipo, carregado } = useConta();
   const largo = width >= LARGO;
   const [aberto, setAberto] = useState(false);
 
   const ir = (rota) => {
     setAberto(false);
     router.push(rota);
+  };
+
+  const abrirConta = () => {
+    if (!carregado) return;
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+
+    router.push(tipo === 'profissional' ? '/PerfilProfissional' : '/PerfilUsuario');
   };
 
   const itens = MENU.map((m) => (
@@ -93,9 +105,9 @@ export function Cabecalho({ translucido = false }) {
 
         <View style={estilos.acoesTopo}>
           <Pressable
-            onPress={() => ir('/login')}
+            onPress={abrirConta}
             accessibilityRole="button"
-            accessibilityLabel="Entrar na conta"
+            accessibilityLabel={user ? 'Abrir meu perfil' : 'Entrar na conta'}
             hitSlop={8}
             style={({ pressed }) => pressed && estilos.pressionado}
           >
