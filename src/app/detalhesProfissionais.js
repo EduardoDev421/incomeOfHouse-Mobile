@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLegal } from '../components/LegalProvider';
 import { buscarProfissional } from '../services/profissionais';
 import { getSupabaseClient } from '../services/supabase';
+import { useConta } from '../components/ContaProvider';
 
 const OURO = '#d9ad52';
 const FUNDO = require('../../assets/images/BackGroundPlantasEProfissionais.png');
@@ -19,6 +20,7 @@ const ESTADOS = {
 export default function DetalhesProfissionais() {
   const router = useRouter();
   const { abrirLegal } = useLegal();
+  const { tipo } = useConta();
   const { id } = useLocalSearchParams();
   const { width } = useWindowDimensions();
   const largo = width >= 900;
@@ -85,6 +87,19 @@ export default function DetalhesProfissionais() {
                   <View style={styles.dado}><Text style={styles.dadoTitulo}>Registro profissional</Text><Text style={styles.dadoTexto}>{profissional.registro || 'Não informado'}</Text></View>
                 </View>
                 <Text style={styles.descricao}>Perfil profissional cadastrado no IncomeOfHouse. A situação da verificação é exibida separadamente e não representa, por si só, uma certificação.</Text>
+                {tipo === 'usuario' && (
+                  <Pressable
+                    style={({ pressed }) => [styles.botaoContato, pressed && styles.pressionado]}
+                    onPress={() => router.push({
+                      pathname: '/MensagensU',
+                      params: { com: idProfissional, nome: profissional.nome },
+                    })}
+                    accessibilityRole="button"
+                  >
+                    <Ionicons name="chatbubble-ellipses-outline" size={18} color="#111" />
+                    <Text style={styles.botaoContatoTexto}>Entrar em contato</Text>
+                  </Pressable>
+                )}
                 <View style={styles.projetos}>
                   <Text style={styles.projetosTitulo}>Plantas publicadas</Text>
                   {plantas.length === 0 ? (
@@ -140,7 +155,9 @@ const styles = StyleSheet.create({
   projetosTitulo:{color:'#fff',fontSize:18,fontWeight:'700'},
   projetoItem:{flexDirection:'row',alignItems:'center',paddingVertical:12,borderBottomWidth:1,borderBottomColor:'#292929'},
   projetoNome:{color:'#fff',fontSize:14,fontWeight:'600'},projetoCategoria:{color:'#aaa',fontSize:12,marginTop:4}, botaoVoltar:{alignSelf:'flex-start',marginTop:10,paddingVertical:12,paddingHorizontal:18,borderRadius:9,borderWidth:1,borderColor:OURO},
-  botaoVoltarTexto:{color:OURO,fontSize:13,fontWeight:'600'}, pressionado:{opacity:0.75},
+  botaoVoltarTexto:{color:OURO,fontSize:13,fontWeight:'600'},
+  botaoContato:{alignSelf:'flex-start',marginTop:14,flexDirection:'row',alignItems:'center',gap:9,paddingVertical:13,paddingHorizontal:20,borderRadius:9,backgroundColor:OURO},
+  botaoContatoTexto:{color:'#111',fontSize:14,fontWeight:'700'}, pressionado:{opacity:0.75},
   estadoVazio:{minHeight:260,justifyContent:'center',alignItems:'center',gap:10}, mensagem:{color:'#eee',fontSize:16,textAlign:'center',marginVertical:20},
   mensagemDetalhe:{color:'#999',fontSize:12,textAlign:'center'},
   rodape:{flexDirection:'row',flexWrap:'wrap',alignItems:'center',justifyContent:'space-between',gap:16,paddingVertical:22,paddingHorizontal:'6%',backgroundColor:'#080808',borderTopWidth:1,borderTopColor:'#d4af6a'},
