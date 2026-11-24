@@ -56,7 +56,6 @@ const FILTROS_STATUS = [
   { chave: 'todos', texto: 'Todas' },
   { chave: 'publicada', texto: 'Publicadas' },
   { chave: 'rascunho', texto: 'Rascunhos' },
-  { chave: 'inativa', texto: 'Inativas' },
 ];
 
 const STATUS = {
@@ -477,6 +476,7 @@ export default function Projetos() {
         const { data, error } = await getSupabaseClient().from('plantas')
           .select('id,nome,descricao,categoria,ativa,preco,quartos,garagem,area,criado_em,imagem_url')
           .eq('profissional_id', user.id)
+          .eq('ativa', true)
           .order('criado_em', { ascending: false });
         if (error) throw error;
         const lista = (data || []).map((item) => ({
