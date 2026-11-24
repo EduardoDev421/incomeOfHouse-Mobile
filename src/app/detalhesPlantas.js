@@ -32,22 +32,6 @@ const IMAGEM_PADRAO = require('../../assets/images/casa.png');
 
 
 const formatarPreco = (n) => `R$ ${n.toLocaleString('pt-BR')}`;
-const plural = (n, singular, pluralTxt) => `${n} ${n === 1 ? singular : pluralTxt}`;
-
-function Estrelas({ nota, tamanho = 15 }) {
-  return (
-    <View style={styles.estrelas}>
-      {[0, 1, 2, 3, 4].map((i) => (
-        <Ionicons
-          key={i}
-          name="star"
-          size={tamanho}
-          color={i < Math.round(nota) ? DOURADO : '#3a3a3a'}
-        />
-      ))}
-    </View>
-  );
-}
 
 export default function DetalhesPlantas() {
   const router = useRouter();
