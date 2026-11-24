@@ -467,7 +467,7 @@ export default function MeusProjetos() {
     setErroFavoritos('');
     const supabase = getSupabaseClient();
     const { data: salvos, error: erroSalvos } = await supabase
-      .from('plantas_favoritas').select('planta_id')
+      .from('favoritos').select('planta_id')
       .eq('usuario_id', user.id);
     if (erroSalvos) throw erroSalvos;
     const ids = (salvos || []).map((item) => item.planta_id).filter(Boolean);
@@ -561,7 +561,7 @@ export default function MeusProjetos() {
 
   const remover = async (projeto) => {
     try {
-      const { error } = await getSupabaseClient().from('plantas_favoritas')
+      const { error } = await getSupabaseClient().from('favoritos')
         .delete().eq('usuario_id', user.id).eq('planta_id', projeto.id);
       if (error) throw error;
       setFavoritos((lista) => lista.filter((p) => p.id !== projeto.id));
@@ -575,7 +575,7 @@ export default function MeusProjetos() {
   const desfazer = async () => {
     if (!removido) return;
     try {
-      const { error } = await getSupabaseClient().from('plantas_favoritas')
+      const { error } = await getSupabaseClient().from('favoritos')
         .insert({ usuario_id: user.id, planta_id: removido.id });
       if (error) throw error;
       await carregarFavoritos();
