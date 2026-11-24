@@ -134,8 +134,10 @@ export default function DetalhesPlantas() {
     { text: 'Cancelar', style: 'cancel' },
     { text: 'Excluir', style: 'destructive', onPress: async () => {
       try {
-        const { error } = await getSupabaseClient().from('plantas').delete().eq('id', p.id).eq('profissional_id', user.id);
+        const { data: removida, error } = await getSupabaseClient().from('plantas').delete()
+          .eq('id', p.id).eq('profissional_id', user.id).select('id').maybeSingle();
         if (error) throw error;
+        if (!removida) throw new Error('Planta não encontrada ou sem permissão para excluir.');
         Alert.alert('Planta excluída', 'O registro foi removido.');
         router.replace('/planta');
       } catch (falha) {
