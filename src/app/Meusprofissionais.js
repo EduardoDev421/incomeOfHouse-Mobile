@@ -359,6 +359,7 @@ export default function Meusprofissionais() {
   const [favoritos, setFavoritos] = useState([]);
   const [carregandoFavoritos, setCarregandoFavoritos] = useState(true);
   const [erroFavoritos, setErroFavoritos] = useState('');
+  const [versaoFavoritos, setVersaoFavoritos] = useState(0);
   const [busca, setBusca] = useState('');
   const [funcao, setFuncao] = useState('todas');
   const [removido, setRemovido] = useState(null);
@@ -389,7 +390,7 @@ export default function Meusprofissionais() {
     }
     carregarFavoritos();
     return () => { ativo = false; };
-  }, [user?.id]);
+  }, [user?.id, versaoFavoritos]);
 
   // Some o aviso de "desfazer" depois de 6 segundos
   useEffect(() => {
@@ -476,8 +477,8 @@ export default function Meusprofissionais() {
   const conteudo = carregandoFavoritos ? (
     <Vazio icone="heart-outline" titulo="Carregando favoritos..." />
   ) : erroFavoritos ? (
-    <Vazio icone="alert-circle-outline" titulo="Não foi possível carregar os favoritos" texto={erroFavoritos} acao="Tentar novamente" onAcao={() => { setCarregandoFavoritos(true); setErroFavoritos(''); }} />
-  ) : favoritos.length === 0 && !removido ? (
+    <Vazio icone="alert-circle-outline" titulo="Não foi possível carregar os favoritos" texto={erroFavoritos} acao="Tentar novamente" onAcao={() => setVersaoFavoritos((v) => v + 1)} />
+  ) : favoritos.length === 0 ? (
       <Vazio
         icone="heart-outline"
         titulo="Você ainda não favoritou nenhum profissional"
