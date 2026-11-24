@@ -1,17 +1,18 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
   Pressable,
   ScrollView,
   Modal,
+  Alert,
   StyleSheet,
   useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { LayoutConta } from '../components/TelaConta';
-import { useDeclararConta } from '../components/ContaProvider';
+import { useConta, useDeclararConta } from '../components/ContaProvider';
 
 /* ------------------------------------------------------------------ */
 /* Constantes (mesmas cores das outras telas da conta)                 */
@@ -162,6 +163,7 @@ export default function ConfiguracoesUsuario() {
   useDeclararConta('usuario');
   const router = useRouter();
   const { width } = useWindowDimensions();
+  const { perfil, salvarPerfil, carregado } = useConta();
 
   const [notificacoes, setNotificacoes] = useState({ email: true, push: true, novidades: true });
   const [preferencias, setPreferencias] = useState({
@@ -171,6 +173,23 @@ export default function ConfiguracoesUsuario() {
     visibilidade: 'publico',
   });
   const [seletorAberto, setSeletorAberto] = useState(null); // chave de SELETORES ou null
+  useEffect(() => {
+    if (!carregado || !perfil) return;
+    const salvas = perfil.preferences?.usuario;
+    if (!salvas) return;
+    if (salvas.notificacoes) setNotificacoes((atual) => ({ ...atual, ...salvas.notificacoes }));
+    if (salvas.preferencias) setPreferencias((atual) => ({ ...atual, ...salvas.preferencias }));
+  }, [carregado, perfil?.id]);
+  const salvarConfiguracoes = async (mudancas) => {
+    const preferenciasAtuais = perfil?.preferences || {};
+    const preferenciasUsuario = preferenciasAtuais.usuario || {};
+    try {
+      await salvarPerfil({ preferences: { ...preferenciasAtuais, usuario: { ...preferenciasUsuario, ...mudancas } } });
+    } catch (error) {
+      console.error('Erro ao salvar configurações do usuário:', error);
+      Alert.alert('Não foi possível salvar', 'Verifique sua conexão e tente novamente.');
+    }
+  };
 
   // Só navega se a rota estiver definida (evita "This screen doesn't exist")
   const ir = (rota) => {
@@ -178,14 +197,15 @@ export default function ConfiguracoesUsuario() {
   };
 
   const alternar = (chave, valor) => {
-    setNotificacoes((n) => ({ ...n, [chave]: valor }));
-    // TODO: salvar a preferência no seu backend aqui
+    const novas = { ...notificacoes, [chave]: valor };
+    setNotificacoes(novas);
+    salvarConfiguracoes({ notificacoes: novas });
   };
-
   const escolher = (chave, valor) => {
-    setPreferencias((p) => ({ ...p, [chave]: valor }));
+    const novas = { ...preferencias, [chave]: valor };
+    setPreferencias(novas);
     setSeletorAberto(null);
-    // TODO: salvar a preferência (e aplicar tema/idioma/moeda) aqui
+    salvarConfiguracoes({ preferencias: novas });
   };
 
   const itemSeletor = SELETORES.find((p) => p.chave === seletorAberto) || null;

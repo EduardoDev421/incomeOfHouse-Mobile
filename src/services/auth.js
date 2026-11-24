@@ -79,7 +79,7 @@ export async function buscarPerfil(id) {
   const { data, error } = await getSupabaseClient()
     .from('profiles')
     .select(
-      'id, account_type, full_name, phone, cpf, birth_date, city, state, profession, professional_registration, professional_document_path, verification_status'
+      'id, account_type, full_name, phone, cpf, birth_date, city, state, profession, professional_registration, professional_document_path, verification_status, preferences'
     )
     .eq('id', id)
     .single();
@@ -94,7 +94,7 @@ export async function atualizarPerfil(id, campos) {
     .update(campos)
     .eq('id', id)
     .select(
-      'id, account_type, full_name, phone, cpf, birth_date, city, state, profession, professional_registration, professional_document_path, verification_status'
+      'id, account_type, full_name, phone, cpf, birth_date, city, state, profession, professional_registration, professional_document_path, verification_status, preferences'
     )
     .single();
 

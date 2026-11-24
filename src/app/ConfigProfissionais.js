@@ -7,6 +7,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useLegal } from '../components/LegalProvider';
+import { useConta } from '../components/ContaProvider';
 
 // >>> Ajuste os caminhos conforme a pasta deste arquivo
 const LOGO = require('../../assets/images/Logo.png');
@@ -270,6 +271,7 @@ function GrupoSwitches({ itens, estado, onChange }) {
 
 export default function ConfigProfissionais() {
   const router = useRouter();
+  const { perfil, salvarPerfil, carregado } = useConta();
   const { abrirLegal } = useLegal();
   const { mobile, medio, largo, height } = useLayout();
   const paisagem = height < 500;
@@ -306,6 +308,14 @@ export default function ConfigProfissionais() {
   });
   const [faixa, setFaixa] = useState({ min: '5000', max: '50000' });
   const [switches, setSwitches] = useState(SWITCHES_INICIAIS);
+  useEffect(() => {
+    if (!carregado || !perfil) return;
+    const salvas = perfil.preferences?.profissional;
+    if (!salvas) return;
+    if (salvas.selecoes) setSelecoes((atual) => ({ ...atual, ...salvas.selecoes }));
+    if (salvas.faixa) setFaixa((atual) => ({ ...atual, ...salvas.faixa }));
+    if (salvas.switches) setSwitches((atual) => ({ ...atual, ...salvas.switches }));
+  }, [carregado, perfil?.id]);
 
   /* ----- Modal de seleção ----- */
   const [modal, setModal] = useState(null); // 'tipos' | 'regioes' | 'contato' | 'faixa' | null
@@ -329,9 +339,21 @@ export default function ConfigProfissionais() {
     router.push(route);
   };
 
+  const salvarPreferencias = async (mudancas) => {
+    const preferenciasAtuais = perfil?.preferences || {};
+    const preferenciasProfissionais = preferenciasAtuais.profissional || {};
+    try {
+      await salvarPerfil({ preferences: { ...preferenciasAtuais, profissional: { ...preferenciasProfissionais, ...mudancas } } });
+      mostrarToast('Preferência salva.');
+    } catch (error) {
+      console.error('Erro ao salvar configurações profissionais:', error);
+      mostrarToast('Não foi possível salvar. Tente novamente.');
+    }
+  };
   const alterarSwitch = (chave, valor) => {
-    setSwitches((prev) => ({ ...prev, [chave]: valor }));
-    mostrarToast('Preferência atualizada.');
+    const novas = { ...switches, [chave]: valor };
+    setSwitches(novas);
+    salvarPreferencias({ switches: novas });
   };
 
   /* ----- Resumos exibidos nos botões ----- */
@@ -382,9 +404,10 @@ export default function ConfigProfissionais() {
       Alert.alert('Seleção vazia', 'Selecione pelo menos uma opção.');
       return;
     }
-    setSelecoes((prev) => ({ ...prev, [modal]: rascunho }));
+    const novas = { ...selecoes, [modal]: rascunho };
+    setSelecoes(novas);
     setModal(null);
-    mostrarToast('Preferência atualizada.');
+    salvarPreferencias({ selecoes: novas });
   };
 
   const confirmarFaixa = () => {
@@ -398,9 +421,10 @@ export default function ConfigProfissionais() {
       Alert.alert('Faixa inválida', 'O valor mínimo não pode ser maior que o máximo.');
       return;
     }
-    setFaixa({ min: String(min), max: String(max) });
+    const novaFaixa = { min: String(min), max: String(max) };
+    setFaixa(novaFaixa);
     setModal(null);
-    mostrarToast('Preferência atualizada.');
+    salvarPreferencias({ faixa: novaFaixa });
   };
 
   /* ----- Itens do menu (aside e drawer) ----- */

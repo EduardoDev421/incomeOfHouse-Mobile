@@ -588,9 +588,9 @@ export default function PublicarPlanta() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
+          style={s.scroll}
           contentContainerStyle={s.conteudo}
           showsVerticalScrollIndicator={false}
-          stickyHeaderIndices={[0]}
           keyboardShouldPersistTaps="handled"
         >
           <Topo
@@ -853,7 +853,8 @@ const s = StyleSheet.create({
   fundo: { flex: 1, backgroundColor: '#090909' },
   sombra: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0, 0, 0, 0.65)' },
   teclado: { flex: 1 },
-  conteudo: { flexGrow: 1 },
+  scroll: { flex: 1 },
+  conteudo: { flexGrow: 1, paddingBottom: 24 },
   pressionado: { opacity: 0.75 },
 
   /* ----- Topo ----- */
@@ -925,6 +926,7 @@ const s = StyleSheet.create({
     backgroundColor: 'transparent',
     borderWidth: 0,
     borderRadius: 0,
+    overflow: 'visible',
   },
 
   /* ----- Menu lateral ----- */

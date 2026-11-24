@@ -208,11 +208,12 @@ export default function FaleConosco() {
     };
 
     try {
-      await enviarContato(contato);
+      const resultado = await enviarContato(contato);
+      if (!resultado?.enviado) throw new Error('A mensagem não foi salva.');
     } catch (e) {
-      return setErro('Não foi possível enviar sua mensagem. Tente novamente.');
+      console.error('Erro ao enviar contato:', e);
+      return setErro(e?.message || 'Não foi possível enviar sua mensagem. Tente novamente.');
     }
-
     setSucesso(true);
     setNome('');
     setEmail('');
