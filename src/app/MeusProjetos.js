@@ -467,8 +467,8 @@ export default function MeusProjetos() {
     setErroFavoritos('');
     const supabase = getSupabaseClient();
     const { data: salvos, error: erroSalvos } = await supabase
-      .from('plantas_favoritas').select('planta_id, criado_em')
-      .eq('usuario_id', user.id).order('criado_em', { ascending: false });
+      .from('plantas_favoritas').select('planta_id')
+      .eq('usuario_id', user.id);
     if (erroSalvos) throw erroSalvos;
     const ids = (salvos || []).map((item) => item.planta_id).filter(Boolean);
     if (!ids.length) { setFavoritos([]); return; }
@@ -485,7 +485,7 @@ export default function MeusProjetos() {
       area: Number(item.area) || 0,
       valor: Number(item.preco) || 0,
       nota: null,
-      data: item.criado_em || new Date().toISOString(),
+      data: item.criado_em || item.created_at || new Date().toISOString(),
       imagem: item.imagem_url ? { uri: item.imagem_url } : null,
     })));
   }, [user?.id]);
