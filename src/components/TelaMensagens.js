@@ -73,7 +73,17 @@ function Balao({ msg }) {
   return (
     <View style={[s.balao, enviada ? s.balaoEnviado : s.balaoRecebido]}>
       <Text style={s.balaoTxt}>{msg.texto}</Text>
-      <View style={s.balaoRodape}>\n        <Text style={[s.balaoHora, enviada && s.balaoHoraEnviada]}>{msg.hora}</Text>\n        {enviada && <Ionicons name={msg.visualizada ? 'checkmark-done' : 'checkmark'} size={14}\n          color={msg.visualizada ? '#67b7ff' : '#b59a58'} accessibilityLabel={msg.visualizada ? 'Mensagem visualizada' : 'Mensagem enviada'} />}\n      </View>
+      <View style={s.balaoRodape}>
+        <Text style={[s.balaoHora, enviada && s.balaoHoraEnviada]}>{msg.hora}</Text>
+        {enviada && (
+          <Ionicons
+            name={msg.visualizada ? 'checkmark-done' : 'checkmark'}
+            size={14}
+            color={msg.visualizada ? '#67b7ff' : '#b59a58'}
+            accessibilityLabel={msg.visualizada ? 'Mensagem visualizada' : 'Mensagem enviada'}
+          />
+        )}
+      </View>
     </View>
   );
 }
@@ -793,7 +803,14 @@ const s = StyleSheet.create({
     color: '#888',
     fontSize: 10,
   },
-  balaoHoraEnviada: { color: '#b59a58' },\n  balaoRodape: {\n    flexDirection: 'row',\n    alignItems: 'center',\n    justifyContent: 'flex-end',\n    gap: 4,\n    marginTop: 4,\n  },
+  balaoHoraEnviada: { color: '#b59a58' },
+  balaoRodape: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 4,
+    marginTop: 4,
+  },
 
   chatVazio: {
     alignItems: 'center',
