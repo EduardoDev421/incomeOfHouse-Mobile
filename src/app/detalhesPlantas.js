@@ -138,6 +138,14 @@ export default function DetalhesPlantas() {
           .eq('id', p.id).eq('profissional_id', user.id).select('id').maybeSingle();
         if (error) throw error;
         if (!removida) throw new Error('Planta não encontrada ou sem permissão para excluir.');
+        const marcadorStorage = '/storage/v1/object/public/plantas/';
+        const urlImagem = p.imagem?.uri || '';
+        const indiceStorage = urlImagem.indexOf(marcadorStorage);
+        if (indiceStorage >= 0) {
+          const caminhoImagem = decodeURIComponent(urlImagem.slice(indiceStorage + marcadorStorage.length));
+          const { error: erroImagem } = await getSupabaseClient().storage.from('plantas').remove([caminhoImagem]);
+          if (erroImagem) console.warn('A planta foi excluída, mas a imagem permaneceu no Storage:', erroImagem);
+        }
         Alert.alert('Planta excluída', 'O registro foi removido.');
         router.replace('/planta');
       } catch (falha) {
