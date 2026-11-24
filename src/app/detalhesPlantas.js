@@ -39,7 +39,7 @@ const CHAVE_PIX = '07349075162';
 const gerarPayloadPix = () => {
   const campo = (id, valor) => `${id}${String(valor.length).padStart(2, '0')}${valor}`;
   const contaPix = campo('00', 'br.gov.bcb.pix') + campo('01', CHAVE_PIX);
-  const payload = campo('00', '01') + campo('26', contaPix) +
+  const payload = campo('00', '01') + campo('01', '11') + campo('26', contaPix) +
     campo('52', '0000') + campo('53', '986') + campo('58', 'BR') +
     campo('59', 'INCOME OF HOUSE') + campo('60', 'BRASILIA') +
     campo('62', campo('05', '***')) + '6304';
