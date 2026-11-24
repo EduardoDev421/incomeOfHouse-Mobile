@@ -9,9 +9,11 @@ import {
   StatusBar,
   useWindowDimensions,
   Alert,
+  Modal,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import QRCode from 'react-native-qrcode-svg';
 import { useLegal } from '../components/LegalProvider';
 import { getSupabaseClient } from '../services/supabase.js';
 import { useConta } from '../components/ContaProvider';
@@ -33,6 +35,25 @@ const IMAGEM_PADRAO = require('../../assets/images/casa.png');
 
 const formatarPreco = (n) => `R$ ${n.toLocaleString('pt-BR')}`;
 
+const CHAVE_PIX = '07349075162';
+const gerarPayloadPix = () => {
+  const campo = (id, valor) => `${id}${String(valor.length).padStart(2, '0')}${valor}`;
+  const contaPix = campo('00', 'br.gov.bcb.pix') + campo('01', CHAVE_PIX);
+  const payload = campo('00', '01') + campo('26', contaPix) +
+    campo('52', '0000') + campo('53', '986') + campo('58', 'BR') +
+    campo('59', 'INCOME OF HOUSE') + campo('60', 'BRASILIA') +
+    campo('62', campo('05', '***')) + '6304';
+  let crc = 0xffff;
+  for (let i = 0; i < payload.length; i++) {
+    crc ^= payload.charCodeAt(i) << 8;
+    for (let bit = 0; bit < 8; bit++) {
+      crc = crc & 0x8000 ? ((crc << 1) ^ 0x1021) : (crc << 1);
+      crc &= 0xffff;
+    }
+  }
+  return payload + crc.toString(16).toUpperCase().padStart(4, '0');
+};
+
 export default function DetalhesPlantas() {
   const router = useRouter();
   const { abrirLegal } = useLegal();
@@ -51,6 +72,7 @@ export default function DetalhesPlantas() {
   const [adquirida, setAdquirida] = useState(false);
   const [adquirindo, setAdquirindo] = useState(false);
   const [erroAquisicao, setErroAquisicao] = useState('');
+  const [modalPix, setModalPix] = useState(false);
   const [excluindo, setExcluindo] = useState(false);
   const [erroExclusao, setErroExclusao] = useState('');
 
@@ -160,41 +182,11 @@ export default function DetalhesPlantas() {
     return () => { ativo = false; };
   }, [user?.id, tipo, idPlanta]);
 
-  const adquirir = async () => {
+  const adquirir = () => {
     if (!user?.id) { router.push('/login'); return; }
-    if (tipo !== 'usuario' || !p?.id || adquirindo || adquirida) return;
-    setAdquirindo(true);
+    if (tipo !== 'usuario' || !p?.id || adquirida) return;
     setErroAquisicao('');
-    try {
-      const supabase = getSupabaseClient();
-      // Confirma primeiro se já existe aquisição para evitar depender de upsert.
-      const { data: existente, error: erroConsulta } = await supabase
-        .from('plantas_adquiridas')
-        .select('id')
-        .eq('usuario_id', user.id)
-        .eq('planta_id', p.id)
-        .maybeSingle();
-      if (erroConsulta) throw erroConsulta;
-      if (existente) {
-        setAdquirida(true);
-        return;
-      }
-
-      const { error: erroInsercao } = await supabase
-        .from('plantas_adquiridas')
-        .insert({ usuario_id: user.id, planta_id: p.id });
-      if (erroInsercao && erroInsercao.code !== '23505') throw erroInsercao;
-
-      setAdquirida(true);
-      Alert.alert('Planta adquirida', 'A planta foi adicionada ao seu perfil. Ela continua disponível para outros usuários.');
-    } catch (falha) {
-      console.error('Erro ao adquirir planta:', falha);
-      const mensagem = falha?.message || falha?.details || 'Erro desconhecido ao registrar a aquisição.';
-      setErroAquisicao(mensagem);
-      Alert.alert('Não foi possível adquirir', mensagem);
-    } finally {
-      setAdquirindo(false);
-    }
+    setModalPix(true);
   };
 
   const excluirPlanta = async () => {
@@ -501,11 +493,45 @@ export default function DetalhesPlantas() {
 
         {rodape}
       </ScrollView>
+
+      <Modal visible={modalPix} transparent animationType="fade" onRequestClose={() => setModalPix(false)}>
+        <View style={styles.pixFundo}>
+          <View style={styles.pixModal}>
+            <Pressable style={styles.pixFechar} onPress={() => setModalPix(false)}>
+              <Ionicons name="close" size={24} color="#d4af6a" />
+            </Pressable>
+            <Text style={styles.pixTitulo}>Pague com Pix</Text>
+            <Text style={styles.pixDescricao}>Escaneie o QR Code pelo aplicativo do seu banco.</Text>
+            <View style={styles.pixQr}>
+              <QRCode value={gerarPayloadPix()} size={210} backgroundColor="#ffffff" color="#111111" />
+            </View>
+            <Text style={styles.pixLoja}>INCOME OF HOUSE</Text>
+            <Text style={styles.pixTitular}>Titular da chave: Eduardo Leite da Rocha</Text>
+            <Text style={styles.pixAviso}>Digite no banco o valor combinado. Este QR Code não possui valor definido.</Text>
+            <Text style={styles.pixAvisoSecundario}>A planta será liberada após a confirmação do pagamento.</Text>
+            <Pressable style={styles.pixBotao} onPress={() => setModalPix(false)}>
+              <Text style={styles.pixBotaoTexto}>Fechar</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  pixFundo: { flex: 1, backgroundColor: 'rgba(0,0,0,0.82)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  pixModal: { width: '100%', maxWidth: 420, backgroundColor: '#151515', borderColor: '#6b5a36', borderWidth: 1, borderRadius: 18, padding: 24, alignItems: 'center' },
+  pixFechar: { alignSelf: 'flex-end', padding: 2 },
+  pixTitulo: { color: '#ffffff', fontSize: 24, fontWeight: '800', marginTop: 2 },
+  pixDescricao: { color: '#c8c8c8', fontSize: 14, textAlign: 'center', marginTop: 8, marginBottom: 20 },
+  pixQr: { backgroundColor: '#ffffff', padding: 12, borderRadius: 12 },
+  pixLoja: { color: DOURADO, fontSize: 16, fontWeight: '800', marginTop: 16 },
+  pixTitular: { color: '#c8c8c8', fontSize: 12, textAlign: 'center', marginTop: 5 },
+  pixAviso: { color: '#eeeeee', fontSize: 13, lineHeight: 20, textAlign: 'center', marginTop: 14 },
+  pixAvisoSecundario: { color: '#d4af6a', fontSize: 12, textAlign: 'center', marginTop: 8 },
+  pixBotao: { marginTop: 18, backgroundColor: DOURADO, borderRadius: 8, paddingVertical: 12, paddingHorizontal: 32 },
+  pixBotaoTexto: { color: '#171717', fontWeight: '800' },
   raiz: { flex: 1, backgroundColor: '#0b0b0b' },
 
   fundoImagem: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
