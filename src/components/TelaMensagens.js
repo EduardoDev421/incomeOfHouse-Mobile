@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
   View, Text, TextInput, Pressable, ScrollView, StyleSheet, Platform,
-  BackHandler, KeyboardAvoidingView, useWindowDimensions, ActivityIndicator, Alert,
+  BackHandler, KeyboardAvoidingView, useWindowDimensions, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
@@ -92,6 +92,8 @@ export default function TelaMensagens({ tipo: tipoConta }) {
   const [carregando, setCarregando] = useState(true);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState('');
+  const [confirmandoExclusao, setConfirmandoExclusao] = useState(false);
+  const [apagando, setApagando] = useState(false);
   const scrollRef = useRef(null);
   const canalRef = useRef(null);
 
@@ -232,29 +234,25 @@ export default function TelaMensagens({ tipo: tipoConta }) {
   };
 
   const apagarContato = () => {
-    if (!conversaAtual) return;
+    if (!conversaAtual || apagando) return;
+    setConfirmandoExclusao(true);
+  };
+
+  const confirmarApagarContato = async () => {
+    if (!conversaAtual || apagando) return;
     const id = conversaAtual.id;
-    Alert.alert(
-      'Apagar contato?',
-      'A conversa será removida da sua lista. As mensagens da outra pessoa serão preservadas.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Apagar',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await ocultarConversa(id, tipoAtivo);
-              setConversas((atuais) => atuais.filter((c) => c.id !== id));
-              setConversaId(null);
-              setErro('');
-            } catch (falha) {
-              setErro(falha?.message || 'Não foi possível apagar o contato.');
-            }
-          },
-        },
-      ]
-    );
+    setApagando(true);
+    try {
+      await ocultarConversa(id, tipoAtivo);
+      setConversas((atuais) => atuais.filter((c) => c.id !== id));
+      setConversaId(null);
+      setConfirmandoExclusao(false);
+      setErro('');
+    } catch (falha) {
+      setErro(falha?.message || 'Não foi possível apagar o contato.');
+    } finally {
+      setApagando(false);
+    }
   };
 
   const enviar = async () => {
@@ -377,6 +375,36 @@ export default function TelaMensagens({ tipo: tipoConta }) {
                 {mostrarChat && chat}
               </View>
             </View>
+            {confirmandoExclusao && (
+              <View style={s.modalFundo}>
+                <Pressable style={StyleSheet.absoluteFill} onPress={() => !apagando && setConfirmandoExclusao(false)} />
+                <View style={s.modalCaixa}>
+                  <Ionicons name="trash-outline" size={28} color="#ff8585" />
+                  <Text style={s.modalTitulo}>Apagar contato?</Text>
+                  <Text style={s.modalDescricao}>
+                    A conversa será removida da sua lista. As mensagens da outra pessoa serão preservadas.
+                  </Text>
+                  <View style={s.modalAcoes}>
+                    <Pressable
+                      onPress={() => setConfirmandoExclusao(false)}
+                      disabled={apagando}
+                      style={({ pressed }) => [s.modalBotao, s.modalCancelar, pressed && s.pressionado]}
+                    >
+                      <Text style={s.modalCancelarTexto}>Cancelar</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={confirmarApagarContato}
+                      disabled={apagando}
+                      style={({ pressed }) => [s.modalBotao, s.modalConfirmar, pressed && s.pressionado, apagando && { opacity: 0.6 }]}
+                    >
+                      {apagando
+                        ? <ActivityIndicator size="small" color="#fff" />
+                        : <Text style={s.modalConfirmarTexto}>Apagar</Text>}
+                    </Pressable>
+                  </View>
+                </View>
+              </View>
+            )}
           </KeyboardAvoidingView>
         );
       }}
@@ -387,6 +415,68 @@ export default function TelaMensagens({ tipo: tipoConta }) {
 const s = StyleSheet.create({
   flex: { flex: 1 },
   erro: { color: '#ff8f8f', fontSize: 12, marginBottom: 10 },
+  modalFundo: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 1000,
+    elevation: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.72)',
+  },
+  modalCaixa: {
+    width: '100%',
+    maxWidth: 380,
+    alignItems: 'center',
+    gap: 12,
+    padding: 24,
+    backgroundColor: '#1b1b1d',
+    borderWidth: 1,
+    borderColor: '#39393d',
+    borderRadius: 14,
+  },
+  modalTitulo: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  modalDescricao: {
+    color: '#c1c1c5',
+    fontSize: 13,
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+  modalAcoes: {
+    width: '100%',
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 6,
+  },
+  modalBotao: {
+    flex: 1,
+    minHeight: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+  },
+  modalCancelar: {
+    backgroundColor: '#303034',
+    borderWidth: 1,
+    borderColor: '#48484d',
+  },
+  modalConfirmar: {
+    backgroundColor: '#a93636',
+  },
+  modalCancelarTexto: {
+    color: '#eee',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  modalConfirmarTexto: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
   pressionado: { opacity: 0.75 },
 
   card: {
