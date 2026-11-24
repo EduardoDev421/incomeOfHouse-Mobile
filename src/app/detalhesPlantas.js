@@ -158,13 +158,14 @@ export default function DetalhesPlantas() {
   }, [user?.id, tipo, idPlanta]);
 
   const adquirir = async () => {
-    if (!user) { router.push('/login'); return; }
+    if (!user?.id) { router.push('/login'); return; }
+    if (tipo !== 'usuario' || !p?.id) return;
     if (adquirindo || adquirida) return;
     setAdquirindo(true);
     try {
       const { error } = await getSupabaseClient().from('plantas_adquiridas')
-        .insert({ usuario_id: user.id, planta_id: p.id });
-      if (error && error.code !== '23505') throw error;
+        .upsert({ usuario_id: user.id, planta_id: p.id }, { onConflict: 'usuario_id,planta_id', ignoreDuplicates: true });
+      if (error) throw error;
       setAdquirida(true);
       Alert.alert('Planta adquirida', 'A planta foi adicionada ao seu perfil. Ela continua disponível para outros usuários.');
     } catch (falha) {
@@ -180,7 +181,7 @@ export default function DetalhesPlantas() {
         const { data: removida, error } = await getSupabaseClient().from('plantas').delete()
           .eq('id', p.id).eq('profissional_id', user.id).select('id').maybeSingle();
         if (error) throw error;
-        if (!removida) throw new Error('Planta não encontrada ou sem permissão para excluir.');
+        if (!removida) throw new Error('Nenhuma linha foi removida. Confira se o profissional_id da planta corresponde ao ID da sessão e se a policy DELETE permite a operação.');
         const marcadorStorage = '/storage/v1/object/public/plantas/';
         const urlImagem = p.imagem?.uri || '';
         const indiceStorage = urlImagem.indexOf(marcadorStorage);
