@@ -4,7 +4,6 @@ import { SplashScreen, Stack, usePathname, useRouter } from 'expo-router';
 import { LegalProvider } from '../components/LegalProvider';
 import { ContaProvider, useConta } from '../components/ContaProvider';
 
-// Mantém a splash visível até a sessão e o perfil terminarem de carregar.
 SplashScreen.preventAutoHideAsync();
 
 function Navegacao() {
@@ -23,30 +22,72 @@ function Navegacao() {
     }
   }, [carregado, pathname, router]);
 
-  // Só renderiza as rotas depois de saber quem é o usuário.
   if (!carregado) return null;
 
-  // Telas exclusivas de profissionais logados.
-  // Quem não tiver acesso é redirecionado para a rota inicial.
   const profissional = autenticado && tipo === 'profissional';
+  const usuario = autenticado && tipo === 'usuario';
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Protected guard={profissional}>
-        <Stack.Screen name="ConfigProfissionais" />
-        <Stack.Screen name="DadosEmpresa" />
-        <Stack.Screen name="DadosRecebimento" />
-        <Stack.Screen name="HistoricoPagamentos" />
-        <Stack.Screen name="NotaFicais" />
-        <Stack.Screen name="DispositivosConectados" />
-        <Stack.Screen name="AutenticacaoDuasEtapas" />
+    <Stack screenOptions={{ headerShown: false }} initialRouteName="index">
+      {/* Rotas públicas: Home, autenticação, cadastro e recuperação. */}
+      <Stack.Screen name="index" />
+      <Stack.Screen name="login" />
+      <Stack.Screen name="cadastro" />
+      <Stack.Screen name="CadastroProfissional" />
+      <Stack.Screen name="EsqueceuSenha" />
+      <Stack.Screen name="AuthCallback" />
+      <Stack.Screen name="AlterarSenha" />
+
+      {/* Qualquer outra página exige uma sessão autenticada. */}
+      <Stack.Protected guard={autenticado}>
+        <Stack.Screen name="Avaliacoes" />
+        <Stack.Screen name="Comentarios" />
+        <Stack.Screen name="DadosPermissoes" />
+        <Stack.Screen name="EnderecosP" />
+        <Stack.Screen name="EnderecosU" />
+        <Stack.Screen name="Pedidodetalhe" />
+        <Stack.Screen name="Tutoriais" />
+        <Stack.Screen name="detalhesPlantas" />
+        <Stack.Screen name="detalhesProfissionais" />
+        <Stack.Screen name="faleConosco" />
+        <Stack.Screen name="planta" />
+        <Stack.Screen name="profissionais" />
+        <Stack.Screen name="registroProfissional" />
+        <Stack.Screen name="sobreNos" />
+
+        <Stack.Protected guard={profissional}>
+          <Stack.Screen name="AgendamentosP" />
+          <Stack.Screen name="AutenticacaoDuasEtapas" />
+          <Stack.Screen name="ConfigProfissionais" />
+          <Stack.Screen name="DadosEmpresa" />
+          <Stack.Screen name="DadosRecebimento" />
+          <Stack.Screen name="DispositivosConectados" />
+          <Stack.Screen name="HistoricoPagamentos" />
+          <Stack.Screen name="MensagensP" />
+          <Stack.Screen name="Meuportfolio" />
+          <Stack.Screen name="MeusenderecosP" />
+          <Stack.Screen name="NotaFicais" />
+          <Stack.Screen name="PerfilProfissional" />
+          <Stack.Screen name="Projetos" />
+          <Stack.Screen name="publicarPlanta" />
+        </Stack.Protected>
+
+        <Stack.Protected guard={usuario}>
+          <Stack.Screen name="AgendamentosU" />
+          <Stack.Screen name="ConfigUsuario" />
+          <Stack.Screen name="MensagensU" />
+          <Stack.Screen name="MeusPedidos" />
+          <Stack.Screen name="MeusProjetos" />
+          <Stack.Screen name="Meusprofissionais" />
+          <Stack.Screen name="PerfilUsuario" />
+          <Stack.Screen name="meusenderecosU" />
+        </Stack.Protected>
       </Stack.Protected>
     </Stack>
   );
 }
 
 export default function RootLayout() {
-  // Web: sem rolagem lateral e raiz com a altura da janela
   useEffect(() => {
     if (Platform.OS !== 'web') return undefined;
 
