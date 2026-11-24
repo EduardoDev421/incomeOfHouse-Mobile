@@ -3,6 +3,8 @@
 
 -- FAVORITOS: tabela compartilhada com o site (favoritos.usuario_id,
 -- favoritos.planta_id e favoritos.profissional_id).
+alter table public.favoritos
+  add column if not exists profissional_id uuid references public.profissionais(id) on delete cascade;
 alter table public.favoritos enable row level security;
 
 create unique index if not exists favoritos_usuario_planta_uidx
@@ -54,6 +56,21 @@ create policy "Usuário adquire planta para si"
   );
 
 grant select, insert on public.plantas_adquiridas to authenticated;
+
+-- Permite ao profissional consultar também suas plantas arquivadas e ao
+-- usuário consultar as plantas que já adquiriu, mesmo após arquivamento.
+drop policy if exists "Profissional consulta suas próprias plantas" on public.plantas;
+create policy "Profissional consulta suas próprias plantas"
+  on public.plantas for select to authenticated
+  using (profissional_id = (select auth.uid()));
+
+drop policy if exists "Usuário consulta plantas adquiridas" on public.plantas;
+create policy "Usuário consulta plantas adquiridas"
+  on public.plantas for select to authenticated
+  using (exists (
+    select 1 from public.plantas_adquiridas pa
+    where pa.planta_id = id and pa.usuario_id = (select auth.uid())
+  ));
 
 -- EXCLUSÃO LÓGICA: o profissional desativa a planta sem apagar registros
 -- que podem estar ligados a favoritos e aquisições.
