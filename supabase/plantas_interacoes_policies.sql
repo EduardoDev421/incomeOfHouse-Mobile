@@ -24,11 +24,9 @@ create policy "Usuário salva seus favoritos"
   with check (
     usuario_id = (select auth.uid())
     and (
-      (planta_id is not null and profissional_id is null
-        and exists (select 1 from public.plantas p where p.id = planta_id))
+      (planta_id is not null and profissional_id is null)
       or
-      (profissional_id is not null and planta_id is null
-        and exists (select 1 from public.profissionais pr where pr.id = profissional_id))
+      (profissional_id is not null and planta_id is null)
     )
   );
 
@@ -57,13 +55,20 @@ create policy "Usuário adquire planta para si"
 
 grant select, insert on public.plantas_adquiridas to authenticated;
 
--- EXCLUSÃO: somente o profissional vinculado à planta pode removê-la.
+-- EXCLUSÃO LÓGICA: o profissional desativa a planta sem apagar registros
+-- que podem estar ligados a favoritos e aquisições.
+drop policy if exists "Profissional arquiva a própria planta" on public.plantas;
+create policy "Profissional arquiva a própria planta"
+  on public.plantas for update to authenticated
+  using (profissional_id = (select auth.uid()))
+  with check (profissional_id = (select auth.uid()));
+
 drop policy if exists "plantas_delete_owner" on public.plantas;
 create policy "plantas_delete_owner"
   on public.plantas for delete to authenticated
   using (profissional_id = (select auth.uid()));
 
-grant delete on public.plantas to authenticated;
+grant update, delete on public.plantas to authenticated;
 
 -- O arquivo enviado pelo profissional fica em uma pasta com o próprio UUID.
 drop policy if exists "Profissional remove imagem da própria planta" on storage.objects;
