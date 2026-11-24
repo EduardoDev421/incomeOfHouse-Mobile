@@ -43,6 +43,7 @@ export default function DetalhesPlantas() {
   const medio = width >= 600;
 
   const [favorito, setFavorito] = useState(false);
+  const [alterandoFavorito, setAlterandoFavorito] = useState(false);
   const [p, setPlanta] = useState(null);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState('');
@@ -76,7 +77,7 @@ export default function DetalhesPlantas() {
           banheiros: Number(data.banheiros) || 0, area: Number(data.area) || 0,
           preco: Number(data.preco) || 0, resumo: '', descricao: data.descricao || '',
           distribuicao: data.distribuicao_ambientes || '',
-          destaques: Array.isArray(data.destaques) && data.destaques.length ? data.destaques : DESTAQUES_PADRAO,
+          destaques: Array.isArray(data.destaques) ? data.destaques : [],
           imagem: data.imagem_url ? { uri: data.imagem_url } : null,
         });
         if (ativo && data?.profissional_id) {
@@ -94,6 +95,48 @@ export default function DetalhesPlantas() {
     carregarPlanta();
     return () => { ativo = false; };
   }, [idPlanta]);
+
+  useEffect(() => {
+    let ativo = true;
+    async function verificarFavorito() {
+      if (!user?.id || !idPlanta) { setFavorito(false); return; }
+      try {
+        const { data, error } = await getSupabaseClient().from('plantas_favoritas')
+          .select('id').eq('usuario_id', user.id).eq('planta_id', idPlanta).maybeSingle();
+        if (error) throw error;
+        if (ativo) setFavorito(Boolean(data));
+      } catch (falha) {
+        console.warn('Não foi possível verificar o favorito:', falha);
+      }
+    }
+    verificarFavorito();
+    return () => { ativo = false; };
+  }, [user?.id, idPlanta]);
+
+  const alternarFavorito = async () => {
+    if (!user?.id) { router.push('/login'); return; }
+    if (alterandoFavorito) return;
+    setAlterandoFavorito(true);
+    try {
+      const supabase = getSupabaseClient();
+      if (favorito) {
+        const { error } = await supabase.from('plantas_favoritas')
+          .delete().eq('usuario_id', user.id).eq('planta_id', p.id);
+        if (error) throw error;
+        setFavorito(false);
+      } else {
+        const { error } = await supabase.from('plantas_favoritas')
+          .insert({ usuario_id: user.id, planta_id: p.id });
+        if (error && error.code !== '23505') throw error;
+        setFavorito(true);
+      }
+    } catch (falha) {
+      console.error('Erro ao atualizar favorito:', falha);
+      Alert.alert('Não foi possível atualizar', 'Confira sua conexão e tente novamente.');
+    } finally {
+      setAlterandoFavorito(false);
+    }
+  };
 
   const ehDono = Boolean(user?.id && p?.profissionalId === user.id);
 
@@ -340,7 +383,8 @@ export default function DetalhesPlantas() {
 
                 <Pressable
                   style={[styles.btnSecundario, favorito && styles.btnFavoritoAtivo]}
-                  onPress={() => setFavorito((f) => !f)}
+                  onPress={alternarFavorito}
+                  disabled={alterandoFavorito}
                 >
                   <Ionicons
                     name={favorito ? 'heart' : 'heart-outline'}
@@ -348,7 +392,7 @@ export default function DetalhesPlantas() {
                     color={DOURADO}
                   />
                   <Text style={styles.btnSecundarioTexto}>
-                    {favorito ? 'Remover dos favoritos' : 'Salvar nos favoritos'}
+                    {alterandoFavorito ? 'Salvando...' : favorito ? 'Remover dos favoritos' : 'Salvar nos favoritos'}
                   </Text>
                 </Pressable>
               </View>
