@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useLegal } from '../components/LegalProvider';
+import { getSupabaseClient } from '../services/supabase.js';
 
 const DOURADO = '#c9a45c';
 const OURO_MENU = '#d4af6a'; // dourado do cabeçalho e do rodapé (igual à web)
@@ -25,35 +26,6 @@ const FUNDO_PLANTAS = require('../../assets/images/BackGroundPlantasEProfissiona
 
 const FUNDO = require('../../assets/images/BackgroundFundo.png');
 const IMAGEM_PADRAO = require('../../assets/images/casa.png');
-
-/* ------------------------------------------------------------------ */
-/* DADOS DE EXEMPLO                                                    */
-/* O "id" vem da tela de Plantas (botão "Ver detalhes").               */
-/* Troque por seus dados reais (API/banco). Campos opcionais por       */
-/* planta: imagem, resumo, descricao, distribuicao, destaques.         */
-/* ------------------------------------------------------------------ */
-const PLANTAS = {
-  1: { nome: 'Casa Moderna Aurora', categoria: 'Sobrado', quartos: 4, garagens: 3, banheiros: 5, area: 320, estilo: 'Moderno', preco: 4800, profissional: 2 },
-  2: { nome: 'Residência Horizonte', categoria: 'Casa Térrea', quartos: 3, garagens: 2, banheiros: 3, area: 180, estilo: 'Contemporâneo', preco: 3200, profissional: 3 },
-  3: { nome: 'Casa Minimal', categoria: 'Casa Térrea', quartos: 2, garagens: 1, banheiros: 2, area: 95, estilo: 'Minimalista', preco: 2200, profissional: 6 },
-  4: { nome: 'Sobrado Jardins', categoria: 'Sobrado', quartos: 3, garagens: 2, banheiros: 3, area: 210, estilo: 'Clássico', preco: 3500, profissional: 8 },
-  5: { nome: 'Casa de Campo Serra', categoria: 'Casa de Campo', quartos: 5, garagens: 4, banheiros: 5, area: 450, estilo: 'Rústico', preco: 5200, profissional: 1 },
-  6: { nome: 'Studio Urbano', categoria: 'Kitnet / Studio', quartos: 1, garagens: 0, banheiros: 1, area: 45, estilo: 'Industrial', preco: 1500, profissional: 3 },
-  7: { nome: 'Casa Tropical Brisa', categoria: 'Casa de Praia', quartos: 4, garagens: 2, banheiros: 4, area: 260, estilo: 'Tropical', preco: 4200, profissional: 4 },
-  8: { nome: 'Edícula Gourmet', categoria: 'Edícula', quartos: 1, garagens: 1, banheiros: 1, area: 55, estilo: 'Escandinavo', preco: 1800, profissional: 8 },
-  9: { nome: 'Residência Neoclássica', categoria: 'Casa de Condomínio', quartos: 5, garagens: 4, banheiros: 6, area: 520, estilo: 'Neoclássico', preco: 6500, profissional: 7 },
-};
-
-// Profissionais responsáveis (nomes fictícios; mesmos ids da tela de Profissionais)
-const PROFISSIONAIS = {
-  1: { nome: 'Carlos Mendes', profissao: 'Engenheiro(a) Civil', nota: 5.0, avaliacoes: 128 },
-  2: { nome: 'Ana Beatriz Souza', profissao: 'Arquiteto(a)', nota: 4.9, avaliacoes: 96 },
-  3: { nome: 'Rafael Lima', profissao: 'Designer de Interiores', nota: 4.8, avaliacoes: 74 },
-  4: { nome: 'Juliana Castro', profissao: 'Paisagista', nota: 4.9, avaliacoes: 61 },
-  6: { nome: 'Fernanda Alves', profissao: 'Especialista BIM', nota: 5.0, avaliacoes: 52 },
-  7: { nome: 'Paulo Henrique Dias', profissao: 'Projetista Estrutural', nota: 4.8, avaliacoes: 89 },
-  8: { nome: 'Camila Rocha', profissao: 'Arquiteto(a) e Urbanista', nota: 4.7, avaliacoes: 67 },
-};
 
 const DESTAQUES_PADRAO = [
   'Ambientes integrados',
@@ -100,11 +72,52 @@ export default function DetalhesPlantas() {
   const medio = width >= 600;
 
   const [favorito, setFavorito] = useState(false);
+  const [p, setPlanta] = useState(null);
+  const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState('');
 
   const navegar = (rota) => router.push(rota);
 
-  const p = PLANTAS[Number(id)];
-  const prof = p ? PROFISSIONAIS[p.profissional] : null;
+  const idPlanta = Array.isArray(id) ? id[0] : id;
+  useEffect(() => {
+    let ativo = true;
+    async function carregarPlanta() {
+      if (!idPlanta) {
+        setErro('Identificador da planta não informado.');
+        setCarregando(false);
+        return;
+      }
+      try {
+        setCarregando(true);
+        setErro('');
+        const supabase = getSupabaseClient();
+        const { data, error: erroConsulta } = await supabase
+          .from('plantas').select('*').eq('id', idPlanta)
+          .eq('ativa', true).maybeSingle();
+        if (erroConsulta) throw erroConsulta;
+        if (ativo && data) setPlanta({
+          id: data.id, profissionalId: data.profissional_id,
+          nome: data.nome, categoria: data.categoria, estilo: data.estilo || '',
+          quartos: Number(data.quartos) || 0, garagens: Number(data.garagem) || 0,
+          banheiros: Number(data.banheiros) || 0, area: Number(data.area) || 0,
+          preco: Number(data.preco) || 0, resumo: '', descricao: data.descricao || '',
+          distribuicao: data.distribuicao_ambientes || '',
+          destaques: Array.isArray(data.destaques) ? data.destaques : [],
+          imagem: data.imagem_url ? { uri: data.imagem_url } : null,
+        });
+      } catch (e) {
+        console.error('Erro ao carregar detalhes da planta:', e);
+        if (ativo) setErro('Não foi possível carregar esta planta. Tente novamente.');
+      } finally {
+        if (ativo) setCarregando(false);
+      }
+    }
+    carregarPlanta();
+    return () => { ativo = false; };
+  }, [idPlanta]);
+
+  // Não exibir dados fictícios de profissionais.
+  const prof = null;
 
   const larguraCard = largo ? '31%' : medio ? '48%' : '100%';
 
@@ -183,7 +196,7 @@ export default function DetalhesPlantas() {
   );
 
   // Planta não encontrada
-  if (!p) {
+  if (carregando || erro || !p) {
     return (
       <View style={styles.raiz}>
         <StatusBar barStyle="light-content" />
@@ -193,10 +206,10 @@ export default function DetalhesPlantas() {
           <View style={styles.principal}>
             <View style={styles.naoEncontrada}>
               <Text style={styles.naoEncontradaTitulo} accessibilityRole="header">
-                Planta não encontrada.
+                {carregando ? 'Carregando planta...' : erro ? 'Não foi possível abrir a planta.' : 'Planta não encontrada.'}
               </Text>
               <Text style={styles.naoEncontradaTexto}>
-                Volte para a lista de plantas e tente novamente.
+                {erro || 'Volte para a lista de plantas e tente novamente.'}
               </Text>
             </View>
           </View>
@@ -362,7 +375,7 @@ export default function DetalhesPlantas() {
                   onPress={() =>
                     router.push({
                       pathname: '/detalhesProfissionais',
-                      params: { id: String(p.profissional) },
+                      params: { id: String(p.profissionalId) },
                     })
                   }
                 >
