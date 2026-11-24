@@ -184,7 +184,7 @@ function Topo({ mobile, medio, insets, onAbrirMenu, onNavegar }) {
   );
 }
 
-function CabecalhoPagina({ mobile }) {
+function CabecalhoPagina({ mobile, modoEdicao }) {
   return (
     <View style={[s.cabecalho, mobile && s.cabecalhoMobile]}>
       <Text style={[s.titulo, mobile && s.tituloMobile]}>{modoEdicao ? 'Editar Planta' : 'Publicar Nova Planta'}</Text>
@@ -614,7 +614,7 @@ export default function PublicarPlanta() {
                 mobile && s.principalMobile,
               ]}
             >
-              <CabecalhoPagina mobile={mobile} />
+              <CabecalhoPagina mobile={mobile} modoEdicao={modoEdicao} />
 
               <View style={s.formulario}>
                 <Campo
