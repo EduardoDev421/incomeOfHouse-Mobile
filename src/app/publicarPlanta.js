@@ -538,7 +538,7 @@ export default function PublicarPlanta() {
       };
 
       if (modoEdicao) {
-        const { error } = await getSupabaseClient().from('plantas').update({
+        const { data: atualizada, error } = await getSupabaseClient().from('plantas').update({
           nome: planta.titulo,
           descricao: planta.descricao,
           estilo: planta.estilo || null,
@@ -550,8 +550,9 @@ export default function PublicarPlanta() {
           garagem: planta.garagem,
           area: planta.area,
           preco: planta.preco,
-        }).eq('id', idEdicao).eq('profissional_id', user.id);
+        }).eq('id', idEdicao).eq('profissional_id', user.id).select('id').maybeSingle();
         if (error) throw error;
+        if (!atualizada) throw new Error('Planta não encontrada ou sem permissão para editar.');
         setSucesso(true);
         router.replace({ pathname: '/detalhesPlantas', params: { id: String(idEdicao) } });
       } else {
@@ -768,6 +769,7 @@ export default function PublicarPlanta() {
                     <Text style={s.rotulo}>Imagem da Planta</Text>
                     <Pressable
                       onPress={escolherImagem}
+                      disabled={modoEdicao}
                       style={({ pressed }) => [s.arquivo, pressed && s.pressionado]}
                       accessibilityRole="button"
                       accessibilityLabel="Escolher imagem da planta"
@@ -800,7 +802,7 @@ export default function PublicarPlanta() {
                 )}
                 {sucesso && (
                   <Text style={s.sucesso} accessibilityLiveRegion="polite">
-                    Planta publicada com sucesso!
+                    {modoEdicao ? 'Planta atualizada com sucesso!' : 'Planta publicada com sucesso!'}
                   </Text>
                 )}
 
