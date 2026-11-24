@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,7 @@ import {
   StatusBar,
   useWindowDimensions,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import {
   Cabecalho,
@@ -21,7 +21,7 @@ import {
   DOURADO,
   LARGO,
 } from '../components/Comuns.js';
-import { PROFISSIONAIS } from '../constants/profissionais';
+import { listarProfissionais } from '../services/profissionais';
 
 const POR_PAGINA = 6;
 const FUNDO = require('../../assets/images/BackGroundPlantasEProfissionais.png');
@@ -80,25 +80,14 @@ const ESTADOS = [
   ['SP', 'São Paulo'], ['SE', 'Sergipe'], ['TO', 'Tocantins'],
 ];
 
-const EXPERIENCIAS = [8, 9, 10, 12, 15, 18];
-const AVALIACOES = [5, 4.9, 4.8, 4.7];
-
 const TODAS = { label: 'Todas', valor: '' };
 const TODOS = { label: 'Todos', valor: '' };
 const OPCOES_PROFISSAO = [TODAS, ...PROFISSOES.map(([v, l]) => ({ label: l, valor: v }))];
 const OPCOES_ESTADO = [TODOS, ...ESTADOS.map(([v, l]) => ({ label: l, valor: v }))];
-const OPCOES_EXPERIENCIA = [TODAS, ...EXPERIENCIAS.map((n) => ({ label: `${n} anos`, valor: String(n) }))];
-const OPCOES_AVALIACAO = [TODAS, ...AVALIACOES.map((n) => ({ label: `${n.toFixed(1)} ou mais`, valor: String(n) }))];
 
 const NOME_ESTADO = Object.fromEntries(ESTADOS);
 
-/* ------------------------------------------------------------------ */
-/* DADOS DE EXEMPLO (nomes fictícios)                                  */
-/* Troque por seus dados reais (API/banco). Cada profissional precisa  */
-/* ter: id, nome, profissao (valor da lista), estado (UF), anos,       */
-/* avaliacao. Opcional: foto (require('...') ou { uri: '...' })        */
-/* ------------------------------------------------------------------ */
-const FILTROS_VAZIOS = { profissao: '', estado: '', experiencia: '', avaliacao: '' };
+const FILTROS_VAZIOS = { profissao: '', estado: '' };
 
 /* ------------------------------------------------------------------ */
 /* LÓGICA DE FILTRO                                                    */
@@ -107,9 +96,6 @@ function filtrar(lista, f) {
   return lista.filter((p) => {
     if (f.profissao && p.profissao !== f.profissao) return false;
     if (f.estado && p.estado !== f.estado) return false;
-    if (f.experiencia && p.anos !== Number(f.experiencia)) return false;
-    // Avaliação: mostra quem tem nota igual ou maior que a escolhida
-    if (f.avaliacao && p.avaliacao < Number(f.avaliacao)) return false;
     return true;
   });
 }
@@ -131,6 +117,22 @@ export default function Profissionais() {
   const [aplicados, setAplicados] = useState(FILTROS_VAZIOS);
   const [pagina, setPagina] = useState(1);
   const [favoritos, setFavoritos] = useState([]);
+  const [profissionais, setProfissionais] = useState([]);
+  const [carregando, setCarregando] = useState(true);
+  const [erroCarregamento, setErroCarregamento] = useState('');
+
+  useFocusEffect(
+    useCallback(() => {
+      let ativo = true;
+      setCarregando(true);
+      setErroCarregamento('');
+      listarProfissionais()
+        .then((lista) => { if (ativo) { setProfissionais(lista); setPagina(1); } })
+        .catch((erro) => { if (ativo) setErroCarregamento(erro?.message || 'Não foi possível carregar os profissionais.'); })
+        .finally(() => { if (ativo) setCarregando(false); });
+      return () => { ativo = false; };
+    }, [])
+  );
 
   const mudar = (campo) => (valor) => setFiltros((f) => ({ ...f, [campo]: valor }));
 
@@ -157,7 +159,7 @@ export default function Profissionais() {
     setFavoritos((l) => (l.includes(id) ? l.filter((x) => x !== id) : [...l, id]));
 
   const ativos = Object.values(aplicados).filter(Boolean).length;
-  const resultado = filtrar(PROFISSIONAIS, aplicados);
+  const resultado = filtrar(profissionais, aplicados);
   const totalPaginas = Math.max(1, Math.ceil(resultado.length / POR_PAGINA));
   const visiveis = resultado.slice((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA);
   const larguraCard = largo ? '31.8%' : '48%';
@@ -200,12 +202,14 @@ export default function Profissionais() {
           <PainelFiltros ativos={ativos} aoPesquisar={pesquisar} aoLimpar={limpar}>
             <Seletor rotulo="Profissão" icone="person-outline" valor={filtros.profissao} opcoes={OPCOES_PROFISSAO} aoMudar={mudar('profissao')} />
             <Seletor rotulo="Estado" icone="location-outline" valor={filtros.estado} opcoes={OPCOES_ESTADO} aoMudar={mudar('estado')} />
-            <Seletor rotulo="Experiência" icone="time-outline" valor={filtros.experiencia} opcoes={OPCOES_EXPERIENCIA} aoMudar={mudar('experiencia')} />
-            <Seletor rotulo="Avaliação" icone="star-outline" valor={filtros.avaliacao} opcoes={OPCOES_AVALIACAO} aoMudar={mudar('avaliacao')} />
           </PainelFiltros>
 
           <View onLayout={(e) => (pos.current.lista = e.nativeEvent.layout.y)}>
-            {resultado.length === 0 ? (
+            {carregando ? (
+              <Text style={styles.mensagem}>Carregando profissionais...</Text>
+            ) : erroCarregamento ? (
+              <Text style={styles.mensagem}>Não foi possível carregar os profissionais: {erroCarregamento}</Text>
+            ) : resultado.length === 0 ? (
               <Vazio texto="Nenhum profissional encontrado com esses filtros." aoLimpar={limpar} />
             ) : (
               <>
@@ -245,16 +249,12 @@ export default function Profissionais() {
                             <View style={styles.metaItem}>
                               <Ionicons name="location-outline" size={14} color={DOURADO} />
                               <Text style={styles.metaTexto}>
-                                {compacto ? p.estado : NOME_ESTADO[p.estado]}
+                                {compacto ? (p.estado || 'UF não informada') : `${p.cidade || 'Cidade não informada'} - ${NOME_ESTADO[p.estado] || p.estado || 'UF não informada'}`}
                               </Text>
                             </View>
                             <View style={styles.metaItem}>
-                              <Ionicons name="time-outline" size={14} color={DOURADO} />
-                              <Text style={styles.metaTexto}>{p.anos} anos</Text>
-                            </View>
-                            <View style={styles.metaItem}>
-                              <Ionicons name="star" size={14} color={DOURADO} />
-                              <Text style={styles.metaTexto}>{p.avaliacao.toFixed(1)}</Text>
+                              <Ionicons name="shield-checkmark-outline" size={14} color={DOURADO} />
+                              <Text style={styles.metaTexto}>{p.statusLabel}</Text>
                             </View>
                           </View>
 
