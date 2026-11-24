@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -13,10 +13,13 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDeclararConta } from '../components/ContaProvider';
 import ContaMenu from '../components/MenuConta';
+import { useConta } from '../components/ContaProvider';
+import { getSupabaseClient } from '../services/supabase';
+import { buscarProfissional } from '../services/profissionais';
 
 /* ================================================= */
 /* CONSTANTES                                        */
@@ -50,32 +53,16 @@ const LINKS_SITE = [
 // Mesmas cores do web
 const STATUS = {
   andamento: { texto: 'Em andamento', cor: '#f0ca61', fundo: 'rgba(174, 137, 43, 0.22)' },
-  concluido: { texto: 'Concluído', cor: '#54db83', fundo: 'rgba(30, 135, 68, 0.23)' },
+  concluido: { texto: 'Adquirida', cor: '#54db83', fundo: 'rgba(30, 135, 68, 0.23)' },
   cancelado: { texto: 'Cancelado', cor: '#c3c6d4', fundo: 'rgba(115, 120, 139, 0.28)' },
 };
 
 const FILTROS = [
-  { chave: 'todos', texto: 'Todos' },
-  { chave: 'andamento', texto: 'Em andamento' },
-  { chave: 'concluido', texto: 'Concluídos' },
-  { chave: 'cancelado', texto: 'Cancelados' },
+  { chave: 'todos', texto: 'Todas' },
+  { chave: 'concluido', texto: 'Adquiridas' },
 ];
 
-// Os 5 primeiros são os mesmos do web. Os demais são só exemplo para a paginação.
-const PEDIDOS = [
-  { id: '1', titulo: 'Projeto Arquitetônico Residencial', profissional: 'Carlos Silva', funcao: 'Arquiteto', valor: 2800, data: '2025-06-12', status: 'andamento' },
-  { id: '2', titulo: 'Reforma e Ampliação', profissional: 'Juliana Martins', funcao: 'Engenheira Civil', valor: 15600, data: '2025-05-28', status: 'concluido' },
-  { id: '3', titulo: 'Consultoria de Viabilidade', profissional: 'Rafael Costa', funcao: 'Especialista em Investimentos Imobiliários', valor: 950, data: '2025-05-15', status: 'cancelado' },
-  { id: '4', titulo: 'Planta Baixa - Sobrado', profissional: 'Fernanda Lima', funcao: 'Arquiteta', valor: 1750, data: '2025-05-03', status: 'concluido' },
-  { id: '5', titulo: 'Projeto de Interiores', profissional: 'Lucas Pereira', funcao: 'Designer de Interiores', valor: 3400, data: '2025-04-20', status: 'andamento' },
-  { id: '6', titulo: 'Projeto Paisagístico', profissional: 'Mariana Rocha', funcao: 'Paisagista', valor: 2100, data: '2025-04-08', status: 'concluido' },
-  { id: '7', titulo: 'Regularização de Imóvel', profissional: 'Carlos Silva', funcao: 'Arquiteto', valor: 1300, data: '2025-03-25', status: 'concluido' },
-  { id: '8', titulo: 'Análise de Retorno de Aluguel', profissional: 'Rafael Costa', funcao: 'Especialista em Investimentos Imobiliários', valor: 780, data: '2025-03-10', status: 'cancelado' },
-  { id: '9', titulo: 'Projeto Elétrico Residencial', profissional: 'Juliana Martins', funcao: 'Engenheira Civil', valor: 1900, data: '2025-02-27', status: 'concluido' },
-  { id: '10', titulo: 'Planta Baixa - Casa Térrea', profissional: 'Fernanda Lima', funcao: 'Arquiteta', valor: 1450, data: '2025-02-14', status: 'concluido' },
-  { id: '11', titulo: 'Layout de Sala Comercial', profissional: 'Lucas Pereira', funcao: 'Designer de Interiores', valor: 2600, data: '2025-01-30', status: 'cancelado' },
-  { id: '12', titulo: 'Estudo de Fachada', profissional: 'Carlos Silva', funcao: 'Arquiteto', valor: 1650, data: '2025-01-18', status: 'concluido' },
-];
+
 
 /* ================================================= */
 /* FUNÇÕES AUXILIARES                                */
@@ -172,7 +159,7 @@ function CabecalhoPagina({ mobile }) {
     <View style={[s.cabecalho, mobile && s.cabecalhoMobile]}>
       <Text style={[s.titulo, mobile && s.tituloMobile]}>Meus Pedidos</Text>
       <Text style={[s.subtitulo, mobile && s.subtituloMobile]}>
-        Acompanhe o andamento e o histórico de todos os seus pedidos.
+        Acompanhe as plantas que você adquiriu.
       </Text>
     </View>
   );
@@ -212,7 +199,7 @@ function CardPedido({ pedido, mobile, linha, onDetalhes }) {
 
   const pedidoEm = (
     <View style={s.detalhe}>
-      <Text style={s.rotuloDetalhe}>Pedido em</Text>
+      <Text style={s.rotuloDetalhe}>Adquirida em</Text>
       <Text style={[s.valorDetalhe, mobile && s.valorDetalheMobile]}>
         {formatarData(pedido.data)}
       </Text>
@@ -223,7 +210,7 @@ function CardPedido({ pedido, mobile, linha, onDetalhes }) {
     <View style={s.detalhe}>
       <Text style={s.rotuloDetalhe}>Valor</Text>
       <Text style={[s.valorDetalhe, mobile && s.valorDetalheMobile]}>
-        {formatarValor(pedido.valor)}
+        {pedido.valor > 0 ? formatarValor(pedido.valor) : 'Sem cobrança'}
       </Text>
     </View>
   );
@@ -340,14 +327,14 @@ function SemPedidos({ onExplorar }) {
     <View style={s.vazio}>
       <Text style={s.tituloVazio}>Nenhum pedido encontrado</Text>
       <Text style={s.textoVazio}>
-        Explore nossos profissionais e encontre o serviço ideal para o seu projeto.
+        As plantas que você adquirir aparecerão aqui. Elas continuam disponíveis para outros usuários.
       </Text>
       <Pressable
         onPress={onExplorar}
         style={({ pressed }) => [s.btnPrincipal, pressed && s.pressionado]}
         accessibilityRole="button"
       >
-        <Text style={s.textoPrincipal}>Explorar profissionais</Text>
+        <Text style={s.textoPrincipal}>Explorar plantas</Text>
       </Pressable>
     </View>
   );
@@ -428,6 +415,7 @@ export default function MeusPedidos() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   useDeclararConta('usuario');
+  const { user } = useConta();
   const { width, height } = useWindowDimensions();
 
   // Mesmos breakpoints do PerfilUsuario
@@ -468,6 +456,56 @@ export default function MeusPedidos() {
   const [filtro, setFiltro] = useState('todos');
   const [busca, setBusca] = useState('');
   const [pagina, setPagina] = useState(1);
+  const [pedidos, setPedidos] = useState([]);
+  const [carregandoPedidos, setCarregandoPedidos] = useState(true);
+  const [erroPedidos, setErroPedidos] = useState('');
+
+  useFocusEffect(useCallback(() => {
+    let ativo = true;
+    async function carregarAquisições() {
+      setCarregandoPedidos(true);
+      setErroPedidos('');
+      try {
+        if (!user?.id) { if (ativo) setPedidos([]); return; }
+        const supabase = getSupabaseClient();
+        const { data: aquisicoes, error: erroAquisicoes } = await supabase
+          .from('plantas_adquiridas').select('planta_id, adquirido_em')
+          .eq('usuario_id', user.id).order('adquirido_em', { ascending: false });
+        if (erroAquisicoes) throw erroAquisicoes;
+        const ids = (aquisicoes || []).map((item) => item.planta_id).filter(Boolean);
+        if (!ids.length) { if (ativo) setPedidos([]); return; }
+        const { data: plantas, error: erroPlantas } = await supabase
+          .from('plantas').select('id,nome,categoria,preco,profissional_id').in('id', ids);
+        if (erroPlantas) throw erroPlantas;
+        const porId = new Map((plantas || []).map((item) => [String(item.id), item]));
+        const profissionaisIds = [...new Set((plantas || []).map((item) => item.profissional_id).filter(Boolean))];
+        const profissionais = await Promise.all(profissionaisIds.map(async (id) => {
+          try { return await buscarProfissional(id); } catch { return null; }
+        }));
+        const nomesProfissionais = new Map(profissionais.filter(Boolean).map((item) => [String(item.id), item]));
+        const lista = (aquisicoes || []).map((aquisicao) => {
+          const planta = porId.get(String(aquisicao.planta_id));
+          if (!planta) return null;
+          const profissional = nomesProfissionais.get(String(planta.profissional_id));
+          return {
+            id: String(planta.id),
+            titulo: planta.nome || 'Planta adquirida',
+            profissional: profissional?.nome || 'Profissional',
+            funcao: profissional?.profissaoNome || 'Responsável pelo projeto',
+            valor: 0,
+            data: (aquisicao.adquirido_em || new Date().toISOString()).slice(0, 10),
+            status: 'concluido',
+          };
+        }).filter(Boolean);
+        if (ativo) setPedidos(lista);
+      } catch (falha) {
+        console.error('Erro ao carregar plantas adquiridas:', falha);
+        if (ativo) setErroPedidos(falha?.message || 'Não foi possível carregar suas plantas adquiridas.');
+      } finally { if (ativo) setCarregandoPedidos(false); }
+    }
+    carregarAquisições();
+    return () => { ativo = false; };
+  }, [user?.id]));
 
   // Qualquer mudança de filtro ou busca volta para a primeira página
   useEffect(() => {
@@ -476,15 +514,11 @@ export default function MeusPedidos() {
 
   const visiveis = useMemo(() => {
     const termo = normalizar(busca.trim());
-
-    return PEDIDOS.filter(
-      (p) =>
-        (filtro === 'todos' || p.status === filtro) &&
-        (!termo ||
-          normalizar(p.titulo).includes(termo) ||
-          normalizar(p.profissional).includes(termo))
+    return pedidos.filter((p) =>
+      (filtro === 'todos' || p.status === filtro) &&
+      (!termo || normalizar(p.titulo).includes(termo) || normalizar(p.profissional).includes(termo))
     );
-  }, [filtro, busca]);
+  }, [pedidos, filtro, busca]);
 
   const totalPaginas = Math.max(1, Math.ceil(visiveis.length / POR_PAGINA));
   const paginaAtual = Math.min(pagina, totalPaginas);
@@ -503,16 +537,7 @@ export default function MeusPedidos() {
   };
 
   const abrirDetalhes = (pedido) =>
-    router.push({
-      pathname: '/Pedidodetalhe',
-      params: {
-        id: pedido.id,
-        titulo: pedido.titulo,
-        descricao: `${formatarValor(pedido.valor)} · Pedido em ${formatarData(pedido.data)}`,
-        status: STATUS[pedido.status].texto,
-        profissional: `${pedido.profissional} · ${pedido.funcao}`,
-      },
-    });
+    router.push({ pathname: '/detalhesPlantas', params: { id: String(pedido.id) } });
 
   const menuConta = (
     <ContaMenu tipo="usuario" aoSelecionar={() => setMenuAberto(false)} />
@@ -581,7 +606,7 @@ export default function MeusPedidos() {
                 <Ionicons name="search-outline" size={18} color={DOURADO} />
                 <TextInput
                   style={s.inputBusca}
-                  placeholder="Buscar por pedido ou profissional"
+                  placeholder="Buscar por planta ou profissional"
                   placeholderTextColor="#777b83"
                   selectionColor={DOURADO}
                   value={busca}
@@ -603,8 +628,12 @@ export default function MeusPedidos() {
               </View>
             </View>
 
-            {visiveis.length === 0 ? (
-              <SemPedidos onExplorar={() => navegar('/profissionais')} />
+            {carregandoPedidos ? (
+              <Text style={s.textoVazio}>Carregando plantas adquiridas...</Text>
+            ) : erroPedidos ? (
+              <Text style={s.textoVazio}>Não foi possível carregar as plantas: {erroPedidos}</Text>
+            ) : visiveis.length === 0 ? (
+              <SemPedidos onExplorar={() => navegar('/planta')} />
             ) : (
               <>
                 <View style={s.lista}>
