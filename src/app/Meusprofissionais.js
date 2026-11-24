@@ -446,7 +446,7 @@ export default function Meusprofissionais() {
   const desfazer = async () => {
     if (!removido?.profissional || !user?.id) return;
     try {
-      const { error } = await getSupabaseClient().from('profissionais_favoritos')
+      const { error } = await getSupabaseClient().from('favoritos')
         .insert({ usuario_id: user.id, profissional_id: removido.profissional.id });
       if (error) throw error;
       setFavoritos((lista) => [...lista, removido.profissional]);
