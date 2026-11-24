@@ -52,3 +52,14 @@ create policy "plantas_delete_owner"
   using (profissional_id = (select auth.uid()));
 
 grant delete on public.plantas to authenticated;
+
+-- O arquivo enviado pelo profissional fica em uma pasta com o próprio UUID.
+drop policy if exists "Profissional remove imagem da própria planta" on storage.objects;
+create policy "Profissional remove imagem da própria planta"
+  on storage.objects for delete to authenticated
+  using (
+    bucket_id = 'plantas'
+    and (storage.foldername(name))[1] = (select auth.uid())::text
+  );
+
+grant delete on storage.objects to authenticated;
