@@ -371,7 +371,7 @@ export default function Meusprofissionais() {
       try {
         if (!user?.id) { if (ativo) setFavoritos([]); return; }
         const { data: salvos, error } = await getSupabaseClient()
-          .from('profissionais_favoritos').select('profissional_id')
+          .from('favoritos').select('profissional_id')
           .eq('usuario_id', user.id);
         if (error) throw error;
         const ids = (salvos || []).map((item) => String(item.profissional_id));
@@ -431,7 +431,7 @@ export default function Meusprofissionais() {
 
   const remover = async (profissional) => {
     try {
-      const { error } = await getSupabaseClient().from('profissionais_favoritos')
+      const { error } = await getSupabaseClient().from('favoritos')
         .delete().eq('usuario_id', user.id).eq('profissional_id', profissional.id);
       if (error) throw error;
       setFavoritos((lista) => lista.filter((p) => p.id !== profissional.id));
