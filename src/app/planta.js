@@ -204,7 +204,7 @@ export default function Plantas() {
     async function carregarFavoritos() {
       if (!user?.id) { setFavoritos([]); return; }
       try {
-        const { data, error } = await getSupabaseClient().from('plantas_favoritas')
+        const { data, error } = await getSupabaseClient().from('favoritos')
           .select('planta_id').eq('usuario_id', user.id);
         if (error) throw error;
         if (ativo) setFavoritos((data || []).map((item) => String(item.planta_id)));
@@ -245,12 +245,12 @@ export default function Plantas() {
     try {
       const supabase = getSupabaseClient();
       if (favoritos.includes(chave)) {
-        const { error } = await supabase.from('plantas_favoritas')
+        const { error } = await supabase.from('favoritos')
           .delete().eq('usuario_id', user.id).eq('planta_id', id);
         if (error) throw error;
         setFavoritos((lista) => lista.filter((item) => item !== chave));
       } else {
-        const { error } = await supabase.from('plantas_favoritas')
+        const { error } = await supabase.from('favoritos')
           .insert({ usuario_id: user.id, planta_id: id });
         if (error && error.code !== '23505') throw error;
         setFavoritos((lista) => lista.includes(chave) ? lista : [...lista, chave]);
