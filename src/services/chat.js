@@ -29,6 +29,7 @@ function mapearConversa(linha, mensagens, tipo) {
     ? linha.profissional_nome || 'Profissional'
     : linha.usuario_nome || 'Cliente';
   const lidoPorMim = dataHora(souUsuario ? linha.lido_usuario : linha.lido_profissional);
+  const lidoPeloOutro = dataHora(souUsuario ? linha.lido_profissional : linha.lido_usuario);
   const minhasMensagens = mensagens.map((mensagem) => ({
     id: mensagem.id,
     tipo: mensagem.de === tipo ? 'enviada' : 'recebida',
@@ -39,6 +40,7 @@ function mapearConversa(linha, mensagens, tipo) {
     }),
     criadoEm: dataHora(mensagem.criado_em),
     remetenteId: mensagem.remetente_id,
+    visualizada: mensagem.de === tipo && dataHora(mensagem.criado_em) <= lidoPeloOutro,
   }));
   const ultima = minhasMensagens[minhasMensagens.length - 1];
 
@@ -49,6 +51,7 @@ function mapearConversa(linha, mensagens, tipo) {
     funcao: souUsuario ? 'Profissional' : 'Cliente',
     online: false,
     salvo: Boolean(souUsuario ? linha.salvo_usuario : linha.salvo_profissional),
+    oculto: Boolean(souUsuario ? linha.oculto_usuario : linha.oculto_profissional),
     naoLidas: minhasMensagens.filter(
       (mensagem) => mensagem.tipo === 'recebida' && mensagem.criadoEm > lidoPorMim
     ).length,
@@ -87,7 +90,7 @@ export async function listarConversas(tipo) {
 
   return linhas
     .map((linha) => mapearConversa(linha, porConversa.get(linha.id) || [], tipo))
-    .filter((conversa) => conversa.mensagens.length > 0 || conversa.salvo)
+    .filter((conversa) => !conversa.oculto && (conversa.mensagens.length > 0 || conversa.salvo))
     .sort((a, b) => b._ultimaAtividade - a._ultimaAtividade);
 }
 
@@ -110,6 +113,7 @@ export async function garantirConversaComProfissional({
         usuario_nome: usuarioNome || 'Cliente',
         profissional_nome: profissionalNome || 'Profissional',
         salvo_usuario: true,
+        oculto_usuario: false,
       },
       { onConflict: 'usuario_id,profissional_id' }
     )
@@ -160,6 +164,21 @@ export async function alternarContatoSalvo(conversaId, tipo, salvo) {
   const { error } = await getSupabaseClient()
     .from('conversas')
     .update({ [coluna]: salvo })
+    .eq('id', conversaId);
+
+  if (error) throw error;
+}
+
+
+export async function ocultarConversa(conversaId, tipo) {
+  if (!conversaId || !['usuario', 'profissional'].includes(tipo)) {
+    throw new Error('Não foi possível identificar a conversa.');
+  }
+
+  const coluna = tipo === 'usuario' ? 'oculto_usuario' : 'oculto_profissional';
+  const { error } = await getSupabaseClient()
+    .from('conversas')
+    .update({ [coluna]: true })
     .eq('id', conversaId);
 
   if (error) throw error;
