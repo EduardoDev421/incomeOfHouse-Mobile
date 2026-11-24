@@ -72,12 +72,6 @@ const ORDENS = [
   { chave: 'nome', texto: 'Nome (A-Z)' },
 ];
 
-// Lista começa vazia: os projetos reais devem vir do seu storage/API.
-// Formato esperado de cada item:
-// { id, nome, descricao, tipo, status: 'publicada' | 'rascunho' | 'inativa',
-//   valor, quartos, garagens, area, data: 'AAAA-MM-DD', foto? }
-const PROJETOS_INICIAIS = [];
-
 /* ================================================= */
 /* FUNÇÕES AUXILIARES                                */
 /* ================================================= */
@@ -507,8 +501,6 @@ export default function Projetos() {
     carregarProjetos();
     return () => { ativo = false; };
   }, [user?.id]));
-  const [carregandoProjetos, setCarregandoProjetos] = useState(true);
-  const [erroProjetos, setErroProjetos] = useState('');
   const [busca, setBusca] = useState('');
   const [statusFiltro, setStatusFiltro] = useState('todos');
   const [tipo, setTipo] = useState('todos');
