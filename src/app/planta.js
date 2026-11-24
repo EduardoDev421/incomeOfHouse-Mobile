@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { getSupabaseClient } from '../services/supabase.js';
 import { Ionicons } from '@expo/vector-icons';
 import {
   Cabecalho,
@@ -33,28 +34,6 @@ const CASA = require('../../assets/images/casa.png');
 const GAP_FILTROS_X = 30;
 const GAP_FILTROS_Y = 22;
 const GAP_CARDS = 24;
-
-/* ------------------------------------------------------------------ */
-/* DADOS DE EXEMPLO                                                    */
-/* Troque por seus dados reais (API/banco). Cada planta precisa ter:   */
-/* id, nome, tipo, quartos, garagens, area, estilo                     */
-/* Opcional: foto (require('...') ou { uri: '...' }) e preco (número)  */
-/*                                                                     */
-/* TODO: buscar as plantas na API (services/supabase.js, usando getSupabaseClient()).  */
-/* ------------------------------------------------------------------ */
-const PLANTAS = [];
-
-/* Exemplos que estavam aqui (para voltar a usar, cole dentro de PLANTAS):
-  { id: 1, nome: 'Casa Moderna Aurora', tipo: 'Sobrado', quartos: 4, garagens: 3, area: 320, estilo: 'Moderno' },
-  { id: 2, nome: 'Residência Horizonte', tipo: 'Casa Térrea', quartos: 3, garagens: 2, area: 180, estilo: 'Contemporâneo' },
-  { id: 3, nome: 'Casa Minimal', tipo: 'Casa Térrea', quartos: 2, garagens: 1, area: 95, estilo: 'Minimalista' },
-  { id: 4, nome: 'Sobrado Jardins', tipo: 'Sobrado', quartos: 3, garagens: 2, area: 210, estilo: 'Clássico' },
-  { id: 5, nome: 'Casa de Campo Serra', tipo: 'Casa de Campo', quartos: 5, garagens: 4, area: 450, estilo: 'Rústico' },
-  { id: 6, nome: 'Studio Urbano', tipo: 'Kitnet / Studio', quartos: 1, garagens: 0, area: 45, estilo: 'Industrial' },
-  { id: 7, nome: 'Casa Tropical Brisa', tipo: 'Casa de Praia', quartos: 4, garagens: 2, area: 260, estilo: 'Tropical' },
-  { id: 8, nome: 'Edícula Gourmet', tipo: 'Edícula', quartos: 1, garagens: 1, area: 55, estilo: 'Escandinavo' },
-  { id: 9, nome: 'Residência Neoclássica', tipo: 'Casa de Condomínio', quartos: 5, garagens: 4, area: 520, estilo: 'Neoclássico' },
-*/
 
 /* ------------------------------------------------------------------ */
 /* OPÇÕES DOS FILTROS                                                  */
@@ -179,12 +158,43 @@ export default function Plantas() {
   const rolar = useRef(null);
   const pos = useRef({ pagina: 0, lista: 0 });
 
+  const [plantas, setPlantas] = useState([]);
+  const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState('');
   const [filtros, setFiltros] = useState(FILTROS_VAZIOS);
   const [aplicados, setAplicados] = useState(FILTROS_VAZIOS);
   const [pagina, setPagina] = useState(1);
   const [favoritos, setFavoritos] = useState([]);
   const [larguraGrade, setLarguraGrade] = useState(0);
   const [larguraLista, setLarguraLista] = useState(0);
+
+  useEffect(() => {
+    let ativo = true;
+    async function carregarPlantas() {
+      try {
+        setCarregando(true);
+        setErro('');
+        const supabase = getSupabaseClient();
+        const { data, error: erroConsulta } = await supabase
+          .from('plantas').select('*').eq('ativa', true)
+          .order('criado_em', { ascending: false });
+        if (erroConsulta) throw erroConsulta;
+        if (ativo) setPlantas((data || []).map((row) => ({
+          id: row.id, nome: row.nome, tipo: row.categoria,
+          quartos: Number(row.quartos) || 0, garagens: Number(row.garagem) || 0,
+          area: Number(row.area) || 0, estilo: row.estilo || '',
+          foto: row.imagem_url ? { uri: row.imagem_url } : null, preco: row.preco,
+        })));
+      } catch (e) {
+        console.error('Erro ao carregar plantas:', e);
+        if (ativo) setErro('Não foi possível carregar as plantas. Tente novamente mais tarde.');
+      } finally {
+        if (ativo) setCarregando(false);
+      }
+    }
+    carregarPlantas();
+    return () => { ativo = false; };
+  }, []);
 
   const mudar = (campo) => (valor) => setFiltros((f) => ({ ...f, [campo]: valor }));
 
@@ -211,7 +221,7 @@ export default function Plantas() {
     setFavoritos((l) => (l.includes(id) ? l.filter((x) => x !== id) : [...l, id]));
 
   const ativos = Object.values(aplicados).filter(Boolean).length;
-  const resultado = filtrar(PLANTAS, aplicados);
+  const resultado = filtrar(plantas, aplicados);
   const totalPaginas = Math.max(1, Math.ceil(resultado.length / POR_PAGINA));
   const visiveis = resultado.slice((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA);
 
@@ -298,7 +308,11 @@ export default function Plantas() {
 
           {/* Mensagem + lista */}
           <View onLayout={(e) => (pos.current.lista = e.nativeEvent.layout.y)}>
-            {PLANTAS.length === 0 ? (
+            {carregando ? (
+              <Text style={styles.semPlantas}>Carregando plantas...</Text>
+            ) : erro ? (
+              <Text style={styles.semPlantas}>{erro}</Text>
+            ) : plantas.length === 0 ? (
               <Text style={styles.semPlantas}>Nenhuma planta disponível no momento.</Text>
             ) : resultado.length === 0 ? (
               <Vazio texto="Nenhum projeto encontrado com esses filtros." aoLimpar={limpar} />
