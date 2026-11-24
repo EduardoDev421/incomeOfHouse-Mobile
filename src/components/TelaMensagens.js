@@ -120,22 +120,20 @@ export default function TelaMensagens({ tipo: tipoConta }) {
 
     const iniciar = async () => {
       try {
+        let conversaInicial = null;
         if (tipoAtivo === 'usuario' && params.com) {
-          await garantirConversaComProfissional({
+          conversaInicial = await garantirConversaComProfissional({
             usuarioId: user.id,
             usuarioNome: perfil?.full_name || user.user_metadata?.full_name || user.email,
-            profissionalId: String(params.com),
+            profissionalId: String(Array.isArray(params.com) ? params.com[0] : params.com),
             profissionalNome: Array.isArray(params.nome) ? params.nome[0] : params.nome,
           });
         }
         const dados = await listarConversas(tipoAtivo);
         if (!ativo) return;
         setConversas(dados);
-        if (params.conversa) setConversaId(String(params.conversa));
-        else if (params.com) {
-          const alvo = dados.find((c) => c.id && c.nome === (Array.isArray(params.nome) ? params.nome[0] : params.nome));
-          if (alvo) setConversaId(alvo.id);
-        }
+        if (params.conversa) setConversaId(String(Array.isArray(params.conversa) ? params.conversa[0] : params.conversa));
+        else if (conversaInicial) setConversaId(conversaInicial);
         setErro('');
       } catch (falha) {
         if (ativo) setErro(falha?.message || 'Não foi possível iniciar o chat.');
