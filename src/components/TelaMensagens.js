@@ -1,12 +1,15 @@
-import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import {
-  View, Text, TextInput, Pressable, ScrollView, StyleSheet, Platform,
-  BackHandler, KeyboardAvoidingView, useWindowDimensions, ActivityIndicator,
-} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
-import { LayoutConta } from './TelaConta';
-import { useConta } from './ContaProvider';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  BackHandler, KeyboardAvoidingView,
+  Platform,
+  Pressable, ScrollView, StyleSheet,
+  Text, TextInput,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import {
   alternarContatoSalvo,
   enviarMensagem,
@@ -16,6 +19,8 @@ import {
   ocultarConversa,
 } from '../services/chat';
 import { getSupabaseClient } from '../services/supabase';
+import { useConta } from './ContaProvider';
+import { LayoutConta } from './TelaConta';
 
 const DOURADO = '#d4a63a';
 const ALTURA_AUTO = { flexGrow: 0, flexShrink: 0, flexBasis: 'auto' };
@@ -70,10 +75,27 @@ function ItemConversa({ item, selecionada, ultima, onPress }) {
 
 function Balao({ msg }) {
   const enviada = msg.tipo === 'enviada';
+
   return (
     <View style={[s.balao, enviada ? s.balaoEnviado : s.balaoRecebido]}>
       <Text style={s.balaoTxt}>{msg.texto}</Text>
-      <View style={s.balaoRodape}>\n        <Text style={[s.balaoHora, enviada && s.balaoHoraEnviada]}>{msg.hora}</Text>\n        {enviada && <Ionicons name={msg.visualizada ? 'checkmark-done' : 'checkmark'} size={14}\n          color={msg.visualizada ? '#67b7ff' : '#b59a58'} accessibilityLabel={msg.visualizada ? 'Mensagem visualizada' : 'Mensagem enviada'} />}\n      </View>
+
+      <View style={s.balaoRodape}>
+        <Text style={[s.balaoHora, enviada && s.balaoHoraEnviada]}>
+          {msg.hora}
+        </Text>
+
+        {enviada && (
+          <Ionicons
+            name={msg.visualizada ? 'checkmark-done' : 'checkmark'}
+            size={14}
+            color={msg.visualizada ? '#67b7ff' : '#b59a58'}
+            accessibilityLabel={
+              msg.visualizada ? 'Mensagem visualizada' : 'Mensagem enviada'
+            }
+          />
+        )}
+      </View>
     </View>
   );
 }
@@ -793,7 +815,15 @@ const s = StyleSheet.create({
     color: '#888',
     fontSize: 10,
   },
-  balaoHoraEnviada: { color: '#b59a58' },\n  balaoRodape: {\n    flexDirection: 'row',\n    alignItems: 'center',\n    justifyContent: 'flex-end',\n    gap: 4,\n    marginTop: 4,\n  },
+  
+  balaoHoraEnviada: { color: '#b59a58' },
+  balaoRodape: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'flex-end',
+  gap: 4,
+  marginTop: 4,
+},
 
   chatVazio: {
     alignItems: 'center',
