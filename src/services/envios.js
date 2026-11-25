@@ -46,11 +46,16 @@ export async function enviarContato(contato) {
   const { data: { user }, error: usuarioError } = await supabase.auth.getUser();
   if (usuarioError) throw usuarioError;
   if (!user?.id) throw new Error('Entre na sua conta para enviar uma mensagem.');
-  const { data, error } = await supabase.from('mensagens_suporte_mobile')
-    .insert({ user_id: user.id, nome: contato.nome, email: contato.email, assunto: contato.assunto, mensagem: contato.mensagem })
-    .select('id, created_at').single();
+  const { error } = await supabase.from('mensagens_suporte_mobile')
+    .insert({
+      user_id: user.id,
+      nome: contato.nome,
+      email: contato.email,
+      assunto: contato.assunto,
+      mensagem: contato.mensagem,
+    });
   if (error) throw error;
-  return { enviado: true, mensagem: data };
+  return { enviado: true };
 }
 
 /**
