@@ -15,9 +15,11 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useDeclararConta } from '../components/ContaProvider';
+import { useConta, useDeclararConta } from '../components/ContaProvider';
+import { getSupabaseClient } from '../services/supabase';
+import { listarProfissionais } from '../services/profissionais';
 import ContaMenu from '../components/MenuConta';
-import { PROFISSIONAIS } from '../constants/profissionais';
+
 
 /* ================================================= */
 /* CONSTANTES                                        */
@@ -47,12 +49,7 @@ const LINKS_SITE = [
   { nome: 'Sobre Nós', icone: 'information-circle-outline', rota: '/sobreNos' },
 ];
 
-const FAVORITOS_INICIAIS = PROFISSIONAIS.map((profissional) => ({
-  id: profissional.id,
-  nome: profissional.nome,
-  funcao: profissional.profissaoNome,
-  especialidade: profissional.especialidade,
-}));
+
 
 /* ================================================= */
 /* FUNÇÕES AUXILIARES                                */
@@ -321,6 +318,7 @@ export default function Meusprofissionais() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   useDeclararConta('usuario');
+  const { user } = useConta();
   const { width, height } = useWindowDimensions();
 
   // Mesmos breakpoints do PerfilUsuario
@@ -353,10 +351,41 @@ export default function Meusprofissionais() {
   }, [mobile]);
 
   /* ----- Favoritos ----- */
-  const [favoritos, setFavoritos] = useState(FAVORITOS_INICIAIS);
+  const [favoritos, setFavoritos] = useState([]);
+  const [carregandoFavoritos, setCarregandoFavoritos] = useState(true);
+  const [erroFavoritos, setErroFavoritos] = useState('');
+  const [versaoFavoritos, setVersaoFavoritos] = useState(0);
   const [busca, setBusca] = useState('');
   const [funcao, setFuncao] = useState('todas');
   const [removido, setRemovido] = useState(null);
+
+  useEffect(() => {
+    let ativo = true;
+    async function carregarFavoritos() {
+      setCarregandoFavoritos(true);
+      setErroFavoritos('');
+      try {
+        if (!user?.id) { if (ativo) setFavoritos([]); return; }
+        const { data: salvos, error } = await getSupabaseClient()
+          .from('favoritos').select('profissional_id')
+          .eq('usuario_id', user.id);
+        if (error) throw error;
+        const ids = (salvos || []).map((item) => String(item.profissional_id));
+        if (!ids.length) { if (ativo) setFavoritos([]); return; }
+        const todos = await listarProfissionais();
+        const mapa = new Map(todos.map((item) => [String(item.id), item]));
+        if (ativo) setFavoritos(ids.map((id) => mapa.get(id)).filter(Boolean).map((p) => ({
+          id: String(p.id), nome: p.nome, funcao: p.profissaoNome || p.profissao || 'Profissional',
+          especialidade: p.especialidade || '', foto: null,
+        })));
+      } catch (falha) {
+        console.error('Erro ao carregar profissionais favoritos:', falha);
+        if (ativo) setErroFavoritos(falha?.message || 'Não foi possível carregar seus profissionais favoritos.');
+      } finally { if (ativo) setCarregandoFavoritos(false); }
+    }
+    carregarFavoritos();
+    return () => { ativo = false; };
+  }, [user?.id, versaoFavoritos]);
 
   // Some o aviso de "desfazer" depois de 6 segundos
   useEffect(() => {
@@ -396,22 +425,31 @@ export default function Meusprofissionais() {
     setBusca('');
   };
 
-  const remover = (profissional) => {
-    setRemovido({
-      profissional,
-      indice: favoritos.findIndex((p) => p.id === profissional.id),
-    });
-    setFavoritos((lista) => lista.filter((p) => p.id !== profissional.id));
+  const remover = async (profissional) => {
+    try {
+      const { error } = await getSupabaseClient().from('favoritos')
+        .delete().eq('usuario_id', user.id).eq('profissional_id', profissional.id);
+      if (error) throw error;
+      setFavoritos((lista) => lista.filter((p) => p.id !== profissional.id));
+      setRemovido({ profissional });
+    } catch (falha) {
+      console.error('Erro ao remover profissional favorito:', falha);
+      setErroFavoritos(falha?.message || 'Não foi possível remover este favorito.');
+    }
   };
 
-  const desfazer = () => {
-    if (!removido) return;
-    setFavoritos((lista) => {
-      const copia = [...lista];
-      copia.splice(Math.min(removido.indice, copia.length), 0, removido.profissional);
-      return copia;
-    });
-    setRemovido(null);
+  const desfazer = async () => {
+    if (!removido?.profissional || !user?.id) return;
+    try {
+      const { error } = await getSupabaseClient().from('favoritos')
+        .insert({ usuario_id: user.id, profissional_id: removido.profissional.id });
+      if (error) throw error;
+      setFavoritos((lista) => [...lista, removido.profissional]);
+      setRemovido(null);
+    } catch (falha) {
+      console.error('Erro ao restaurar profissional favorito:', falha);
+      setErroFavoritos(falha?.message || 'Não foi possível restaurar o favorito.');
+    }
   };
 
   /* ----- Navegação ----- */
@@ -431,8 +469,11 @@ export default function Meusprofissionais() {
   );
 
   /* ----- Conteúdo ----- */
-  const conteudo =
-    favoritos.length === 0 && !removido ? (
+  const conteudo = carregandoFavoritos ? (
+    <Vazio icone="heart-outline" titulo="Carregando favoritos..." />
+  ) : erroFavoritos ? (
+    <Vazio icone="alert-circle-outline" titulo="Não foi possível carregar os favoritos" texto={erroFavoritos} acao="Tentar novamente" onAcao={() => setVersaoFavoritos((v) => v + 1)} />
+  ) : favoritos.length === 0 ? (
       <Vazio
         icone="heart-outline"
         titulo="Você ainda não favoritou nenhum profissional"

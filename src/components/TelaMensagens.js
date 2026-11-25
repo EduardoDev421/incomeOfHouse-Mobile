@@ -1,187 +1,68 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Platform,
-  BackHandler,
-  KeyboardAvoidingView,
-  useWindowDimensions,
+  View, Text, TextInput, Pressable, ScrollView, StyleSheet, Platform,
+  BackHandler, KeyboardAvoidingView, useWindowDimensions, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useLocalSearchParams } from 'expo-router';
 import { LayoutConta } from './TelaConta';
+import { useConta } from './ContaProvider';
+import {
+  alternarContatoSalvo,
+  enviarMensagem,
+  garantirConversaComProfissional,
+  listarConversas,
+  marcarConversaComoLida,
+  ocultarConversa,
+} from '../services/chat';
+import { getSupabaseClient } from '../services/supabase';
 
 const DOURADO = '#d4a63a';
 const ALTURA_AUTO = { flexGrow: 0, flexShrink: 0, flexBasis: 'auto' };
-
 const FILTROS = [
   { chave: 'todas', rotulo: 'Todas' },
   { chave: 'naolidas', rotulo: 'Não lidas' },
   { chave: 'salvos', rotulo: 'Salvos' },
 ];
 
-const pad = (n) => String(n).padStart(2, '0');
-
-const horaAtual = () => {
-  const d = new Date();
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
-};
-
-const CONVERSAS_INICIAIS = [
-  {
-    id: '1',
-    nome: 'João Silva',
-    iniciais: 'JS',
-    funcao: 'Profissional',
-    online: true,
-    salvo: true,
-    naoLidas: 2,
-    preview: 'Perfeito, obrigado!',
-    hora: '14:30',
-    mensagens: [
-      { id: 'm1', tipo: 'recebida', texto: 'Olá! Tudo bem?', hora: '14:28' },
-      { id: 'm2', tipo: 'recebida', texto: 'Gostaria de saber mais sobre o projeto da casa moderna.', hora: '14:29' },
-      { id: 'm3', tipo: 'enviada', texto: 'Olá, tudo bem sim! Claro, posso te passar mais informações.', hora: '14:30' },
-      { id: 'm4', tipo: 'recebida', texto: 'Perfeito, obrigado!', hora: '14:30' },
-    ],
-  },
-  {
-    id: '2',
-    nome: 'Marcos Costa',
-    iniciais: 'MC',
-    funcao: 'Profissional',
-    online: false,
-    salvo: false,
-    naoLidas: 1,
-    preview: 'Podemos marcar uma reunião?',
-    hora: 'Ontem',
-    mensagens: [
-      { id: 'm1', tipo: 'recebida', texto: 'Podemos marcar uma reunião?', hora: '18:12' },
-    ],
-  },
-  {
-    id: '3',
-    nome: 'Ana Souza',
-    iniciais: 'AS',
-    funcao: 'Profissional',
-    online: true,
-    salvo: true,
-    naoLidas: 0,
-    preview: 'Enviei os detalhes do projeto.',
-    hora: '17/05',
-    mensagens: [
-      { id: 'm1', tipo: 'recebida', texto: 'Enviei os detalhes do projeto.', hora: '10:05' },
-    ],
-  },
-  {
-    id: '4',
-    nome: 'Ricardo Costa',
-    iniciais: 'RC',
-    funcao: 'Profissional',
-    online: false,
-    salvo: false,
-    naoLidas: 0,
-    preview: 'Obrigado pelo contato!',
-    hora: '16/05',
-    mensagens: [
-      { id: 'm1', tipo: 'recebida', texto: 'Obrigado pelo contato!', hora: '16:40' },
-    ],
-  },
-];
-
 function Filtro({ ativo, rotulo, contador, onPress }) {
   return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        s.filtro,
-        ativo && s.filtroAtivo,
-        pressed && s.pressionado,
-      ]}
-      accessibilityRole="button"
-      accessibilityState={{ selected: ativo }}
-    >
-      <Text style={[s.textoFiltro, ativo && s.textoFiltroAtivo]}>
-        {rotulo}
-      </Text>
-
-      {contador > 0 && (
-        <View style={[s.contador, ativo && s.contadorAtivo]}>
-          <Text style={[s.contadorTxt, ativo && s.contadorTxtAtivo]}>
-            {contador}
-          </Text>
-        </View>
-      )}
+    <Pressable onPress={onPress} style={({ pressed }) => [
+      s.filtro, ativo && s.filtroAtivo, pressed && s.pressionado,
+    ]} accessibilityRole="button" accessibilityState={{ selected: ativo }}>
+      <Text style={[s.textoFiltro, ativo && s.textoFiltroAtivo]}>{rotulo}</Text>
+      {contador > 0 && <View style={[s.contador, ativo && s.contadorAtivo]}>
+        <Text style={[s.contadorTxt, ativo && s.contadorTxtAtivo]}>{contador}</Text>
+      </View>}
     </Pressable>
   );
 }
 
 function Avatar({ iniciais, online, grande }) {
-  return (
-    <View style={[s.avatar, grande && s.avatarGrande]}>
-      <Text style={s.avatarTxt}>{iniciais}</Text>
-      {online && <View style={s.online} />}
-    </View>
-  );
+  return <View style={[s.avatar, grande && s.avatarGrande]}>
+    <Text style={s.avatarTxt}>{iniciais}</Text>
+    {online && <View style={s.online} />}
+  </View>;
 }
 
 function ItemConversa({ item, selecionada, ultima, onPress }) {
   const naoLida = item.naoLidas > 0;
-
   return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        s.conversa,
-        !ultima && s.conversaDivisor,
-        selecionada && s.conversaSel,
-        pressed && s.pressionado,
-      ]}
-      accessibilityRole="button"
-      accessibilityLabel={`Conversa com ${item.nome}${naoLida ? `, ${item.naoLidas} não lidas` : ''}`}
-    >
+    <Pressable onPress={onPress} style={({ pressed }) => [
+      s.conversa, !ultima && s.conversaDivisor, selecionada && s.conversaSel,
+      pressed && s.pressionado,
+    ]} accessibilityRole="button">
       <Avatar iniciais={item.iniciais} online={item.online} />
-
       <View style={s.conversaCorpo}>
         <View style={s.conversaLinha}>
-          <Text
-            style={[s.conversaNome, naoLida && s.conversaNomeForte]}
-            numberOfLines={1}
-          >
-            {item.nome}
-          </Text>
-
-          {item.salvo && (
-            <Ionicons name="star" size={12} color={DOURADO} />
-          )}
+          <Text style={[s.conversaNome, naoLida && s.conversaNomeForte]} numberOfLines={1}>{item.nome}</Text>
+          {item.salvo && <Ionicons name="star" size={12} color={DOURADO} />}
         </View>
-
-        <Text
-          style={[
-            s.conversaPreview,
-            naoLida && s.conversaPreviewForte,
-          ]}
-          numberOfLines={1}
-        >
-          {item.preview}
-        </Text>
+        <Text style={[s.conversaPreview, naoLida && s.conversaPreviewForte]} numberOfLines={1}>{item.preview}</Text>
       </View>
-
       <View style={s.conversaLado}>
-        <Text style={[s.conversaHora, naoLida && { color: DOURADO }]}>
-          {item.hora}
-        </Text>
-
-        {naoLida ? (
-          <View style={s.badge}>
-            <Text style={s.badgeTxt}>{item.naoLidas}</Text>
-          </View>
-        ) : (
-          <View style={s.badgeVazio} />
-        )}
+        <Text style={[s.conversaHora, naoLida && { color: DOURADO }]}>{item.hora}</Text>
+        {naoLida ? <View style={s.badge}><Text style={s.badgeTxt}>{item.naoLidas}</Text></View> : <View style={s.badgeVazio} />}
       </View>
     </Pressable>
   );
@@ -189,224 +70,257 @@ function ItemConversa({ item, selecionada, ultima, onPress }) {
 
 function Balao({ msg }) {
   const enviada = msg.tipo === 'enviada';
-
   return (
     <View style={[s.balao, enviada ? s.balaoEnviado : s.balaoRecebido]}>
       <Text style={s.balaoTxt}>{msg.texto}</Text>
-      <Text style={[s.balaoHora, enviada && s.balaoHoraEnviada]}>
-        {msg.hora}
-      </Text>
+      <View style={s.balaoRodape}>
+        <Text style={[s.balaoHora, enviada && s.balaoHoraEnviada]}>{msg.hora}</Text>
+        {enviada && (
+          <Ionicons
+            name={msg.visualizada ? 'checkmark-done' : 'checkmark'}
+            size={14}
+            color={msg.visualizada ? '#67b7ff' : '#b59a58'}
+            accessibilityLabel={msg.visualizada ? 'Mensagem visualizada' : 'Mensagem enviada'}
+          />
+        )}
+      </View>
     </View>
   );
 }
 
 export default function TelaMensagens({ tipo: tipoConta }) {
   const { width, height } = useWindowDimensions();
-
-  const [conversas, setConversas] = useState(CONVERSAS_INICIAIS);
+  const { user, perfil, tipo } = useConta();
+  const idInstancia = useId().replace(/:/g, '');
+  const params = useLocalSearchParams();
+  const tipoAtivo = tipo || tipoConta;
+  const [conversas, setConversas] = useState([]);
   const [conversaId, setConversaId] = useState(null);
   const [busca, setBusca] = useState('');
   const [filtro, setFiltro] = useState('todas');
   const [texto, setTexto] = useState('');
-
+  const [carregando, setCarregando] = useState(true);
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState('');
+  const [confirmandoExclusao, setConfirmandoExclusao] = useState(false);
+  const [apagando, setApagando] = useState(false);
   const scrollRef = useRef(null);
+  const canalRef = useRef(null);
+
+  const carregar = useCallback(async () => {
+    if (!user?.id || !tipoAtivo) return;
+    try {
+      const dados = await listarConversas(tipoAtivo);
+      setConversas(dados);
+      setErro('');
+      return dados;
+    } catch (falha) {
+      setErro(falha?.message || 'Não foi possível carregar as conversas.');
+      throw falha;
+    } finally {
+      setCarregando(false);
+    }
+  }, [user?.id, tipoAtivo]);
+
+  useEffect(() => {
+    let ativo = true;
+    setCarregando(true);
+    if (!user?.id || !tipoAtivo) {
+      setConversas([]);
+      setCarregando(false);
+      return undefined;
+    }
+
+    const iniciar = async () => {
+      try {
+        let conversaInicial = null;
+        if (tipoAtivo === 'usuario' && params.com) {
+          conversaInicial = await garantirConversaComProfissional({
+            usuarioId: user.id,
+            usuarioNome: perfil?.full_name || user.user_metadata?.full_name || user.email,
+            profissionalId: String(Array.isArray(params.com) ? params.com[0] : params.com),
+            profissionalNome: Array.isArray(params.nome) ? params.nome[0] : params.nome,
+          });
+        }
+        const dados = await listarConversas(tipoAtivo);
+        if (!ativo) return;
+        setConversas(dados);
+        if (params.conversa) setConversaId(String(Array.isArray(params.conversa) ? params.conversa[0] : params.conversa));
+        else if (conversaInicial) setConversaId(conversaInicial);
+        setErro('');
+      } catch (falha) {
+        if (ativo) setErro(falha?.message || 'Não foi possível iniciar o chat.');
+      } finally {
+        if (ativo) setCarregando(false);
+      }
+    };
+    iniciar();
+
+    return () => {
+      ativo = false;
+    };
+  }, [user?.id, tipoAtivo, params.com, params.nome, params.conversa, carregar]);
+
+  // Cada montagem recebe um tópico exclusivo. Isso evita reutilizar um canal
+  // ainda inscrito durante navegação rápida ou remontagens do React.
+  useEffect(() => {
+    if (!user?.id || !tipoAtivo) return undefined;
+
+    let ativo = true;
+    const supabase = getSupabaseClient();
+    const canal = supabase
+      .channel(`mobile-chat-${user.id}-${idInstancia}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'mensagens' }, () => {
+        if (ativo) carregar().catch(() => {});
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'conversas' }, () => {
+        if (ativo) carregar().catch(() => {});
+      });
+
+    canalRef.current = canal;
+    canal.subscribe();
+
+    return () => {
+      ativo = false;
+      if (canalRef.current === canal) canalRef.current = null;
+      // removeChannel encerra a inscrição; o tópico exclusivo impede colisão
+      // caso uma nova tela seja montada antes da remoção terminar.
+      supabase.removeChannel(canal).catch(() => {});
+    };
+  }, [user?.id, tipoAtivo, carregar, idInstancia]);
 
   const conversaAtual = useMemo(
     () => conversas.find((c) => c.id === conversaId) || null,
     [conversas, conversaId]
   );
-
   const totalNaoLidas = useMemo(
     () => conversas.filter((c) => c.naoLidas > 0).length,
     [conversas]
   );
-
   const filtradas = useMemo(() => {
-    const termo = busca.trim().toLowerCase();
-
+    const termoBusca = busca.trim().toLowerCase();
     return conversas.filter((c) => {
       if (filtro === 'naolidas' && c.naoLidas === 0) return false;
       if (filtro === 'salvos' && !c.salvo) return false;
-      if (!termo) return true;
-
-      return (
-        c.nome.toLowerCase().includes(termo) ||
-        c.preview.toLowerCase().includes(termo)
-      );
+      return !termoBusca || c.nome.toLowerCase().includes(termoBusca) || c.preview.toLowerCase().includes(termoBusca);
     });
   }, [conversas, busca, filtro]);
 
-  const textoVazio =
-    filtro === 'naolidas'
-      ? 'Nenhuma mensagem não lida.'
-      : filtro === 'salvos'
-        ? 'Nenhum contato salvo.'
-        : 'Nenhuma conversa encontrada.';
+  const textoVazio = filtro === 'naolidas' ? 'Nenhuma mensagem não lida.'
+    : filtro === 'salvos' ? 'Nenhum contato salvo.' : 'Você ainda não tem conversas.';
 
   useEffect(() => {
-    const sub = BackHandler.addEventListener(
-      'hardwareBackPress',
-      () => {
-        if (conversaId) {
-          setConversaId(null);
-          return true;
-        }
-
-        return false;
-      }
-    );
-
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (conversaId) { setConversaId(null); return true; }
+      return false;
+    });
     return () => sub.remove();
   }, [conversaId]);
 
-  const abrirConversa = (id) => {
+  const abrirConversa = async (id) => {
     setConversaId(id);
     setTexto('');
-
-    setConversas((prev) =>
-      prev.map((c) =>
-        c.id === id ? { ...c, naoLidas: 0 } : c
-      )
-    );
+    const conversa = conversas.find((c) => c.id === id);
+    if (conversa) {
+      try {
+        await marcarConversaComoLida(id, tipoAtivo, conversa.mensagens);
+        await carregar();
+      } catch (falha) {
+        setErro(falha?.message || 'Não foi possível atualizar a leitura.');
+      }
+    }
   };
 
-  const alternarSalvo = () => {
+  const alternarSalvo = async () => {
     if (!conversaAtual) return;
-
-    setConversas((prev) =>
-      prev.map((c) =>
-        c.id === conversaAtual.id
-          ? { ...c, salvo: !c.salvo }
-          : c
-      )
-    );
+    const novo = !conversaAtual.salvo;
+    setConversas((atuais) => atuais.map((c) => c.id === conversaAtual.id ? { ...c, salvo: novo } : c));
+    try {
+      await alternarContatoSalvo(conversaAtual.id, tipoAtivo, novo);
+    } catch (falha) {
+      setConversas((atuais) => atuais.map((c) => c.id === conversaAtual.id ? { ...c, salvo: !novo } : c));
+      setErro(falha?.message || 'Não foi possível salvar o contato.');
+    }
   };
 
-  const enviar = () => {
+  const apagarContato = () => {
+    if (!conversaAtual || apagando) return;
+    setConfirmandoExclusao(true);
+  };
+
+  const confirmarApagarContato = async () => {
+    if (!conversaAtual || apagando) return;
+    const id = conversaAtual.id;
+    setApagando(true);
+    try {
+      await ocultarConversa(id, tipoAtivo);
+      setConversas((atuais) => atuais.filter((c) => c.id !== id));
+      setConversaId(null);
+      setConfirmandoExclusao(false);
+      setErro('');
+    } catch (falha) {
+      setErro(falha?.message || 'Não foi possível apagar o contato.');
+    } finally {
+      setApagando(false);
+    }
+  };
+
+  const enviar = async () => {
     const conteudo = texto.trim();
-
-    if (!conteudo || !conversaAtual) return;
-
-    const hora = horaAtual();
-
-    const nova = {
-      id: `m${Date.now()}`,
-      tipo: 'enviada',
-      texto: conteudo,
-      hora,
-    };
-
-    setConversas((prev) =>
-      prev.map((c) =>
-        c.id === conversaAtual.id
-          ? {
-              ...c,
-              mensagens: [...c.mensagens, nova],
-              preview: conteudo,
-              hora,
-            }
-          : c
-      )
-    );
-
+    if (!conteudo || !conversaAtual || enviando || !user?.id) return;
+    setEnviando(true);
     setTexto('');
+    try {
+      await enviarMensagem({
+        conversaId: conversaAtual.id,
+        remetenteId: user.id,
+        tipo: tipoAtivo,
+        texto: conteudo,
+      });
+      await carregar();
+    } catch (falha) {
+      setTexto(conteudo);
+      setErro(falha?.message || 'Não foi possível enviar a mensagem.');
+    } finally {
+      setEnviando(false);
+    }
   };
 
-  const podeEnviar = !!texto.trim();
+  const podeEnviar = !!texto.trim() && !enviando;
 
   return (
-    <LayoutConta
-      tipo={tipoConta}
-      ativo="mensagem"
-      titulo="Mensagens"
-      subtitulo="Converse diretamente com profissionais e clientes."
-    >
+    <LayoutConta tipo={tipoConta} ativo="mensagem" titulo="Mensagens"
+      subtitulo="Converse diretamente com profissionais e clientes.">
       {({ mobile, medio }) => {
         const dividido = !mobile && !medio && width >= 1000;
         const mostrarLista = dividido || !conversaAtual;
         const mostrarChat = dividido || !!conversaAtual;
-
-        const alturaArea = Math.max(
-          480,
-          Math.round(height * (mobile ? 0.72 : 0.7))
-        );
+        const alturaArea = Math.max(480, Math.round(height * (mobile ? 0.72 : 0.7)));
 
         const lista = (
           <View style={[s.painel, dividido && s.painelLista, { minHeight: 0 }]}>
             <View style={s.buscaWrap}>
-              <Ionicons
-                name="search"
-                size={18}
-                color={DOURADO}
-                style={s.buscaIcone}
-              />
-
-              <TextInput
-                style={s.inputBusca}
-                value={busca}
-                onChangeText={setBusca}
-                placeholder="Buscar por nome ou mensagem..."
-                placeholderTextColor="#777b83"
-                selectionColor={DOURADO}
-                returnKeyType="search"
-                accessibilityLabel="Buscar mensagem"
-              />
-
-              {!!busca && (
-                <Pressable
-                  onPress={() => setBusca('')}
-                  hitSlop={10}
-                  style={s.buscaLimpar}
-                  accessibilityRole="button"
-                  accessibilityLabel="Limpar busca"
-                >
-                  <Ionicons
-                    name="close-circle"
-                    size={18}
-                    color="#8f9497"
-                  />
-                </Pressable>
-              )}
+              <Ionicons name="search" size={18} color={DOURADO} style={s.buscaIcone} />
+              <TextInput style={s.inputBusca} value={busca} onChangeText={setBusca}
+                placeholder="Buscar por nome ou mensagem..." placeholderTextColor="#777b83"
+                selectionColor={DOURADO} returnKeyType="search" accessibilityLabel="Buscar mensagem" />
+              {!!busca && <Pressable onPress={() => setBusca('')} hitSlop={10} style={s.buscaLimpar}>
+                <Ionicons name="close-circle" size={18} color="#8f9497" />
+              </Pressable>}
             </View>
-
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={s.filtros}
-              style={ALTURA_AUTO}
-            >
-              {FILTROS.map((f) => (
-                <Filtro
-                  key={f.chave}
-                  ativo={filtro === f.chave}
-                  rotulo={f.rotulo}
-                  contador={
-                    f.chave === 'naolidas' ? totalNaoLidas : 0
-                  }
-                  onPress={() => setFiltro(f.chave)}
-                />
-              ))}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}
+              contentContainerStyle={s.filtros} style={ALTURA_AUTO}>
+              {FILTROS.map((f) => <Filtro key={f.chave} ativo={filtro === f.chave}
+                rotulo={f.rotulo} contador={f.chave === 'naolidas' ? totalNaoLidas : 0}
+                onPress={() => setFiltro(f.chave)} />)}
             </ScrollView>
-
-            <ScrollView
-              style={s.flex}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-              nestedScrollEnabled
-            >
-              {filtradas.length === 0 ? (
-                <Text style={s.vazio}>{textoVazio}</Text>
-              ) : (
-                filtradas.map((c, i) => (
-                  <ItemConversa
-                    key={c.id}
-                    item={c}
-                    selecionada={dividido && c.id === conversaId}
-                    ultima={i === filtradas.length - 1}
-                    onPress={() => abrirConversa(c.id)}
-                  />
-                ))
-              )}
+            <ScrollView style={s.flex} showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled" nestedScrollEnabled>
+              {carregando ? <ActivityIndicator color={DOURADO} style={{ marginTop: 28 }} />
+                : filtradas.length === 0 ? <Text style={s.vazio}>{textoVazio}</Text>
+                  : filtradas.map((c, i) => <ItemConversa key={c.id} item={c}
+                    selecionada={dividido && c.id === conversaId} ultima={i === filtradas.length - 1}
+                    onPress={() => abrirConversa(c.id)} />)}
             </ScrollView>
           </View>
         );
@@ -414,182 +328,93 @@ export default function TelaMensagens({ tipo: tipoConta }) {
         const chat = conversaAtual ? (
           <View style={[s.painel, dividido && s.painelChat]}>
             <View style={s.chatTopo}>
-              {!dividido && (
-                <Pressable
-                  onPress={() => setConversaId(null)}
-                  style={({ pressed }) => [
-                    s.btnNav,
-                    pressed && s.pressionado,
-                  ]}
-                  accessibilityRole="button"
-                  accessibilityLabel="Voltar para as conversas"
-                >
-                  <Ionicons
-                    name="chevron-back"
-                    size={18}
-                    color={DOURADO}
-                  />
-                </Pressable>
-              )}
-
-              <Avatar
-                iniciais={conversaAtual.iniciais}
-                online={conversaAtual.online}
-                grande
-              />
-
+              {!dividido && <Pressable onPress={() => setConversaId(null)} style={({ pressed }) => [s.btnNav, pressed && s.pressionado]}>
+                <Ionicons name="chevron-back" size={18} color={DOURADO} />
+              </Pressable>}
+              <Avatar iniciais={conversaAtual.iniciais} online={conversaAtual.online} grande />
               <View style={s.chatInfo}>
-                <Text style={s.chatNome} numberOfLines={1}>
-                  {conversaAtual.nome}
-                </Text>
-
-                <Text
-                  style={[
-                    s.chatStatus,
-                    conversaAtual.online && { color: '#54db83' },
-                  ]}
-                  numberOfLines={1}
-                >
-                  {conversaAtual.online
-                    ? 'Online'
-                    : conversaAtual.funcao}
-                </Text>
+                <Text style={s.chatNome} numberOfLines={1}>{conversaAtual.nome}</Text>
+                <Text style={s.chatStatus} numberOfLines={1}>{conversaAtual.funcao}</Text>
               </View>
-
-              <Pressable
-                onPress={alternarSalvo}
-                style={({ pressed }) => [
-                  s.btnSalvar,
-                  conversaAtual.salvo && s.btnSalvarAtivo,
-                  pressed && s.pressionado,
-                ]}
-                accessibilityRole="button"
-                accessibilityState={{
-                  selected: conversaAtual.salvo,
-                }}
-                accessibilityLabel={
-                  conversaAtual.salvo
-                    ? 'Remover dos salvos'
-                    : 'Salvar contato'
-                }
-              >
-                <Ionicons
-                  name={
-                    conversaAtual.salvo
-                      ? 'star'
-                      : 'star-outline'
-                  }
-                  size={16}
-                  color={
-                    conversaAtual.salvo ? DOURADO : '#d3d4d8'
-                  }
-                />
-
-                {!mobile && (
-                  <Text
-                    style={[
-                      s.btnSalvarTxt,
-                      conversaAtual.salvo && { color: DOURADO },
-                    ]}
-                  >
-                    {conversaAtual.salvo
-                      ? 'Salvo'
-                      : 'Salvar contato'}
-                  </Text>
-                )}
+              <Pressable onPress={alternarSalvo} style={({ pressed }) => [
+                s.btnSalvar, conversaAtual.salvo && s.btnSalvarAtivo, pressed && s.pressionado,
+              ]} accessibilityRole="button">
+                <Ionicons name={conversaAtual.salvo ? 'star' : 'star-outline'} size={16}
+                  color={conversaAtual.salvo ? DOURADO : '#d3d4d8'} />
+                {!mobile && <Text style={[s.btnSalvarTxt, conversaAtual.salvo && { color: DOURADO }]}>
+                  {conversaAtual.salvo ? 'Salvo' : 'Salvar contato'}
+                </Text>}
+              </Pressable>
+              <Pressable onPress={apagarContato} style={({ pressed }) => [
+                s.btnApagar, pressed && s.pressionado,
+              ]} accessibilityRole="button" accessibilityLabel="Apagar contato">
+                <Ionicons name="trash-outline" size={17} color="#ff8585" />
               </Pressable>
             </View>
-
-            <ScrollView
-              ref={scrollRef}
-              style={s.flex}
-              contentContainerStyle={s.chatConteudo}
-              onContentSizeChange={() =>
-                scrollRef.current?.scrollToEnd({ animated: true })
-              }
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}
-              nestedScrollEnabled
-            >
-              <View style={s.separador}>
-                <Text style={s.separadorTxt}>Hoje</Text>
-              </View>
-
-              {conversaAtual.mensagens.map((m) => (
-                <Balao key={m.id} msg={m} />
-              ))}
+            <ScrollView ref={scrollRef} style={s.flex} contentContainerStyle={s.chatConteudo}
+              onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
+              keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} nestedScrollEnabled>
+              <View style={s.separador}><Text style={s.separadorTxt}>Mensagens</Text></View>
+              {conversaAtual.mensagens.map((m) => <Balao key={m.id} msg={m} />)}
             </ScrollView>
-
             <View style={s.campo}>
-              <TextInput
-                style={s.campoInput}
-                value={texto}
-                onChangeText={setTexto}
-                placeholder="Digite sua mensagem..."
-                placeholderTextColor="#777b83"
-                selectionColor={DOURADO}
-                multiline
-                maxLength={1000}
-                accessibilityLabel="Digite sua mensagem"
-              />
-
-              <Pressable
-                onPress={enviar}
-                disabled={!podeEnviar}
-                style={({ pressed }) => [
-                  s.btnEnviar,
-                  !podeEnviar && s.btnEnviarOff,
-                  pressed && s.pressionado,
-                ]}
-                accessibilityRole="button"
-                accessibilityState={{ disabled: !podeEnviar }}
-                accessibilityLabel="Enviar mensagem"
-              >
-                <Ionicons
-                  name="send"
-                  size={18}
-                  color={podeEnviar ? '#111' : '#777'}
-                />
+              <TextInput style={s.campoInput} value={texto} onChangeText={setTexto}
+                placeholder="Digite sua mensagem..." placeholderTextColor="#777b83"
+                selectionColor={DOURADO} multiline maxLength={1000}
+                accessibilityLabel="Digite sua mensagem" />
+              <Pressable onPress={enviar} disabled={!podeEnviar} style={({ pressed }) => [
+                s.btnEnviar, !podeEnviar && s.btnEnviarOff, pressed && s.pressionado,
+              ]} accessibilityRole="button">
+                <Ionicons name="send" size={18} color={podeEnviar ? '#111' : '#777'} />
               </Pressable>
             </View>
           </View>
         ) : (
-          <View
-            style={[
-              s.painel,
-              s.painelChat,
-              s.chatVazio,
-            ]}
-          >
-            <Ionicons
-              name="chatbubble-ellipses-outline"
-              size={44}
-              color="#59431f"
-            />
-
-            <Text style={s.chatVazioTxt}>
-              Selecione uma conversa para começar a conversar.
-            </Text>
+          <View style={[s.painel, s.painelChat, s.chatVazio]}>
+            <Ionicons name="chatbubble-ellipses-outline" size={44} color="#59431f" />
+            <Text style={s.chatVazioTxt}>Selecione uma conversa para começar a conversar.</Text>
           </View>
         );
 
         return (
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            style={ALTURA_AUTO}
-          >
-            <View
-              style={[
-                s.card,
-                mobile && s.cardMobile,
-                { height: alturaArea },
-              ]}
-            >
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={ALTURA_AUTO}>
+            {!!erro && <Text style={s.erro}>{erro}</Text>}
+            <View style={[s.card, mobile && s.cardMobile, { height: alturaArea }]}>
               <View style={[s.area, dividido && s.areaLinha]}>
                 {mostrarLista && lista}
                 {mostrarChat && chat}
               </View>
             </View>
+            {confirmandoExclusao && (
+              <View style={s.modalFundo}>
+                <Pressable style={StyleSheet.absoluteFill} onPress={() => !apagando && setConfirmandoExclusao(false)} />
+                <View style={s.modalCaixa}>
+                  <Ionicons name="trash-outline" size={28} color="#ff8585" />
+                  <Text style={s.modalTitulo}>Apagar contato?</Text>
+                  <Text style={s.modalDescricao}>
+                    A conversa será removida da sua lista. As mensagens da outra pessoa serão preservadas.
+                  </Text>
+                  <View style={s.modalAcoes}>
+                    <Pressable
+                      onPress={() => setConfirmandoExclusao(false)}
+                      disabled={apagando}
+                      style={({ pressed }) => [s.modalBotao, s.modalCancelar, pressed && s.pressionado]}
+                    >
+                      <Text style={s.modalCancelarTexto}>Cancelar</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={confirmarApagarContato}
+                      disabled={apagando}
+                      style={({ pressed }) => [s.modalBotao, s.modalConfirmar, pressed && s.pressionado, apagando && { opacity: 0.6 }]}
+                    >
+                      {apagando
+                        ? <ActivityIndicator size="small" color="#fff" />
+                        : <Text style={s.modalConfirmarTexto}>Apagar</Text>}
+                    </Pressable>
+                  </View>
+                </View>
+              </View>
+            )}
           </KeyboardAvoidingView>
         );
       }}
@@ -599,6 +424,69 @@ export default function TelaMensagens({ tipo: tipoConta }) {
 
 const s = StyleSheet.create({
   flex: { flex: 1 },
+  erro: { color: '#ff8f8f', fontSize: 12, marginBottom: 10 },
+  modalFundo: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 1000,
+    elevation: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.72)',
+  },
+  modalCaixa: {
+    width: '100%',
+    maxWidth: 380,
+    alignItems: 'center',
+    gap: 12,
+    padding: 24,
+    backgroundColor: '#1b1b1d',
+    borderWidth: 1,
+    borderColor: '#39393d',
+    borderRadius: 14,
+  },
+  modalTitulo: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  modalDescricao: {
+    color: '#c1c1c5',
+    fontSize: 13,
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+  modalAcoes: {
+    width: '100%',
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 6,
+  },
+  modalBotao: {
+    flex: 1,
+    minHeight: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+  },
+  modalCancelar: {
+    backgroundColor: '#303034',
+    borderWidth: 1,
+    borderColor: '#48484d',
+  },
+  modalConfirmar: {
+    backgroundColor: '#a93636',
+  },
+  modalCancelarTexto: {
+    color: '#eee',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  modalConfirmarTexto: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
+  },
   pressionado: { opacity: 0.75 },
 
   card: {
@@ -916,6 +804,13 @@ const s = StyleSheet.create({
     fontSize: 10,
   },
   balaoHoraEnviada: { color: '#b59a58' },
+  balaoRodape: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 4,
+    marginTop: 4,
+  },
 
   chatVazio: {
     alignItems: 'center',

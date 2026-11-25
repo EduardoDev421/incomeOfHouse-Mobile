@@ -18,6 +18,8 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDeclararConta } from '../components/ContaProvider';
 import ContaMenu from '../components/MenuConta';
+import { useConta } from '../components/ContaProvider';
+import { getSupabaseClient } from '../services/supabase';
 
 /* ================================================= */
 /* CONSTANTES                                        */
@@ -63,14 +65,7 @@ const ORDENS = [
   { chave: 'nome', texto: 'Nome (A-Z)' },
 ];
 
-const PROJETOS_INICIAIS = [
-  { id: '1', nome: 'Casa Moderna', tipo: 'Residencial', profissional: 'Carlos Silva', area: 180, valor: 420000, nota: 4.8, data: '2025-06-10' },
-  { id: '2', nome: 'Casa de Campo', tipo: 'Residencial', profissional: 'Fernanda Lima', area: 240, valor: 560000, nota: 4.6, data: '2025-05-22' },
-  { id: '3', nome: 'Loja Conceito', tipo: 'Comercial', profissional: 'Rafael Costa', area: 90, valor: 310000, nota: 4.9, data: '2025-05-14' },
-  { id: '4', nome: 'Sobrado Minimalista', tipo: 'Residencial', profissional: 'Fernanda Lima', area: 150, valor: 380000, nota: null, data: '2025-04-30' },
-  { id: '5', nome: 'Reforma de Apartamento', tipo: 'Reforma', profissional: 'Juliana Martins', area: 85, valor: 95000, nota: 4.5, data: '2025-04-12' },
-  { id: '6', nome: 'Escritório Corporativo', tipo: 'Comercial', profissional: 'Lucas Pereira', area: 320, valor: 780000, nota: 4.7, data: '2025-03-28' },
-];
+
 
 /* ================================================= */
 /* FUNÇÕES AUXILIARES                                */
@@ -429,6 +424,7 @@ export default function MeusProjetos() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   useDeclararConta('usuario');
+  const { user } = useConta();
   const { width, height } = useWindowDimensions();
 
   // Mesmos breakpoints do PerfilUsuario
@@ -462,15 +458,53 @@ export default function MeusProjetos() {
 
   /* ----- Puxar para atualizar ----- */
   const [atualizando, setAtualizando] = useState(false);
+  const [erroFavoritos, setErroFavoritos] = useState('');
 
-  const atualizar = useCallback(() => {
+  /* ----- Favoritos reais do Supabase ----- */
+  const [favoritos, setFavoritos] = useState([]);
+  const carregarFavoritos = useCallback(async () => {
+    if (!user?.id) { setFavoritos([]); return; }
+    setErroFavoritos('');
+    const supabase = getSupabaseClient();
+    const { data: salvos, error: erroSalvos } = await supabase
+      .from('favoritos').select('planta_id')
+      .eq('usuario_id', user.id);
+    if (erroSalvos) throw erroSalvos;
+    const ids = (salvos || []).map((item) => item.planta_id).filter(Boolean);
+    if (!ids.length) { setFavoritos([]); return; }
+    const { data: plantas, error: erroPlantas } = await supabase
+      .from('plantas').select('id,nome,categoria,profissional_id,area,preco,imagem_url,criado_em')
+      .in('id', ids);
+    if (erroPlantas) throw erroPlantas;
+    const porId = new Map((plantas || []).map((item) => [String(item.id), item]));
+    setFavoritos(ids.map((id) => porId.get(String(id))).filter(Boolean).map((item) => ({
+      id: String(item.id),
+      nome: item.nome || 'Planta',
+      tipo: item.categoria || 'Outros',
+      profissional: 'Profissional responsável',
+      area: Number(item.area) || 0,
+      valor: Number(item.preco) || 0,
+      nota: null,
+      data: item.criado_em || item.created_at || new Date().toISOString(),
+      imagem: item.imagem_url ? { uri: item.imagem_url } : null,
+    })));
+  }, [user?.id]);
+
+  useEffect(() => {
+    let ativo = true;
+    (async () => {
+      try { await carregarFavoritos(); }
+      catch (e) { console.error('Erro ao carregar projetos favoritos:', e); if (ativo) setErroFavoritos('Não foi possível carregar seus favoritos.'); }
+    })();
+    return () => { ativo = false; };
+  }, [carregarFavoritos]);
+
+  const atualizar = useCallback(async () => {
     setAtualizando(true);
-    // Troque pela chamada real à API quando existir
-    setTimeout(() => setAtualizando(false), 800);
-  }, []);
-
-  /* ----- Favoritos ----- */
-  const [favoritos, setFavoritos] = useState(PROJETOS_INICIAIS);
+    try { await carregarFavoritos(); }
+    catch (e) { console.error('Erro ao atualizar favoritos:', e); setErroFavoritos('Não foi possível atualizar seus favoritos.'); }
+    finally { setAtualizando(false); }
+  }, [carregarFavoritos]);
   const [tipo, setTipo] = useState('todos');
   const [busca, setBusca] = useState('');
   const [indiceOrdem, setIndiceOrdem] = useState(0);
@@ -525,22 +559,31 @@ export default function MeusProjetos() {
     setBusca('');
   };
 
-  const remover = (projeto) => {
-    setRemovido({
-      projeto,
-      indice: favoritos.findIndex((p) => p.id === projeto.id),
-    });
-    setFavoritos((lista) => lista.filter((p) => p.id !== projeto.id));
+  const remover = async (projeto) => {
+    try {
+      const { error } = await getSupabaseClient().from('favoritos')
+        .delete().eq('usuario_id', user.id).eq('planta_id', projeto.id);
+      if (error) throw error;
+      setFavoritos((lista) => lista.filter((p) => p.id !== projeto.id));
+      setRemovido(projeto);
+    } catch (e) {
+      console.error('Erro ao remover favorito:', e);
+      setErroFavoritos('Não foi possível remover este favorito.');
+    }
   };
 
-  const desfazer = () => {
+  const desfazer = async () => {
     if (!removido) return;
-    setFavoritos((lista) => {
-      const copia = [...lista];
-      copia.splice(Math.min(removido.indice, copia.length), 0, removido.projeto);
-      return copia;
-    });
-    setRemovido(null);
+    try {
+      const { error } = await getSupabaseClient().from('favoritos')
+        .insert({ usuario_id: user.id, planta_id: removido.id });
+      if (error) throw error;
+      await carregarFavoritos();
+      setRemovido(null);
+    } catch (e) {
+      console.error('Erro ao restaurar favorito:', e);
+      setErroFavoritos('Não foi possível restaurar o favorito.');
+    }
   };
 
   /* ----- Navegação ----- */
@@ -636,6 +679,8 @@ export default function MeusProjetos() {
           </Pressable>
         </View>
 
+        {!!erroFavoritos && <Text style={s.textoVazio}>{erroFavoritos}</Text>}
+
         {visiveis.length === 0 ? (
           <Vazio
             icone="folder-open-outline"
@@ -726,7 +771,7 @@ export default function MeusProjetos() {
         >
           <Ionicons name="heart-dislike-outline" size={18} color={DOURADO} />
           <Text style={s.textoToast} numberOfLines={2}>
-            {removido.projeto.nome} removido dos favoritos
+            {removido.nome} removido dos favoritos
           </Text>
           <Pressable
             onPress={desfazer}

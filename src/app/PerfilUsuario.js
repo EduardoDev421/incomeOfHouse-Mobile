@@ -16,6 +16,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useConta } from '../components/ContaProvider';
 import ContaMenu from '../components/MenuConta';
+import { getSupabaseClient } from '../services/supabase';
 
 /* ================================================= */
 /* CONSTANTES                                        */
@@ -285,6 +286,28 @@ function CardInformacoes({ mobile, onAlterarSenha, informacoes }) {
   );
 }
 
+function CardPlantasAdquiridas({ mobile, plantas, carregando, onAbrir }) {
+  return (
+    <View style={[s.cardGrande, mobile && s.cardGrandeMobile]}>
+      <Text style={s.tituloCard}>Plantas adquiridas</Text>
+      {carregando ? (
+        <Text style={s.descricaoAtividade}>Carregando suas plantas...</Text>
+      ) : plantas.length === 0 ? (
+        <Text style={s.descricaoAtividade}>Você ainda não adquiriu nenhuma planta.</Text>
+      ) : plantas.map((planta) => (
+        <Pressable key={String(planta.id)} style={s.plantaAdquirida} onPress={() => onAbrir(planta.id)}>
+          <View style={s.plantaAdquiridaIcone}><Ionicons name="home-outline" size={20} color={DOURADO} /></View>
+          <View style={s.plantaAdquiridaInfo}>
+            <Text style={s.plantaAdquiridaNome}>{planta.nome}</Text>
+            <Text style={s.plantaAdquiridaTipo}>{planta.categoria || 'Projeto'}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={DOURADO} />
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
 function CardAtividades({ mobile, onVerTodas }) {
   return (
     <View style={[s.cardGrande, mobile && s.cardGrandeMobile]}>
@@ -374,6 +397,8 @@ export default function PerfilUsuario() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user, perfil, tipo, carregado, erroPerfil } = useConta();
+  const [plantasAdquiridas, setPlantasAdquiridas] = useState([]);
+  const [carregandoPlantas, setCarregandoPlantas] = useState(false);
   const { width, height } = useWindowDimensions();
   const nomeUsuario = perfil?.full_name || user?.email || 'Usuário';
   const membroDesde = user?.created_at
@@ -386,6 +411,36 @@ export default function PerfilUsuario() {
     { nome: 'E-mail', valor: user?.email || 'Não informado', icone: 'mail-outline' },
     { nome: 'Telefone', valor: formatarTelefone(perfil?.phone), icone: 'call-outline' },
   ];
+
+  useEffect(() => {
+    let ativo = true;
+    async function carregarPlantasAdquiridas() {
+      if (!user?.id || tipo !== 'usuario') { setPlantasAdquiridas([]); return; }
+      setCarregandoPlantas(true);
+      try {
+        const supabase = getSupabaseClient();
+        const { data: aquisicoes, error: erroAquisicoes } = await supabase
+          .from('plantas_adquiridas').select('planta_id').eq('usuario_id', user.id)
+          .order('adquirido_em', { ascending: false });
+        if (erroAquisicoes) throw erroAquisicoes;
+        const ids = (aquisicoes || []).map((item) => item.planta_id).filter(Boolean);
+        if (!ids.length) { if (ativo) setPlantasAdquiridas([]); return; }
+        const { data: plantas, error: erroPlantas } = await supabase
+          .from('plantas').select('id,nome,categoria,imagem_url').in('id', ids);
+        if (erroPlantas) throw erroPlantas;
+        const porId = new Map((plantas || []).map((planta) => [String(planta.id), planta]));
+        const ordenadas = ids.map((id) => porId.get(String(id))).filter(Boolean);
+        if (ativo) setPlantasAdquiridas(ordenadas);
+      } catch (falha) {
+        console.error('Erro ao carregar plantas adquiridas:', falha);
+        if (ativo) setPlantasAdquiridas([]);
+      } finally {
+        if (ativo) setCarregandoPlantas(false);
+      }
+    }
+    carregarPlantasAdquiridas();
+    return () => { ativo = false; };
+  }, [user?.id, tipo]);
 
   // Celular em pé: menu vira drawer
   const mobile = width < 650;
@@ -496,6 +551,13 @@ export default function PerfilUsuario() {
                   />
                   <Estatisticas mobile={mobile} medio={medio} />
                 </View>
+
+                <CardPlantasAdquiridas
+                  mobile={mobile}
+                  plantas={plantasAdquiridas}
+                  carregando={carregandoPlantas}
+                  onAbrir={(id) => navegar({ pathname: '/detalhesPlantas', params: { id: String(id) } })}
+                />
 
                 <View style={[s.colunas, mobile && s.colunasMobile]}>
                   <CardInformacoes
@@ -761,6 +823,12 @@ const s = StyleSheet.create({
   drawerSecaoSeparada: {
     marginTop: 14,
   },
+
+  plantaAdquirida: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#292929' },
+  plantaAdquiridaIcone: { width: 42, height: 42, borderRadius: 9, backgroundColor: '#29231a', alignItems: 'center', justifyContent: 'center' },
+  plantaAdquiridaInfo: { flex: 1 },
+  plantaAdquiridaNome: { color: '#fff', fontSize: 14, fontWeight: '600' },
+  plantaAdquiridaTipo: { color: '#aaa', fontSize: 12, marginTop: 3 },
 
   /* ----- Conteúdo principal ----- */
   principal: {

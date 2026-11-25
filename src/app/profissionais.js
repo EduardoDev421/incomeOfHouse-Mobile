@@ -22,6 +22,8 @@ import {
   LARGO,
 } from '../components/Comuns.js';
 import { listarProfissionais } from '../services/profissionais';
+import { useConta } from '../components/ContaProvider';
+import { getSupabaseClient } from '../services/supabase';
 
 const POR_PAGINA = 6;
 const FUNDO = require('../../assets/images/BackGroundPlantasEProfissionais.png');
@@ -105,6 +107,7 @@ function filtrar(lista, f) {
 /* ------------------------------------------------------------------ */
 export default function Profissionais() {
   const router = useRouter();
+  const { user } = useConta();
   const { width } = useWindowDimensions();
   const largo = width >= LARGO;
   const medio = width >= 600;
@@ -117,6 +120,7 @@ export default function Profissionais() {
   const [aplicados, setAplicados] = useState(FILTROS_VAZIOS);
   const [pagina, setPagina] = useState(1);
   const [favoritos, setFavoritos] = useState([]);
+  const [favoritoEmAlteracao, setFavoritoEmAlteracao] = useState(null);
   const [profissionais, setProfissionais] = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [erroCarregamento, setErroCarregamento] = useState('');
@@ -132,6 +136,26 @@ export default function Profissionais() {
         .finally(() => { if (ativo) setCarregando(false); });
       return () => { ativo = false; };
     }, [])
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      let ativo = true;
+      async function carregarFavoritos() {
+        if (!user?.id) { setFavoritos([]); return; }
+        try {
+          const { data, error } = await getSupabaseClient().from('favoritos')
+            .select('profissional_id').eq('usuario_id', user.id)
+            .not('profissional_id', 'is', null);
+          if (error) throw error;
+          if (ativo) setFavoritos((data || []).map((item) => String(item.profissional_id)));
+        } catch (falha) {
+          console.error('Erro ao carregar profissionais favoritos:', falha);
+        }
+      }
+      carregarFavoritos();
+      return () => { ativo = false; };
+    }, [user?.id])
   );
 
   const mudar = (campo) => (valor) => setFiltros((f) => ({ ...f, [campo]: valor }));
@@ -155,8 +179,30 @@ export default function Profissionais() {
     });
   };
 
-  const alternarFavorito = (id) =>
-    setFavoritos((l) => (l.includes(id) ? l.filter((x) => x !== id) : [...l, id]));
+  const alternarFavorito = async (id) => {
+    if (!user?.id) { router.push('/login'); return; }
+    const chave = String(id);
+    if (favoritoEmAlteracao === chave) return;
+    setFavoritoEmAlteracao(chave);
+    try {
+      const supabase = getSupabaseClient();
+      if (favoritos.includes(chave)) {
+        const { error } = await supabase.from('favoritos').delete()
+          .eq('usuario_id', user.id).eq('profissional_id', id);
+        if (error) throw error;
+        setFavoritos((lista) => lista.filter((item) => item !== chave));
+      } else {
+        const { error } = await supabase.from('favoritos')
+          .insert({ usuario_id: user.id, profissional_id: id });
+        if (error && error.code !== '23505') throw error;
+        setFavoritos((lista) => lista.includes(chave) ? lista : [...lista, chave]);
+      }
+    } catch (falha) {
+      console.error('Erro ao atualizar favorito profissional:', falha);
+    } finally {
+      setFavoritoEmAlteracao(null);
+    }
+  };
 
   const ativos = Object.values(aplicados).filter(Boolean).length;
   const resultado = filtrar(profissionais, aplicados);
@@ -220,7 +266,7 @@ export default function Profissionais() {
 
                 <View style={styles.lista}>
                   {visiveis.map((p) => {
-                    const favorito = favoritos.includes(p.id);
+                    const favorito = favoritos.includes(String(p.id));
                     return (
                       <View
                         key={p.id}

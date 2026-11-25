@@ -4,6 +4,8 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useLegal } from '../components/LegalProvider';
 import { buscarProfissional } from '../services/profissionais';
+import { getSupabaseClient } from '../services/supabase';
+import { useConta } from '../components/ContaProvider';
 
 const OURO = '#d9ad52';
 const FUNDO = require('../../assets/images/BackGroundPlantasEProfissionais.png');
@@ -18,6 +20,7 @@ const ESTADOS = {
 export default function DetalhesProfissionais() {
   const router = useRouter();
   const { abrirLegal } = useLegal();
+  const { tipo } = useConta();
   const { id } = useLocalSearchParams();
   const { width } = useWindowDimensions();
   const largo = width >= 900;
@@ -25,12 +28,24 @@ export default function DetalhesProfissionais() {
   const [profissional, setProfissional] = useState(null);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState('');
+  const [plantas, setPlantas] = useState([]);
   useFocusEffect(useCallback(() => {
     let ativo = true;
     setCarregando(true);
     setErro('');
-    buscarProfissional(idProfissional)
-      .then((dados) => { if (ativo) setProfissional(dados); })
+    Promise.all([
+      buscarProfissional(idProfissional),
+      getSupabaseClient().from('plantas').select('id,nome,categoria,imagem_url')
+        .eq('profissional_id', idProfissional).eq('ativa', true)
+        .order('criado_em', { ascending: false }),
+    ])
+      .then(([dados, resultadoPlantas]) => {
+        if (resultadoPlantas.error) throw resultadoPlantas.error;
+        if (ativo) {
+          setProfissional(dados);
+          setPlantas(resultadoPlantas.data || []);
+        }
+      })
       .catch((falha) => { if (ativo) setErro(falha?.message || 'Não foi possível carregar este profissional.'); })
       .finally(() => { if (ativo) setCarregando(false); });
     return () => { ativo = false; };
@@ -72,6 +87,34 @@ export default function DetalhesProfissionais() {
                   <View style={styles.dado}><Text style={styles.dadoTitulo}>Registro profissional</Text><Text style={styles.dadoTexto}>{profissional.registro || 'Não informado'}</Text></View>
                 </View>
                 <Text style={styles.descricao}>Perfil profissional cadastrado no IncomeOfHouse. A situação da verificação é exibida separadamente e não representa, por si só, uma certificação.</Text>
+                {tipo === 'usuario' && (
+                  <Pressable
+                    style={({ pressed }) => [styles.botaoContato, pressed && styles.pressionado]}
+                    onPress={() => router.push({
+                      pathname: '/MensagensU',
+                      params: { com: idProfissional, nome: profissional.nome },
+                    })}
+                    accessibilityRole="button"
+                  >
+                    <Ionicons name="chatbubble-ellipses-outline" size={18} color="#111" />
+                    <Text style={styles.botaoContatoTexto}>Entrar em contato</Text>
+                  </Pressable>
+                )}
+                <View style={styles.projetos}>
+                  <Text style={styles.projetosTitulo}>Plantas publicadas</Text>
+                  {plantas.length === 0 ? (
+                    <Text style={styles.descricao}>Este profissional ainda não publicou plantas.</Text>
+                  ) : plantas.map((planta) => (
+                    <Pressable key={String(planta.id)} style={styles.projetoItem}
+                      onPress={() => router.push({ pathname: '/detalhesPlantas', params: { id: String(planta.id) } })}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.projetoNome}>{planta.nome}</Text>
+                        <Text style={styles.projetoCategoria}>{planta.categoria || 'Projeto'}</Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={18} color={OURO} />
+                    </Pressable>
+                  ))}
+                </View>
                 <Pressable style={({ pressed }) => [styles.botaoVoltar, pressed && styles.pressionado]} onPress={() => router.back()} accessibilityRole="button">
                   <Text style={styles.botaoVoltarTexto}>Voltar para profissionais</Text>
                 </Pressable>
@@ -107,8 +150,14 @@ const styles = StyleSheet.create({
   statusTexto:{color:'#e5c77f',fontSize:13,fontWeight:'600'}, dados:{flexDirection:'row',flexWrap:'wrap',gap:12,marginTop:10},
   dado:{flexGrow:1,flexBasis:190,backgroundColor:'rgba(255,255,255,0.035)',borderWidth:1,borderColor:'rgba(255,255,255,0.08)',borderRadius:12,padding:16},
   dadoTitulo:{color:'#999',fontSize:12,marginBottom:7}, dadoTexto:{color:OURO,fontSize:14,fontWeight:'500'},
-  descricao:{color:'#aaa',fontSize:13,lineHeight:22,marginTop:8}, botaoVoltar:{alignSelf:'flex-start',marginTop:10,paddingVertical:12,paddingHorizontal:18,borderRadius:9,borderWidth:1,borderColor:OURO},
-  botaoVoltarTexto:{color:OURO,fontSize:13,fontWeight:'600'}, pressionado:{opacity:0.75},
+  descricao:{color:'#aaa',fontSize:13,lineHeight:22,marginTop:8},
+  projetos:{marginTop:18,paddingTop:16,borderTopWidth:1,borderTopColor:'#393939',gap:10},
+  projetosTitulo:{color:'#fff',fontSize:18,fontWeight:'700'},
+  projetoItem:{flexDirection:'row',alignItems:'center',paddingVertical:12,borderBottomWidth:1,borderBottomColor:'#292929'},
+  projetoNome:{color:'#fff',fontSize:14,fontWeight:'600'},projetoCategoria:{color:'#aaa',fontSize:12,marginTop:4}, botaoVoltar:{alignSelf:'flex-start',marginTop:10,paddingVertical:12,paddingHorizontal:18,borderRadius:9,borderWidth:1,borderColor:OURO},
+  botaoVoltarTexto:{color:OURO,fontSize:13,fontWeight:'600'},
+  botaoContato:{alignSelf:'flex-start',marginTop:14,flexDirection:'row',alignItems:'center',gap:9,paddingVertical:13,paddingHorizontal:20,borderRadius:9,backgroundColor:OURO},
+  botaoContatoTexto:{color:'#111',fontSize:14,fontWeight:'700'}, pressionado:{opacity:0.75},
   estadoVazio:{minHeight:260,justifyContent:'center',alignItems:'center',gap:10}, mensagem:{color:'#eee',fontSize:16,textAlign:'center',marginVertical:20},
   mensagemDetalhe:{color:'#999',fontSize:12,textAlign:'center'},
   rodape:{flexDirection:'row',flexWrap:'wrap',alignItems:'center',justifyContent:'space-between',gap:16,paddingVertical:22,paddingHorizontal:'6%',backgroundColor:'#080808',borderTopWidth:1,borderTopColor:'#d4af6a'},

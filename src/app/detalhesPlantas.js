@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -8,10 +8,16 @@ import {
   Pressable,
   StatusBar,
   useWindowDimensions,
+  Alert,
+  Modal,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import QRCode from 'react-native-qrcode-svg';
 import { useLegal } from '../components/LegalProvider';
+import { getSupabaseClient } from '../services/supabase.js';
+import { useConta } from '../components/ContaProvider';
+import { buscarProfissional } from '../services/profissionais';
 
 const DOURADO = '#c9a45c';
 const OURO_MENU = '#d4af6a'; // dourado do cabeçalho e do rodapé (igual à web)
@@ -26,85 +32,182 @@ const FUNDO_PLANTAS = require('../../assets/images/BackGroundPlantasEProfissiona
 const FUNDO = require('../../assets/images/BackgroundFundo.png');
 const IMAGEM_PADRAO = require('../../assets/images/casa.png');
 
-/* ------------------------------------------------------------------ */
-/* DADOS DE EXEMPLO                                                    */
-/* O "id" vem da tela de Plantas (botão "Ver detalhes").               */
-/* Troque por seus dados reais (API/banco). Campos opcionais por       */
-/* planta: imagem, resumo, descricao, distribuicao, destaques.         */
-/* ------------------------------------------------------------------ */
-const PLANTAS = {
-  1: { nome: 'Casa Moderna Aurora', categoria: 'Sobrado', quartos: 4, garagens: 3, banheiros: 5, area: 320, estilo: 'Moderno', preco: 4800, profissional: 2 },
-  2: { nome: 'Residência Horizonte', categoria: 'Casa Térrea', quartos: 3, garagens: 2, banheiros: 3, area: 180, estilo: 'Contemporâneo', preco: 3200, profissional: 3 },
-  3: { nome: 'Casa Minimal', categoria: 'Casa Térrea', quartos: 2, garagens: 1, banheiros: 2, area: 95, estilo: 'Minimalista', preco: 2200, profissional: 6 },
-  4: { nome: 'Sobrado Jardins', categoria: 'Sobrado', quartos: 3, garagens: 2, banheiros: 3, area: 210, estilo: 'Clássico', preco: 3500, profissional: 8 },
-  5: { nome: 'Casa de Campo Serra', categoria: 'Casa de Campo', quartos: 5, garagens: 4, banheiros: 5, area: 450, estilo: 'Rústico', preco: 5200, profissional: 1 },
-  6: { nome: 'Studio Urbano', categoria: 'Kitnet / Studio', quartos: 1, garagens: 0, banheiros: 1, area: 45, estilo: 'Industrial', preco: 1500, profissional: 3 },
-  7: { nome: 'Casa Tropical Brisa', categoria: 'Casa de Praia', quartos: 4, garagens: 2, banheiros: 4, area: 260, estilo: 'Tropical', preco: 4200, profissional: 4 },
-  8: { nome: 'Edícula Gourmet', categoria: 'Edícula', quartos: 1, garagens: 1, banheiros: 1, area: 55, estilo: 'Escandinavo', preco: 1800, profissional: 8 },
-  9: { nome: 'Residência Neoclássica', categoria: 'Casa de Condomínio', quartos: 5, garagens: 4, banheiros: 6, area: 520, estilo: 'Neoclássico', preco: 6500, profissional: 7 },
-};
 
-// Profissionais responsáveis (nomes fictícios; mesmos ids da tela de Profissionais)
-const PROFISSIONAIS = {
-  1: { nome: 'Carlos Mendes', profissao: 'Engenheiro(a) Civil', nota: 5.0, avaliacoes: 128 },
-  2: { nome: 'Ana Beatriz Souza', profissao: 'Arquiteto(a)', nota: 4.9, avaliacoes: 96 },
-  3: { nome: 'Rafael Lima', profissao: 'Designer de Interiores', nota: 4.8, avaliacoes: 74 },
-  4: { nome: 'Juliana Castro', profissao: 'Paisagista', nota: 4.9, avaliacoes: 61 },
-  6: { nome: 'Fernanda Alves', profissao: 'Especialista BIM', nota: 5.0, avaliacoes: 52 },
-  7: { nome: 'Paulo Henrique Dias', profissao: 'Projetista Estrutural', nota: 4.8, avaliacoes: 89 },
-  8: { nome: 'Camila Rocha', profissao: 'Arquiteto(a) e Urbanista', nota: 4.7, avaliacoes: 67 },
-};
-
-const DESTAQUES_PADRAO = [
-  'Ambientes integrados',
-  'Iluminação natural',
-  'Ventilação cruzada',
-  'Espaço gourmet',
-  'Projeto sustentável',
-  'Acabamento de qualidade',
-];
-
-const AVALIACAO = {
-  cliente: 'Nome do Cliente',
-  quando: 'Há 1 ano',
-  nota: 5,
-  texto:
-    'Excelente projeto! Os ambientes são bem distribuídos e o profissional foi muito atencioso durante todo o processo.',
-};
-
-const formatarNota = (n) => n.toFixed(1).replace('.', ',');
 const formatarPreco = (n) => `R$ ${n.toLocaleString('pt-BR')}`;
-const plural = (n, singular, pluralTxt) => `${n} ${n === 1 ? singular : pluralTxt}`;
 
-function Estrelas({ nota, tamanho = 15 }) {
-  return (
-    <View style={styles.estrelas}>
-      {[0, 1, 2, 3, 4].map((i) => (
-        <Ionicons
-          key={i}
-          name="star"
-          size={tamanho}
-          color={i < Math.round(nota) ? DOURADO : '#3a3a3a'}
-        />
-      ))}
-    </View>
-  );
-}
+const CHAVE_PIX = '07349075162';
+const gerarPayloadPix = () => {
+  const campo = (id, valor) => `${id}${String(valor.length).padStart(2, '0')}${valor}`;
+  const contaPix = campo('00', 'br.gov.bcb.pix') + campo('01', CHAVE_PIX);
+  const payload = campo('00', '01') + campo('01', '11') + campo('26', contaPix) +
+    campo('52', '0000') + campo('53', '986') + campo('58', 'BR') +
+    campo('59', 'INCOME OF HOUSE') + campo('60', 'BRASILIA') +
+    campo('62', campo('05', '***')) + '6304';
+  let crc = 0xffff;
+  for (let i = 0; i < payload.length; i++) {
+    crc ^= payload.charCodeAt(i) << 8;
+    for (let bit = 0; bit < 8; bit++) {
+      crc = crc & 0x8000 ? ((crc << 1) ^ 0x1021) : (crc << 1);
+      crc &= 0xffff;
+    }
+  }
+  return payload + crc.toString(16).toUpperCase().padStart(4, '0');
+};
 
 export default function DetalhesPlantas() {
   const router = useRouter();
   const { abrirLegal } = useLegal();
   const { id } = useLocalSearchParams();
   const { width } = useWindowDimensions();
+  const { user, tipo } = useConta();
   const largo = width >= 900;
   const medio = width >= 600;
 
   const [favorito, setFavorito] = useState(false);
+  const [alterandoFavorito, setAlterandoFavorito] = useState(false);
+  const [p, setPlanta] = useState(null);
+  const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState('');
+  const [prof, setProf] = useState(null);
+  const [adquirida, setAdquirida] = useState(false);
+  const [adquirindo, setAdquirindo] = useState(false);
+  const [erroAquisicao, setErroAquisicao] = useState('');
+  const [modalPix, setModalPix] = useState(false);
+  const [excluindo, setExcluindo] = useState(false);
+  const [erroExclusao, setErroExclusao] = useState('');
 
   const navegar = (rota) => router.push(rota);
 
-  const p = PLANTAS[Number(id)];
-  const prof = p ? PROFISSIONAIS[p.profissional] : null;
+  const idPlanta = Array.isArray(id) ? id[0] : id;
+  useEffect(() => {
+    let ativo = true;
+    async function carregarPlanta() {
+      if (!idPlanta) {
+        setErro('Identificador da planta não informado.');
+        setCarregando(false);
+        return;
+      }
+      try {
+        setCarregando(true);
+        setErro('');
+        const supabase = getSupabaseClient();
+        const { data, error: erroConsulta } = await supabase
+          .from('plantas').select('*').eq('id', idPlanta)
+          .maybeSingle();
+        if (erroConsulta) throw erroConsulta;
+        if (ativo && data) setPlanta({
+          id: data.id, profissionalId: data.profissional_id,
+          nome: data.nome, categoria: data.categoria, estilo: data.estilo || '',
+          quartos: Number(data.quartos) || 0, garagens: Number(data.garagem) || 0,
+          banheiros: Number(data.banheiros) || 0, area: Number(data.area) || 0,
+          preco: Number(data.preco) || 0, resumo: '', descricao: data.descricao || '',
+          distribuicao: data.distribuicao_ambientes || '',
+          destaques: Array.isArray(data.destaques) ? data.destaques : [],
+          imagem: data.imagem_url ? { uri: data.imagem_url } : null,
+        });
+        if (ativo && data?.profissional_id) {
+          buscarProfissional(data.profissional_id)
+            .then((dados) => { if (ativo) setProf(dados); })
+            .catch((falha) => console.warn('Não foi possível carregar o profissional:', falha));
+        }
+      } catch (e) {
+        console.error('Erro ao carregar detalhes da planta:', e);
+        if (ativo) setErro('Não foi possível carregar esta planta. Tente novamente.');
+      } finally {
+        if (ativo) setCarregando(false);
+      }
+    }
+    carregarPlanta();
+    return () => { ativo = false; };
+  }, [idPlanta]);
+
+  useEffect(() => {
+    let ativo = true;
+    async function verificarFavorito() {
+      if (!user?.id || !idPlanta) { setFavorito(false); return; }
+      try {
+        const { data, error } = await getSupabaseClient().from('favoritos')
+          .select('id').eq('usuario_id', user.id).eq('planta_id', idPlanta).maybeSingle();
+        if (error) throw error;
+        if (ativo) setFavorito(Boolean(data));
+      } catch (falha) {
+        console.warn('Não foi possível verificar o favorito:', falha);
+      }
+    }
+    verificarFavorito();
+    return () => { ativo = false; };
+  }, [user?.id, idPlanta]);
+
+  const alternarFavorito = async () => {
+    if (!user?.id) { router.push('/login'); return; }
+    if (alterandoFavorito) return;
+    setAlterandoFavorito(true);
+    try {
+      const supabase = getSupabaseClient();
+      if (favorito) {
+        const { error } = await supabase.from('favoritos')
+          .delete().eq('usuario_id', user.id).eq('planta_id', p.id);
+        if (error) throw error;
+        setFavorito(false);
+      } else {
+        const { error } = await supabase.from('favoritos')
+          .insert({ usuario_id: user.id, planta_id: p.id });
+        if (error && error.code !== '23505') throw error;
+        setFavorito(true);
+      }
+    } catch (falha) {
+      console.error('Erro ao atualizar favorito:', falha);
+      Alert.alert('Não foi possível atualizar', 'Confira sua conexão e tente novamente.');
+    } finally {
+      setAlterandoFavorito(false);
+    }
+  };
+
+  const ehDono = Boolean(user?.id && p?.profissionalId === user.id);
+
+  useEffect(() => {
+    let ativo = true;
+    async function verificarAquisicao() {
+      if (!user?.id || !idPlanta || tipo !== 'usuario') { setAdquirida(false); return; }
+      try {
+        const { data, error } = await getSupabaseClient().from('plantas_adquiridas')
+          .select('id').eq('usuario_id', user.id).eq('planta_id', idPlanta).maybeSingle();
+        if (error) throw error;
+        if (ativo) setAdquirida(Boolean(data));
+      } catch (falha) {
+        console.warn('Não foi possível verificar aquisição:', falha);
+      }
+    }
+    verificarAquisicao();
+    return () => { ativo = false; };
+  }, [user?.id, tipo, idPlanta]);
+
+  const adquirir = () => {
+    if (!user?.id) { router.push('/login'); return; }
+    if (tipo !== 'usuario' || !p?.id || adquirida) return;
+    setErroAquisicao('');
+    setModalPix(true);
+  };
+
+  const excluirPlanta = async () => {
+    if (!user?.id || !ehDono || excluindo) return;
+    setExcluindo(true);
+    setErroExclusao('');
+    try {
+      const { error } = await getSupabaseClient().from('plantas')
+        .update({ ativa: false })
+        .eq('id', p.id)
+        .eq('profissional_id', user.id)
+        .eq('ativa', true);
+      if (error) throw error;
+      router.replace('/planta');
+    } catch (falha) {
+      console.error('Erro ao desativar planta:', falha);
+      setErroExclusao(falha?.message || 'Não foi possível excluir esta planta.');
+    } finally {
+      setExcluindo(false);
+    }
+  };
 
   const larguraCard = largo ? '31%' : medio ? '48%' : '100%';
 
@@ -136,9 +239,9 @@ export default function DetalhesPlantas() {
   const botaoPerfil = (
     <Pressable
       style={[styles.perfil, !largo && styles.perfilEstreito]}
-      onPress={() => navegar('/login')}
+      onPress={() => navegar(user ? (tipo === 'profissional' ? '/PerfilProfissional' : '/PerfilUsuario') : '/login')}
       accessibilityRole="button"
-      accessibilityLabel="Entrar"
+      accessibilityLabel={user ? 'Abrir perfil' : 'Entrar'}
     >
       <Ionicons name="person-outline" size={20} color={OURO_MENU} />
     </Pressable>
@@ -183,7 +286,7 @@ export default function DetalhesPlantas() {
   );
 
   // Planta não encontrada
-  if (!p) {
+  if (carregando || erro || !p) {
     return (
       <View style={styles.raiz}>
         <StatusBar barStyle="light-content" />
@@ -193,10 +296,10 @@ export default function DetalhesPlantas() {
           <View style={styles.principal}>
             <View style={styles.naoEncontrada}>
               <Text style={styles.naoEncontradaTitulo} accessibilityRole="header">
-                Planta não encontrada.
+                {carregando ? 'Carregando planta...' : erro ? 'Não foi possível abrir a planta.' : 'Planta não encontrada.'}
               </Text>
               <Text style={styles.naoEncontradaTexto}>
-                Volte para a lista de plantas e tente novamente.
+                {erro || 'Volte para a lista de plantas e tente novamente.'}
               </Text>
             </View>
           </View>
@@ -206,21 +309,13 @@ export default function DetalhesPlantas() {
     );
   }
 
-  const resumo =
-    p.resumo ||
-    `${p.categoria} de estilo ${p.estilo.toLowerCase()} com ${plural(p.quartos, 'quarto', 'quartos')} e ${p.area} m² de área construída.`;
+  const resumo = p.descricao || 'Confira as características e informações cadastradas desta planta.';
 
-  const descricao =
-    p.descricao ||
-    `Projeto ${p.estilo.toLowerCase()} do tipo ${p.categoria.toLowerCase()}, pensado para unir conforto, funcionalidade e beleza. Com ${p.area} m² de área construída, oferece ambientes bem distribuídos e integrados, ideais para o dia a dia da família.`;
+  const descricao = p.descricao || 'O profissional não adicionou uma descrição para esta planta.';
 
-  const distribuicao =
-    p.distribuicao ||
-    `Sala de estar e jantar, cozinha, ${plural(p.quartos, 'quarto', 'quartos')}, ${plural(p.banheiros, 'banheiro', 'banheiros')}${
-      p.garagens > 0 ? ` e ${plural(p.garagens, 'vaga de garagem', 'vagas de garagem')}` : ''
-    }.`;
+  const distribuicao = p.distribuicao || 'Distribuição dos ambientes não informada.';
 
-  const destaques = p.destaques || DESTAQUES_PADRAO;
+  const destaques = p.destaques || [];
 
   const infos = [
     { icone: 'home-outline', titulo: 'Área construída', valor: `${p.area} m²` },
@@ -277,20 +372,32 @@ export default function DetalhesPlantas() {
                 ))}
               </View>
 
+              {!!erroExclusao && <Text style={styles.erroExclusao}>{erroExclusao}</Text>}
+              {!!erroAquisicao && <Text style={styles.erroExclusao}>{erroAquisicao}</Text>}
               <View style={styles.botoes}>
-                <Pressable
-                  style={styles.btnPrincipal}
-                  onPress={() => {
-                    // TODO: enviar a solicitação do projeto para o seu backend
-                  }}
-                >
-                  <Ionicons name="calendar-outline" size={17} color="#1a1a1a" />
-                  <Text style={styles.btnPrincipalTexto}>Solicitar Projeto</Text>
-                </Pressable>
+                {(!user || tipo === 'usuario') && !ehDono && (
+                  <Pressable style={styles.btnPrincipal} onPress={adquirir} disabled={adquirindo || adquirida}>
+                    <Ionicons name={adquirida ? 'checkmark-circle' : 'download-outline'} size={17} color="#1a1a1a" />
+                    <Text style={styles.btnPrincipalTexto}>{adquirindo ? 'Adquirindo...' : adquirida ? 'Planta adquirida' : 'Adquirir planta'}</Text>
+                  </Pressable>
+                )}
+                {ehDono && (
+                  <Pressable style={styles.btnPrincipal} onPress={() => router.push({ pathname: '/publicarPlanta', params: { editar: String(p.id) } })}>
+                    <Ionicons name="create-outline" size={17} color="#1a1a1a" />
+                    <Text style={styles.btnPrincipalTexto}>Editar planta</Text>
+                  </Pressable>
+                )}
+                {ehDono && (
+                  <Pressable style={styles.btnSecundario} onPress={excluirPlanta} disabled={excluindo}>
+                    <Ionicons name="trash-outline" size={17} color={DOURADO} />
+                    <Text style={styles.btnSecundarioTexto}>{excluindo ? 'Excluindo...' : 'Excluir planta'}</Text>
+                  </Pressable>
+                )}
 
                 <Pressable
                   style={[styles.btnSecundario, favorito && styles.btnFavoritoAtivo]}
-                  onPress={() => setFavorito((f) => !f)}
+                  onPress={alternarFavorito}
+                  disabled={alterandoFavorito}
                 >
                   <Ionicons
                     name={favorito ? 'heart' : 'heart-outline'}
@@ -298,7 +405,7 @@ export default function DetalhesPlantas() {
                     color={DOURADO}
                   />
                   <Text style={styles.btnSecundarioTexto}>
-                    {favorito ? 'Remover dos favoritos' : 'Salvar nos favoritos'}
+                    {alterandoFavorito ? 'Salvando...' : favorito ? 'Remover dos favoritos' : 'Salvar nos favoritos'}
                   </Text>
                 </Pressable>
               </View>
@@ -332,7 +439,7 @@ export default function DetalhesPlantas() {
               </View>
 
               <View style={styles.destaques}>
-                {destaques.map((d) => (
+                {destaques.length === 0 ? <Text style={styles.texto}>Nenhum destaque cadastrado.</Text> : destaques.map((d) => (
                   <View key={d} style={styles.destaqueItem}>
                     <Ionicons name="checkmark-circle" size={17} color={DOURADO} />
                     <Text style={styles.destaqueTexto}>{d}</Text>
@@ -362,7 +469,7 @@ export default function DetalhesPlantas() {
                   onPress={() =>
                     router.push({
                       pathname: '/detalhesProfissionais',
-                      params: { id: String(p.profissional) },
+                      params: { id: String(p.profissionalId) },
                     })
                   }
                 >
@@ -371,12 +478,7 @@ export default function DetalhesPlantas() {
                   </View>
                   <View style={styles.profTextos}>
                     <Text style={styles.profNome}>{prof.nome}</Text>
-                    <Text style={styles.profProfissao}>{prof.profissao}</Text>
-                    <View style={styles.profNotaLinha}>
-                      <Ionicons name="star" size={14} color={DOURADO} />
-                      <Text style={styles.profNota}>{formatarNota(prof.nota)}</Text>
-                      <Text style={styles.profQtd}>({prof.avaliacoes} avaliações)</Text>
-                    </View>
+                    <Text style={styles.profProfissao}>{prof.profissaoNome || prof.profissao || "Profissional"}</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={18} color="#777" />
                 </Pressable>
@@ -384,48 +486,52 @@ export default function DetalhesPlantas() {
                 <Text style={styles.texto}>Profissional ainda não definido.</Text>
               )}
 
-              <View style={styles.avaliacao}>
-                <View style={styles.avaliacaoTopo}>
-                  <View style={styles.avaliacaoTitulo}>
-                    <Ionicons name="chatbubble-outline" size={16} color={DOURADO} />
-                    <Text style={styles.avaliacaoTituloTexto}>Avaliações do cliente</Text>
-                  </View>
-                  <Pressable
-                    onPress={() => {
-                      // TODO: abrir a tela de avaliações quando ela existir
-                    }}
-                  >
-                    <Text style={styles.verMais}>Ver mais avaliações →</Text>
-                  </Pressable>
-                </View>
-
-                <View style={styles.cardAvaliacao}>
-                  <View style={styles.cliente}>
-                    <View style={styles.clienteFoto}>
-                      <Ionicons name="person" size={18} color="#555" />
-                    </View>
-                    <View>
-                      <Text style={styles.clienteNome}>{AVALIACAO.cliente}</Text>
-                      <Text style={styles.clienteQuando}>{AVALIACAO.quando}</Text>
-                    </View>
-                  </View>
-                  <View style={styles.avaliacaoEstrelas}>
-                    <Estrelas nota={AVALIACAO.nota} tamanho={14} />
-                  </View>
-                  <Text style={styles.avaliacaoTexto}>{AVALIACAO.texto}</Text>
-                </View>
-              </View>
+              <Text style={styles.texto}>Ainda não há avaliações cadastradas para esta planta.</Text>
             </View>
           </View>
         </View>
 
         {rodape}
       </ScrollView>
+
+      <Modal visible={modalPix} transparent animationType="fade" onRequestClose={() => setModalPix(false)}>
+        <View style={styles.pixFundo}>
+          <View style={styles.pixModal}>
+            <Pressable style={styles.pixFechar} onPress={() => setModalPix(false)}>
+              <Ionicons name="close" size={24} color="#d4af6a" />
+            </Pressable>
+            <Text style={styles.pixTitulo}>Pague com Pix</Text>
+            <Text style={styles.pixDescricao}>Escaneie o QR Code pelo aplicativo do seu banco.</Text>
+            <View style={styles.pixQr}>
+              <QRCode value={gerarPayloadPix()} size={210} backgroundColor="#ffffff" color="#111111" />
+            </View>
+            <Text style={styles.pixLoja}>INCOME OF HOUSE</Text>
+            <Text style={styles.pixTitular}>Titular da chave: Eduardo Leite da Rocha</Text>
+            <Text style={styles.pixAviso}>Digite no banco o valor combinado. Este QR Code não possui valor definido.</Text>
+            <Text style={styles.pixAvisoSecundario}>A planta será liberada após a confirmação do pagamento.</Text>
+            <Pressable style={styles.pixBotao} onPress={() => setModalPix(false)}>
+              <Text style={styles.pixBotaoTexto}>Fechar</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  pixFundo: { flex: 1, backgroundColor: 'rgba(0,0,0,0.82)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  pixModal: { width: '100%', maxWidth: 420, backgroundColor: '#151515', borderColor: '#6b5a36', borderWidth: 1, borderRadius: 18, padding: 24, alignItems: 'center' },
+  pixFechar: { alignSelf: 'flex-end', padding: 2 },
+  pixTitulo: { color: '#ffffff', fontSize: 24, fontWeight: '800', marginTop: 2 },
+  pixDescricao: { color: '#c8c8c8', fontSize: 14, textAlign: 'center', marginTop: 8, marginBottom: 20 },
+  pixQr: { backgroundColor: '#ffffff', padding: 12, borderRadius: 12 },
+  pixLoja: { color: DOURADO, fontSize: 16, fontWeight: '800', marginTop: 16 },
+  pixTitular: { color: '#c8c8c8', fontSize: 12, textAlign: 'center', marginTop: 5 },
+  pixAviso: { color: '#eeeeee', fontSize: 13, lineHeight: 20, textAlign: 'center', marginTop: 14 },
+  pixAvisoSecundario: { color: '#d4af6a', fontSize: 12, textAlign: 'center', marginTop: 8 },
+  pixBotao: { marginTop: 18, backgroundColor: DOURADO, borderRadius: 8, paddingVertical: 12, paddingHorizontal: 32 },
+  pixBotaoTexto: { color: '#171717', fontWeight: '800' },
   raiz: { flex: 1, backgroundColor: '#0b0b0b' },
 
   fundoImagem: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
@@ -581,6 +687,7 @@ const styles = StyleSheet.create({
   infoTitulo: { color: '#a8a8a8', fontSize: 12, marginTop: 10 },
   infoValor: { color: '#ffffff', fontSize: 16, fontWeight: 'bold', marginTop: 3 },
 
+  erroExclusao: { color: '#ff8b8b', fontSize: 12, marginTop: 8 },
   botoes: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 24 },
   btnPrincipal: {
     flexDirection: 'row',

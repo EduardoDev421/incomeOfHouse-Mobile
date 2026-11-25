@@ -19,6 +19,7 @@ import { useConta } from '../components/ContaProvider';
 import ContaMenu from '../components/MenuConta';
 import { mensagemErroAuth } from '../services/auth';
 import { enviarComprovanteProfissional, tipoComprovante } from '../services/documentos';
+import { getSupabaseClient } from '../services/supabase';
 
 /* ================================================= */
 /* CONSTANTES                                        */
@@ -364,6 +365,9 @@ export default function PerfilProfissional() {
   const insets = useSafeAreaInsets();
   const { user, perfil, tipo, carregado, erroPerfil, recarregarPerfil } = useConta();
   const { width, height } = useWindowDimensions();
+  const [plantasPublicadas, setPlantasPublicadas] = useState([]);
+  const [carregandoPlantas, setCarregandoPlantas] = useState(true);
+  const [erroPlantas, setErroPlantas] = useState('');
   const [arquivoComprovante, setArquivoComprovante] = useState(null);
   const [enviandoComprovante, setEnviandoComprovante] = useState(false);
   const [erroComprovante, setErroComprovante] = useState('');
@@ -468,6 +472,28 @@ export default function PerfilProfissional() {
     }
   };
 
+  useEffect(() => {
+    let ativo = true;
+    async function carregarPlantasPublicadas() {
+      setCarregandoPlantas(true);
+      setErroPlantas('');
+      try {
+        if (!user?.id || tipo !== 'profissional') { if (ativo) setPlantasPublicadas([]); return; }
+        const { data, error } = await getSupabaseClient().from('plantas')
+          .select('id,nome,categoria,imagem_url,criado_em')
+          .eq('profissional_id', user.id).eq('ativa', true)
+          .order('criado_em', { ascending: false });
+        if (error) throw error;
+        if (ativo) setPlantasPublicadas(data || []);
+      } catch (falha) {
+        console.error('Erro ao carregar plantas publicadas no perfil:', falha);
+        if (ativo) setErroPlantas(falha?.message || 'Não foi possível carregar suas plantas publicadas.');
+      } finally { if (ativo) setCarregandoPlantas(false); }
+    }
+    carregarPlantasPublicadas();
+    return () => { ativo = false; };
+  }, [user?.id, tipo]);
+
   const enviarComprovante = async () => {
     if (!arquivoComprovante || enviandoComprovante || perfilTela.verificado) return;
 
@@ -510,9 +536,24 @@ export default function PerfilProfissional() {
         <Text style={s.paragrafo}>Nenhum serviço cadastrado.</Text>
       </Card>
 
-      <Card titulo="Portfólio em destaque" icone="folder-outline" mobile={mobile}>
-        <Text style={s.paragrafo}>Nenhum item de portfólio cadastrado.</Text>
-        <BotaoCard texto="Ver portfólio completo" mobile={mobile} onPress={() => navegar('/Meuportfolio')} />
+      <Card titulo="Minhas plantas publicadas" icone="home-outline" mobile={mobile}>
+        {carregandoPlantas ? (
+          <Text style={s.paragrafo}>Carregando suas plantas...</Text>
+        ) : erroPlantas ? (
+          <Text style={s.paragrafo}>{erroPlantas}</Text>
+        ) : plantasPublicadas.length === 0 ? (
+          <Text style={s.paragrafo}>Você ainda não publicou nenhuma planta.</Text>
+        ) : plantasPublicadas.map((planta) => (
+          <Pressable key={String(planta.id)} style={s.plantaPerfilItem}
+            onPress={() => navegar({ pathname: '/detalhesPlantas', params: { id: String(planta.id) } })}>
+            <View style={s.plantaPerfilInfo}>
+              <Text style={s.plantaPerfilNome}>{planta.nome}</Text>
+              <Text style={s.plantaPerfilCategoria}>{planta.categoria || 'Projeto'}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={DOURADO} />
+          </Pressable>
+        ))}
+        <BotaoCard texto="Publicar nova planta" mobile={mobile} onPress={() => navegar('/publicarPlanta')} />
       </Card>
 
       <Card titulo="Avaliações recentes" icone="star-outline" mobile={mobile}>
@@ -666,6 +707,11 @@ export default function PerfilProfissional() {
 /* ================================================= */
 
 const s = StyleSheet.create({
+  plantaPerfilItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#333' },
+  plantaPerfilInfo: { flex: 1, minWidth: 0 },
+  plantaPerfilNome: { color: '#fff', fontSize: 14, fontWeight: '600' },
+  plantaPerfilCategoria: { color: '#aaa', fontSize: 12, marginTop: 4 },
+
   /* ----- Base ----- */
   fundo: { flex: 1, backgroundColor: '#090909' },
   sombra: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0, 0, 0, 0.65)' },

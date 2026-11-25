@@ -40,12 +40,22 @@ function obterExtensaoImagem(imagem, mimeType) {
   return ['jpg', 'jpeg', 'png', 'webp'].includes(extensao) ? extensao : 'jpg';
 }
 
-/** Fale Conosco: { nome, email, assunto, mensagem } */
-export function enviarContato(/* contato */) {
-  if (__DEV__) {
-    console.warn('[envios] "contato" ainda não está conectado ao backend.');
-  }
-  return Promise.resolve({ enviado: false });
+/** Fale Conosco: registra a solicitação do usuário autenticado no Supabase. */
+export async function enviarContato(contato) {
+  const supabase = getSupabaseClient();
+  const { data: { user }, error: usuarioError } = await supabase.auth.getUser();
+  if (usuarioError) throw usuarioError;
+  if (!user?.id) throw new Error('Entre na sua conta para enviar uma mensagem.');
+  const { error } = await supabase.from('mensagens_suporte_mobile')
+    .insert({
+      user_id: user.id,
+      nome: contato.nome,
+      email: contato.email,
+      assunto: contato.assunto,
+      mensagem: contato.mensagem,
+    });
+  if (error) throw error;
+  return { enviado: true };
 }
 
 /**

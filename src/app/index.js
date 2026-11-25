@@ -14,6 +14,7 @@ import { useRouter, usePathname } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLegal } from '../components/LegalProvider';
+import { useConta } from '../components/ContaProvider';
 
 // Este arquivo está em src/app/index.js.
 // '../../assets' = pasta assets na RAIZ do projeto.
@@ -77,12 +78,24 @@ export default function Home() {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const { abrirLegal } = useLegal();
+  const { autenticado, tipo, menu: menuConta } = useConta();
   const largo = width >= 900;
   const [menuAberto, setMenuAberto] = useState(false);
 
   const navegar = (rota) => {
     setMenuAberto(false);
     router.push(rota);
+  };
+
+  const abrirPerfil = () => {
+    setMenuAberto(false);
+    if (!autenticado) {
+      router.push('/login');
+      return;
+    }
+
+    const rotaPerfil = menuConta.find((item) => item.id === 'perfil')?.rota;
+    router.push(rotaPerfil || (tipo === 'profissional' ? '/PerfilProfissional' : '/PerfilUsuario'));
   };
 
   const itensMenu = menu.map((item) => (
@@ -118,11 +131,11 @@ export default function Home() {
 
           <View style={styles.acoes}>
             <Pressable
-              onPress={() => navegar('/login')}
+              onPress={abrirPerfil}
               accessibilityRole="button"
-              accessibilityLabel="Entrar na conta"
+              accessibilityLabel={autenticado ? 'Abrir meu perfil' : 'Entrar na conta'}
               hitSlop={8}
-              style={({ pressed }) => pressed && styles.pressionado}
+              style={({ pressed }) => [styles.botaoPerfil, pressed && styles.pressionado]}
             >
               <Ionicons
                 name="person-circle-outline"
@@ -313,6 +326,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
+  },
+
+  botaoPerfil: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   botaoMenu: {
