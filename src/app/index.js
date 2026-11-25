@@ -78,7 +78,7 @@ export default function Home() {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const { abrirLegal } = useLegal();
-  const { autenticado, tipo } = useConta();
+  const { autenticado, tipo, menu: menuConta } = useConta();
   const largo = width >= 900;
   const [menuAberto, setMenuAberto] = useState(false);
 
@@ -88,11 +88,14 @@ export default function Home() {
   };
 
   const abrirPerfil = () => {
+    setMenuAberto(false);
     if (!autenticado) {
-      navegar('/login');
+      router.push('/login');
       return;
     }
-    navegar(tipo === 'profissional' ? '/PerfilProfissional' : '/PerfilUsuario');
+
+    const rotaPerfil = menuConta.find((item) => item.id === 'perfil')?.rota;
+    router.push(rotaPerfil || (tipo === 'profissional' ? '/PerfilProfissional' : '/PerfilUsuario'));
   };
 
   const itensMenu = menu.map((item) => (
@@ -132,7 +135,7 @@ export default function Home() {
               accessibilityRole="button"
               accessibilityLabel={autenticado ? 'Abrir meu perfil' : 'Entrar na conta'}
               hitSlop={8}
-              style={({ pressed }) => pressed && styles.pressionado}
+              style={({ pressed }) => [styles.botaoPerfil, pressed && styles.pressionado]}
             >
               <Ionicons
                 name="person-circle-outline"
@@ -323,6 +326,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
+  },
+
+  botaoPerfil: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   botaoMenu: {
