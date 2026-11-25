@@ -52,6 +52,7 @@ function Navegacao() {
         <Stack.Screen name="faleConosco" />
         <Stack.Screen name="planta" />
         <Stack.Screen name="profissionais" />
+        <Stack.Screen name="perguntasFrequentes" />
         <Stack.Screen name="registroProfissional" />
         <Stack.Screen name="sobreNos" />
 
