@@ -1,11 +1,23 @@
-import React, { useEffect, useRef, useState } from 'react';
-import {
-  View, Text, Image, ImageBackground, ScrollView, Pressable, TextInput,
-  Switch, Modal, Alert, KeyboardAvoidingView, Platform, StyleSheet,
-  useWindowDimensions, Animated,
-} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
+import {
+  Alert,
+  Animated,
+  Image, ImageBackground,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  useWindowDimensions,
+  View,
+} from 'react-native';
+import { useConta } from '../components/ContaProvider';
 import { useLegal } from '../components/LegalProvider';
 
 // >>> Ajuste os caminhos conforme a pasta deste arquivo
@@ -27,17 +39,7 @@ const COLORS = {
 const LARGURA_DRAWER = 270;
 
 // Ajuste as rotas conforme os nomes dos arquivos em src/app
-const MENU = [
-  { label: 'Meu Perfil', icon: 'person-outline', route: '/PerfilProfissional' },
-  { label: 'Meus Endereços', icon: 'location-outline', route: '/MeusenderecosP' },
-  { label: 'Meus Pedidos', icon: 'grid-outline', route: '/MeusPedidos' },
-  { label: 'Meus Profissionais Favoritos', icon: 'star-outline', route: '/Meusprofissionais' },
-  { label: 'Projetos Salvos', icon: 'bookmark-outline', route: '/MeusProjetos' },
-  { label: 'Agendamentos', icon: 'calendar-outline', route: '/AgendamentosP' },
-  { label: 'Mensagens', icon: 'chatbox-outline', route: '/MensagensP' },
-  { label: 'Configurações', icon: 'settings-outline', route: '/ConfigProfissionais', ativo: true },
-  { label: 'Sair', icon: 'log-out-outline', route: '/login', separador: true },
-];
+
 
 const LINKS_TOPO = [
   ['Início', '/'],
@@ -271,6 +273,7 @@ function GrupoSwitches({ itens, estado, onChange }) {
 export default function ConfigProfissionais() {
   const router = useRouter();
   const { abrirLegal } = useLegal();
+  const { menu: menuConta, limpar } = useConta();
   const { mobile, medio, largo, height } = useLayout();
   const paisagem = height < 500;
 
@@ -404,22 +407,34 @@ export default function ConfigProfissionais() {
   };
 
   /* ----- Itens do menu (aside e drawer) ----- */
-  const renderItensMenu = () =>
-    MENU.map((item) => (
-      <View key={item.label}>
-        {item.separador && <View style={s.divisorMenu} />}
+ 
+const renderItensMenu = () => (
+  <>
+    {menuConta.map((item) => {
+      const ativo = item.id === 'config';
+
+      return (
         <Pressable
-          style={[s.itemMenu, medio && s.itemMenuMedio, item.ativo && s.itemAtivo]}
+          key={item.id}
+          style={[
+            s.itemMenu,
+            medio && s.itemMenuMedio,
+            ativo && s.itemAtivo,
+          ]}
           onPress={() => {
             setMenuAberto(false);
-            if (!item.ativo) router.push(item.route);
+
+            if (!ativo) {
+              router.push(item.rota);
+            }
           }}
         >
           <Ionicons
-            name={item.icon}
+            name={item.icone}
             size={mobile ? 18 : medio ? 14 : 16}
             color={COLORS.gold}
           />
+
           <Text
             style={[
               s.itemMenuTxt,
@@ -427,11 +442,51 @@ export default function ConfigProfissionais() {
               mobile && s.itemMenuTxtMobile,
             ]}
           >
-            {item.label}
+            {item.nome}
           </Text>
         </Pressable>
-      </View>
-    ));
+      );
+    })}
+
+    <View style={s.divisorMenu} />
+
+    <Pressable
+      style={[s.itemMenu, medio && s.itemMenuMedio]}
+      onPress={async () => {
+        setMenuAberto(false);
+
+        try {
+          const saiu = await limpar();
+
+          if (saiu) {
+            router.push('/login');
+          }
+        } catch (error) {
+          Alert.alert(
+            'Erro',
+            'Não foi possível encerrar sua sessão.'
+          );
+        }
+      }}
+    >
+      <Ionicons
+        name="log-out-outline"
+        size={mobile ? 18 : medio ? 14 : 16}
+        color={COLORS.gold}
+      />
+
+      <Text
+        style={[
+          s.itemMenuTxt,
+          medio && s.itemMenuTxtMedio,
+          mobile && s.itemMenuTxtMobile,
+        ]}
+      >
+        Sair
+      </Text>
+    </Pressable>
+  </>
+);
 
   const renderLinksTopo = () => (
     <View style={[s.linksTopo, mobile && s.linksTopoMobile]}>
